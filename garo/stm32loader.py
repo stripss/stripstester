@@ -238,7 +238,7 @@ class CommandInterface:
 
     def cmdWriteMemory(self, addr, data):
 
-        assert(len(data) <= 128)
+        assert(len(data) <= 256)
         if self.cmdData(0x31):
             #mdebug(10, "*** Write memory command")
             self._encode_addr(addr)
@@ -387,23 +387,23 @@ class CommandInterface:
             pbar = None #  ProgressBar(widgets=widgets, maxval=lng, term_width=79).start()
 
         offs = 0
-        while lng > 128:
+        chunk_size = 256
+        while lng > chunk_size:
             if usepbar:
                 pbar.update(pbar.maxval-lng)
             else:
-                logger.debug( "Write %s bytes at %s" ,128, hex(addr))
-            self.cmdWriteMemory(addr, data[offs:offs+128])
-            offs = offs + 128
-            addr = addr + 128
-            lng = lng - 128
-            time.sleep(0.02)
+                logger.debug("Write %s bytes at %s", chunk_size, hex(addr))
+            self.cmdWriteMemory(addr, data[offs:offs+chunk_size])
+            offs = offs + chunk_size
+            addr = addr + chunk_size
+            lng = lng - chunk_size
         if usepbar:
             pbar.update(pbar.maxval-lng)
             pbar.finish()
         else:
-            logger.debug( "Write %s bytes at %s" , 128, hex(addr))
-        self.cmdWriteMemory(addr, data[offs:offs+lng] + bytes([0xFF] * (128-lng)) )
-
+            logger.debug( "Write %s bytes at %s" , chunk_size, hex(addr))
+        self.cmdWriteMemory(addr, data[offs:offs+lng] + bytes([0xFF] * (chunk_size-lng)) )
+        logger.info("Writing flash complete")
 
 
 def usage():

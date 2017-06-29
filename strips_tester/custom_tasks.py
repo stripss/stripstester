@@ -333,6 +333,8 @@ class CameraTest(Task):
 
     def set_up(self):
         self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
+        self.camera_device.calibrate()
+        #self.camera_device.take_pictures(3)
 
     def run(self):
 
