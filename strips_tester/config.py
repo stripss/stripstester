@@ -3,10 +3,8 @@ import sys
 import logging
 import RPi.GPIO as GPIO
 
-
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 import strips_tester
-
 
 
 module_logger = logging.getLogger(".".join((strips_tester.PACKAGE_NAME, __name__)))
@@ -72,14 +70,17 @@ relays = {relay: relays_config.get(relay).get("pin") for relay in relays_config}
 # import here to prevent circular dependency
 import custom_tasks
 tasks_execution_order = (
-    # custom_tasks.BarCodeReadTask,
-    # custom_tasks.StartProcedureTask,
+    custom_tasks.BarCodeReadTask,
+    custom_tasks.StartProcedureTask,
     custom_tasks.VoltageTest,
     # custom_tasks.FlashWifiModuleTask,
-    # custom_tasks.FlashMCUTask,
-    custom_tasks.UartPingTest,
+    custom_tasks.FlashMCUTask,
+    # custom_tasks.UartPingTest,
     # custom_tasks.InternalTest,
-    # custom_tasks.FinishProcedureTask,
+    custom_tasks.ManualLCDTest,
+    # custom_tasks.CameraTest,
+    custom_tasks.FinishProcedureTask,
+    custom_tasks.PrintSticker,
 )
 
 
@@ -90,4 +91,8 @@ def on_critical_event(event: str):
     # insert custom code to prevent possible damage like:
     # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
     module_logger.exception("On critical Event!")
+    finish = custom_tasks.FinishProcedureTask()
+    finish._execute(strips_tester.CRITICAL)
+    print = custom_tasks.PrintSticker()
+    print._execute(strips_tester.ERROR)
 

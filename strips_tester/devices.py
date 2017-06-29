@@ -223,7 +223,8 @@ class DigitalMultiMeter:
         pos = n // 16
         if pos == 0 or pos == 15:
             logger.warning("Problem synchronizing Digital multimeter")
-            self._synchronize()
+            module_logger.debug("Synchronizing")
+            self._synchronize()  # watch out, possible infinite loop
             raise self.DmmInvalidSyncValue()
 
         bytes_needed = self.bytes_per_read - pos
@@ -413,7 +414,7 @@ class DigitalMultiMeter:
 
 
 class GoDEXG300:
-    def __init__(self, port='/dev/ttyUSB1', timeout=3.0):
+    def __init__(self, port='/dev/ttyUSB0', timeout=3.0):
         self.ser = serial.Serial(
             port=port,
             baudrate=9600,
@@ -430,7 +431,8 @@ class GoDEXG300:
         self.ser.flushInput()
         self.logger = logging.getLogger(__name__)
 
-    def generate(self, article_type: str, release: str, wifi: str, mac_address: str, test_result: str):
+    @staticmethod
+    def generate(article_type: str, release: str, wifi: str, mac_address: str, test_result: str):
         label_str = ('^Q9,3\n'
                      '^W20\n'
                      '^H13\n'
@@ -473,18 +475,18 @@ class SainBoard16:
     def __init__(self, vid: int = 0x0416, pid=0x5020, path: str = None, initial_status=None, number_of_relays: int = 16):
         self.__WRITE_CMD = [0xC3, 0x0E, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0xEE, 0x01, 0x00, 0x00]
         self.number_of_relays = number_of_relays
-        self.board = hid.device()
+        self.hid_device = hid.device()
         if path:
-            self.board.open_path(path)
+            self.hid_device.open_path(path)
         else:
-            self.board.open(vid, pid)
-        self.board.write(self.OPEN_CMD)
+            self.hid_device.open(vid, pid)
+        self.hid_device.write(self.OPEN_CMD)
         self.logger = logging.getLogger(__name__)
         self.status = initial_status if initial_status else [False] * number_of_relays
 
     # def __del__(self):
-    #     self.board.write(self.CLOSE_CMD)
-    #     self.board.close()
+    #     self.hid_device.write(self.CLOSE_CMD)
+    #     self.hid_device.close()
 
     def _write_status(self):
         # update status
@@ -502,7 +504,7 @@ class SainBoard16:
         for i in range(4):
             self.__WRITE_CMD[length + i] = chksum & 0xff
             chksum = chksum >> 8
-        self.board.write(self.__WRITE_CMD)
+        self.hid_device.write(self.__WRITE_CMD)
 
     def open_relay(self, relay_number: int):
         """ Opens relay by its number """
@@ -544,277 +546,283 @@ class SainBoard16:
         #     return new
 
 
-# class PyCamera:
-#     class cameraConfig:
-#         def __init__(self):
-#             self.res = 50
-#             self.Xres = 128
-#             self.Yres = 80
-#             self.t1 = None
-#             self.t2 = None
-#             self.thr = 0.8
-#             self.Idx = None
-#             self.images = None
-#             self.dx = None
-#             self.dy = None
-#
-#         @classmethod
-#         def load(cls, file_path):
-#             conf = cls()
-#             if os.path.exists(file_path):
-#                 with open(file_path, 'r') as f:
-#                     data = json.load(f)
-#                 conf.res = data['res']
-#                 conf.Xres = data['Xres']
-#                 conf.Yres = data['Yres']
-#                 conf.t1 = data['t1']
-#                 conf.t1 = data['t2']
-#                 conf.thr = data['threshold']
-#                 conf.Idx = data['Idx']
-#                 conf.images = data['images']
-#             return conf
-#
-#         def save(self, file_path):
-#             data = {
-#                 'res': self.res,
-#                 'Xres': self.Xres,
-#                 'Yres': self.Yres,
-#                 't1': self.t1,
-#                 't2': self.t2,
-#                 'threshold': self.thr,
-#                 'Idx': self.Idx,
-#                 'images': self.images
-#             }
-#             with open(file_path, 'w') as f:
-#                 json.dump(data, f)
-#
-#         def is_complete(self):
-#             return self.images is not None and self.t1 is not None and self.t2 is not None
-#
-#     def __init__(self, configFile):
-#         self.conf = cameraConfig.load(os.path.dirname(__file__) + configFile)
-#         self.camera = picamera.PiCamera()
-#         self.setCameraParameters()
-#
-#         try:
-#             self.self_test()
-#         except:
-#             print("Failed to init Camera")
-#
-#     @staticmethod
-#     def rigidSm(imgA, imgB, tx, ty):
-#         txshape = tx.shape
-#         tx = np.asarray(tx).flatten()
-#         ty = np.asarray(ty).flatten()
-#         txxshape = tx.shape
-#
-#         MSE = np.zeros(txxshape, dtype=np.float64)
-#
-#         for i in range(tx.size):
-#             shiftImg = PyCamera.shiftPicture(imgB, ty[i], tx[i])
-#             MSE[i] = PyCamera.compare(imgA, shiftImg)
-#
-#         MSE.shape = txshape
-#         return MSE
-#
-#     @staticmethod
-#     def shiftPicture(img, dx, dy):
-#         def non(s):
-#             return s if s < 0 else None
-#
-#         def mom(s):
-#             return max(0, s)
-#
-#         newImg = np.zeros_like(img)
-#         newImg[mom(dy):non(dy), mom(dx):non(dx)] = img[mom(-dy):non(-dy), mom(-dx):non(-dx)]
-#         return newImg
-#
-#     @staticmethod
-#     def compare(img1, img2, perc=0.8):
-#         sumImg1 = np.sum(img1)
-#         sumImg2 = np.sum(np.logical_and(img1, img2))
-#         return (sumImg2 / sumImg1)
-#
-#     @staticmethod
-#     def imWindow(img, center, width, ls=1):
-#         oimg = np.zeros(img.shape)
-#
-#         ind1 = img < center - (width * 0.5)
-#         ind3 = img > center + (width * 0.5)
-#
-#         ind2 = np.logical_and(img >= center - width * 0.5, img <= center + width * 0.5)
-#
-#         oimg[ind1] = False
-#         oimg[ind3] = False
-#         oimg[ind2] = ls
-#
-#         return oimg
-#
-#
-#     def podrocje(self, img, msg):
-#
-#         if self.conf.t1 is None or self.conf.t2 is None:
-#             pp.figure()
-#             pp.imshow(img)
-#             pp.title(msg)
-#             t1, t2 = pp.ginput(n=2)
-#             x1 = int(t1[1])
-#             x2 = int(t2[1])
-#             y1 = int(t1[0])
-#             y2 = int(t2[0])
-#             pp.close()
-#             self.conf.t1 = (x1, y1)
-#             self.conf.t2 = (x2, y2)
-#
-#     def setResolution(self):
-#         self.camera.resolution = (self.conf.Xres, self.conf.Yres)
-#         self.camera.framerate = 80
-#         self.camera.start_preview()
-#         sleep(3)
-#         dx = 32
-#         dy = 16
-#
-#         while True:
-#             sleep(1)
-#             calibPic = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#             self.camera.capture(calibPic, 'rgb', use_video_port=True)
-#             self.podrocje(calibPic[:, :, 0], 'Izberi levi zgornji in desni spodnji kot dvopičja ')
-#
-#             if (self.conf.t2[0] - self.conf.t1[0]) * (self.conf.t2[1] - self.conf.t1[1]) < self.conf.res:
-#                 print("Resolution to low : get camera closer to the screen or increase resolution !!!")
-#                 sleep(10)
-#             elif (self.conf.t2[0] - self.conf.t1[0]) * (self.conf.t2[1] - self.conf.t1[1]) > self.conf.res * 1.5:
-#                 print("Resolution to high : Changing camera resolution ...")
-#                 self.camera.resolution = (self.conf.Xres - dx, self.conf.Yres - dy)
-#                 sleep(2)
-#             else:
-#                 print("Resolution set succesfully")
-#                 break
-#
-#         self.camera.stop_preview()
-#
-#     def setCameraParameters(self):
-#         self.camera.shutter_speed = self.camera.exposure_speed
-#         self.camera.exposure_mode = 'off'
-#         g = self.camera.awb_gains
-#         self.camera.awb_mode = 'off'
-#         self.camera.awb_gains = g
-#         self.camera.resolution = (self.conf.Xres, self.conf.Yres)
-#         self.camera.framerate = 80
-#         # self.camera.iso = 400   #could change in low light
-#
-#
-#     def imStep(self, img, step=128, ls=1):
-#         oimg = np.zeros_like(img)
-#         ind1 = img > np.max(img * 0.6)
-#         ind2 = img <= np.max(img * 0.6)
-#         oimg[ind1] = ls
-#         oimg[ind2] = 0
-#         return oimg
-#
-#
-#     def compare2(self, img1, img2):
-#
-#         # img1 = self.imWindow(img1,230, 40)
-#         # img2 = self.imWindow(img2, 230, 40)
-#         img1 = self.imStep(img1, 40)
-#         img2 = self.imStep(img2, 40)
-#         sumImg1 = np.sum(img1)
-#         sumImg2 = np.sum(np.logical_and(img1, img2))
-#         if sumImg2 > self.conf.thr * sumImg1:
-#             return sumImg2 / sumImg1, True
-#         else:
-#             return sumImg2 / sumImg1, False
-#
-#     def self_test(self):
-#         sleep(1)
-#         slika1 = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#         self.camera.capture(slika1, 'rgb', use_video_port=True)
-#         sleep(1)
-#         slika2 = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#         self.camera.capture(slika2, 'rgb', use_video_port=True)
-#
-#         perc, result = self.compare2(slika1[:, :, 0], slika2[:, :, 0])
-#         if result:
-#             print('Self test done. Pictures match by : %f percent'.format(perc))
-#             return True
-#         else:
-#             print('Self test failed !!!. Pictures match by %f percent', perc)
-#             return False
-#
-#     def calibrate(self):
-#         tx = ty = np.arange(-5, 5 + 1)
-#         Tx, Ty = np.meshgrid(ty, tx, indexing='ij')
-#
-#         sleep(1)
-#         slika1 = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#         self.camera.capture(slika1, 'rgb', use_video_port=True)
-#         sleep(1)
-#         slika2 = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#         self.camera.capture(slika2, 'rgb', use_video_port=True)
-#
-#         matrix = self.rigidSm(slika1[:, :, 0], slika2[:, :, 0], Tx, Ty)
-#
-#         a = np.argmax(matrix)
-#         x = np.mod(a, np.size(tx))
-#         y = int(np.floor(a / np.size(tx)))
-#         self.dx = Tx[x, 0]
-#         self.dy = Ty[0, y]
-#
-#     def close(self):
-#         self.camera.close()
-#
-#     def runTest(self):
-#         failed = 0
-#         for j in range(len(self.conf.Idx)):
-#             slika1 = np.empty((self.conf.Xres, self.conf.Yres, 3), dtype=np.uint8)
-#             self.camera.capture(slika1, 'rgb', use_video_port=True)
-#             pix = 0
-#             failed = failed + 1
-#             for i in range(len(self.conf.Idx)):
-#                 x = self.conf.Idx[i]["x"] + self.dx
-#                 y = self.conf.Idx[i]["y"] + self.dy
-#                 b1 = slika1[y, x, 0] >> 7
-#                 if b1 != 0 and i != j:
-#                     print("Test failed, sequence : %d".format(failed))
-#                     return False
-#                 elif i == j and b1 == 0:
-#                     print("Test failed, sequence : %d".format(failed))
-#                     return False
-#
-#         return True
-#
-#     if __name__ == '__main__':
-#         camera = picamera.PiCamera()
-#         camera.resolution = (128, 80)
-#
-#         sleep(1)
-#         slika1 = np.empty((128, 80, 3), dtype=np.uint8)
-#         camera.capture(slika1, 'rgb', use_video_port=True)
-#         sleep(1)
-#         slika2 = np.empty((128, 80, 3), dtype=np.uint8)
-#         camera.capture(slika2, 'rgb', use_video_port=True)
-#
-#         slika3 = slika1[:, :, 0] - slika2[:, :, 0]
-#         print(slika1)
-#         print(np.max(slika1))
-#         print(np.mean(slika1))
-#         print(slika2)
-#         print(np.max(slika2))
-#         print(np.mean(slika2))
-#         print(slika3)
-#         print(np.max(slika3))
-#         print(np.mean(slika3))
-#         # print([j for j in slika3])
-#
-#     '''
-#         print("Starting ")
-#         mycamera = cameraInit('/cameraConfig.json')
-#         mycamera.calibrate()
-#         flag = mycamera.runTest()
-#         if flag:
-#             print("Screen test completed successfully")
-#
-#         mycamera.close()
-#         print("Done")
-#     '''
+class CameraDevice:
+    logger = logging.getLogger(".".join((PACKAGE_NAME, __name__, "CameraDevice")))
+    def __init__(self, config_path: str):
+        self.res = 50
+        self.Xres = 128
+        self.Yres = 80
+        self.t1 = None
+        self.t2 = None
+        self.thr = 0.8
+        self.Idx = None
+        self.images = None
+        self.dx = None
+        self.dy = None
+        self.interval = 80
+        self.imgNum = 40
+        self.load(config_path)
+        self.img = None #np.empty((self.Xres, self.Yres, 3, self.imgNum), dtype=np.uint8)
+        self.camera = picamera.PiCamera()
+        #self.set_camera_parameters()
+        try:
+            self.self_test()
+        except:
+            logger.error("Failed to init Camera")
+
+    @staticmethod
+    def nom(index):
+        if index < 0:
+            return index
+        else:
+            return None
+
+    @staticmethod
+    def mom(index):
+        return max(0, index)
+
+    def load(self, file_path):
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            self.res = data['res']
+            self.Xres = data['Xres']
+            self.Yres = data['Yres']
+            self.t1 = data['t1']
+            self.t1 = data['t2']
+            self.thr = data['threshold']
+            self.Idx = data['Idx']
+            self.images = data['images']
+            self.interval = data['interval']
+            self.imgNum = data['image number']
+
+    def save(self, file_path):
+        data = {
+            'res': self.res,
+            'Xres': self.Xres,
+            'Yres': self.Yres,
+            't1': self.t1,
+            't2': self.t2,
+            'threshold': self.thr,
+            'Idx': self.Idx,
+            'images': self.images,
+            'interval': self.interval,
+            'image number': self.imgNum
+        }
+        with open(file_path, 'w') as f:
+            json.dump(data, f)
+
+    def is_complete(self):
+        return self.images is not None and self.t1 is not None and self.t2 is not None
+
+    def podrocje(self, img, msg):
+        if self.t1 is None or self.t2 is None:
+            pp.figure()
+            pp.imshow(img)
+            pp.title(msg)
+            t1, t2 = pp.ginput(n=2)
+            x1 = int(t1[1])
+            x2 = int(t2[1])
+            y1 = int(t1[0])
+            y2 = int(t2[0])
+            pp.close()
+            self.t1 = (x1, y1)
+            self.t2 = (x2, y2)
+
+    @staticmethod
+    def shift_picture(img, dx, dy):
+        non = lambda s: s if s < 0 else None
+        mom = lambda s: max(0, s)
+        newImg = np.zeros_like(img)
+        newImg[mom(dy):non(dy), mom(dx):non(dx)] = img[mom(-dy):non(-dy), mom(-dx):non(-dx)]
+        return newImg
+
+    @staticmethod
+    def compare_img(img1, img2, perc=0.8):
+        sumImg1 = np.sum(img1)
+        sumImg2 = np.sum(np.logical_and(img1, img2))
+        return (sumImg2 / sumImg1)
+
+    # def setResolution(self):
+    #     self.camera.resolution = (self.conf.Xres, self.conf.Yres)
+    #     self.camera.framerate = 80
+    #     self.camera.start_preview()
+    #     sleep(3)
+    #     dx = 32
+    #     dy = 16
+    #
+    #     while True:
+    #         sleep(1)
+    #         calibPic = np.empty((self.conf.Xres, self.conf.Yres,3),dtype=np.uint8)
+    #         self.camera.capture(calibPic, 'rgb', use_video_port=True)
+    #         self.podrocje(calibPic[:,:,0],'Izberi levi zgornji in desni spodnji kot dvopičja ')
+    #
+    #         if (self.conf.t2[0]-self.conf.t1[0])*(self.conf.t2[1]-self.conf.t1[1])< self.conf.res:
+    #             print("Resolution to low : get camera closer to the screen or increase resolution !!!")
+    #             sleep(10)
+    #         elif (self.conf.t2[0]-self.conf.t1[0])*(self.conf.t2[1]-self.conf.t1[1]) > self.conf.res*1.5:
+    #                 print("Resolution to high : Changing camera resolution ...")
+    #                 self.camera.resolution = (self.conf.Xres-dx, self.conf.Yres-dy)
+    #                 sleep(2)
+    #         else:
+    #             print("Resolution set succesfully")
+    #             break
+    #
+    #     self.camera.stop_preview()
+
+    def set_camera_parameters(self):
+        self.camera.shutter_speed = self.camera.exposure_speed
+        self.camera.exposure_mode = 'off'
+        g = self.camera.awb_gains
+        self.camera.awb_mode = 'off'
+        self.camera.awb_gains = g
+        self.camera.resolution = (self.Xres, self.Yres)
+        self.camera.framerate = 80
+        # self.camera.iso = 400   #could change in low light
+
+    def im_window(self, img, center, width, ls=1):
+        oimg = np.zeros_like(img)
+
+        ind1 = img < center - (width * 0.5)
+        ind3 = img > center + (width * 0.5)
+        ind2 = np.logical_and(img >= center - width * 0.5, img <= center + width * 0.5)
+        oimg[ind1] = False
+        oimg[ind3] = False
+        oimg[ind2] = ls
+        return oimg
+
+    def im_step(self, img, thr=0.6, ls=1):
+        oimg = np.zeros_like(img)
+        print("step", img, img *thr)
+        ind1 = img > np.max(img * thr)
+        ind2 = img <= np.max(img * thr)
+        oimg[ind1] = ls
+        oimg[ind2] = 0
+        return oimg
+
+    def compare(self, img1, img2):
+        # img1 = self.im_window(img1,230, 40)
+        # img2 = self.im_window(img2, 230, 40)
+        print(33,img1)
+        img1 = self.im_step(img1, 40)
+        print(33,img1)
+        img2 = self.im_step(img2, 40)
+        sumImg1 = np.sum(img1)
+        sumImg2 = np.sum(np.logical_and(img1, img2))
+        if sumImg2 > self.thr * sumImg1:
+            return sumImg2 / sumImg1, True
+        else:
+            return sumImg2 / sumImg1, False
+
+    def rigid_sm(self, imgA, imgB, tx, ty):
+        txshape = tx.shape
+        tx = np.asarray(tx).flatten()
+        ty = np.asarray(ty).flatten()
+        txxshape = tx.shape
+
+        MSE = np.zeros(txxshape, dtype=np.float64)
+
+        for i in range(tx.size):
+            shiftImg = self.shift_picture(imgB, ty[i], tx[i])
+            MSE[i] = self.compare_img(imgA, shiftImg)
+
+        MSE.shape = txshape
+        return MSE
+
+    def compare_idx(self):
+        # for i in range(self.)
+        x = 1
+
+    def self_test(self):
+        time.sleep(1)
+        slika1 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint32)
+        print("max from empty", np.max(slika1[:, :, 0]), np.max(slika1[:, :, 1]), np.max(slika1[:, :, 2]))
+        self.camera.capture(slika1, 'rgb', use_video_port=False)
+        logger.debug("first pic")
+        time.sleep(3)
+        slika2 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint32)
+        logger.debug("secondrR pic")
+        self.camera.capture(slika2, 'rgb', use_video_port=True)
+        print("selftest", slika1,55, slika1[:, :, 1])
+        print("max from pic",np.max(slika1[:, :, 0]),np.max(slika1[:, :, 1]),np.max(slika1[:, :, 2]))
+
+        with picamera.array.PiRGBArray(self.camera) as output:
+            self.camera.capture(output, 'rgb')
+            print('Captured %dx%d image' % (output.array.shape[1], output.array.shape[0]))
+            slika1 = output.array
+            print("max from pic", np.max(slika1[:, :, 0], slika1[:, :, 1], slika1[:, :, 2]))
+
+
+
+        perc, result = self.compare(slika1[:, :, 1], slika2[:, :, 1])
+        if result:
+            logger.debug('Self test done. Pictures match by : %s percent', perc)
+            return True
+        else:
+            logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
+            return False
+
+    def calibrate(self):
+        tx = ty = np.arange(-5, 5 + 1)
+        Tx, Ty = np.meshgrid(ty, tx, indexing='ij')
+
+        time.sleep(1)
+        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+        self.camera.capture(slika1, 'rgb', use_video_port=True)
+        time.sleep(1)
+        slika2 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+        self.camera.capture(slika2, 'rgb', use_video_port=True)
+
+        matrix = self.rigid_sm(slika1[:, :, 0], slika2[:, :, 0], Tx, Ty)
+
+        a = np.argmax(matrix)
+        x = np.mod(a, np.size(tx))
+        y = int(np.floor(a / np.size(tx)))
+        self.dx = Tx[x, 0]
+        self.dy = Ty[0, y]
+
+    def close(self):
+        self.camera.close()
+
+    def take_pictures(self, imgNum=40):
+        for i in range(imgNum):
+            t1 = datetime.now()
+            self.camera.capture(self.img[:, :, :, i], 'rgb', use_video_port=True)
+            t2 = datetime.now()
+            dt = t2 - t1
+            while (dt.microseconds < self.interval):
+                t2 = datetime.now()
+                dt = t2 - t1
+                sleep(0.005)
+
+    def get_pictures(self, Idx=0):
+        return
+
+    def take_img(self,xres=128,yres=80):
+        self.camera.resolution = (xres,yres)
+        slika = np.empty(())
+
+
+    def run_test(self):
+        failed = 0
+        for j in range(len(self.Idx)):
+            slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+            self.camera.capture(slika1, 'rgb', use_video_port=True)
+            pix = 0
+            failed = failed + 1
+            for i in range(len(self.Idx)):
+                x = self.Idx[i]["x"] + self.dx
+                y = self.Idx[i]["y"] + self.dy
+                b1 = slika1[y, x, 0] >> 7
+                if b1 != 0 and i != j:
+                    logger.error("Test failed, sequence : %s",failed)
+                    return False
+                elif i == j and b1 == 0:
+                    logger.error("Test failed, sequence : %s",failed)
+                    return False
+        return True
+
+
+
+
+

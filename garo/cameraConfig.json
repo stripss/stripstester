@@ -1,0 +1,12 @@
+{
+	"res":50,
+	"Xres":128,
+	"Yres":80,
+	"t1": null,
+	"t2": null,
+	"threshold":0.8,
+	"Idx": [{"x":0, "y":0},{"x":1, "y":1},{"x":2, "y":2}],
+	"images":null,
+	"interval":80,
+	"image number":40
+}
