@@ -549,29 +549,28 @@ class SainBoard16:
 class CameraDevice:
     logger = logging.getLogger(".".join((PACKAGE_NAME, __name__, "CameraDevice")))
     def __init__(self, config_path: str):
-        self.res = 50
         self.Xres = 128
         self.Yres = 80
-        self.t1 = None
-        self.t2 = None
         self.thr = 0.8
         self.Idx = None
         self.images = None
-        self.dx = None
-        self.dy = None
         self.interval = 80
         self.imgNum = 40
-        #self.load(config_path)
-        self.img = np.empty((self.Xres, self.Yres, 3, self.imgNum), dtype=np.uint8)
+
+        self.dx = None
+        self.dy = None
+        self.imgCount = 0
+
+        self.load(config_path)
+        self.img = np.empty((self.Xres, self.Yres,self.imgNum), dtype=np.uint8)
         self.camera = picamera.PiCamera()
-        #self.camera.resolution = (self.Xres, self.Yres)
         self.set_camera_parameters()
-        #self.take_img()
         try:
             logger.debug("Starting self test")
             self.self_test()
         except:
             logger.error("Failed to init Camera")
+
 
     @staticmethod
     def nom(index):
@@ -588,11 +587,8 @@ class CameraDevice:
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 data = json.load(f)
-            self.res = data['res']
             self.Xres = data['Xres']
             self.Yres = data['Yres']
-            self.t1 = data['t1']
-            self.t1 = data['t2']
             self.thr = data['threshold']
             self.Idx = data['Idx']
             self.images = data['images']
@@ -601,11 +597,8 @@ class CameraDevice:
 
     def save(self, file_path):
         data = {
-            'res': self.res,
             'Xres': self.Xres,
             'Yres': self.Yres,
-            't1': self.t1,
-            't2': self.t2,
             'threshold': self.thr,
             'Idx': self.Idx,
             'images': self.images,
@@ -680,7 +673,7 @@ class CameraDevice:
         self.camera.awb_mode = 'off'
         self.camera.awb_gains = g
         self.camera.resolution = (self.Xres, self.Yres)
-        self.camera.framerate = 80
+        self.camera.framerate = 40
         # self.camera.iso = 400   #could change in low light
         time.sleep(3)
 
@@ -697,9 +690,8 @@ class CameraDevice:
 
     def im_step(self, img, thr=0.6, ls=1):
         oimg = np.zeros_like(img)
-        #print("step", img, img *thr)
-        ind1 = img > np.max(img * thr)
-        ind2 = img <= np.max(img * thr)
+        ind1 = img > np.max(img)*thr
+        ind2 = img <= np.max(img)*thr
         oimg[ind1] = ls
         oimg[ind2] = 0
         return oimg
@@ -723,13 +715,10 @@ class CameraDevice:
         tx = np.asarray(tx).flatten()
         ty = np.asarray(ty).flatten()
         txxshape = tx.shape
-
         MSE = np.zeros(txxshape, dtype=np.float64)
-
         for i in range(tx.size):
             shiftImg = self.shift_picture(imgB, ty[i], tx[i])
             MSE[i] = self.compare_img(imgA, shiftImg)
-
         MSE.shape = txshape
         return MSE
 
@@ -738,14 +727,14 @@ class CameraDevice:
         x = 1
 
     def self_test(self):
+        time.sleep(1)
         slika1 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
-        # print("max from empty", np.max(slika1[:, :, 0]), np.max(slika1[:, :, 1]), np.max(slika1[:, :, 2]))
+        slika2 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
         self.camera.capture(slika1, 'rgb', use_video_port=True)
         logger.debug("first pic")
-        slika2 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
-        logger.debug("secondrR pic")
-        time.sleep(4)
+        time.sleep(1)
         self.camera.capture(slika2, 'rgb', use_video_port=True)
+        logger.debug("second pic")
         # print("selftest", slika1,55, slika1[:, :, 1])
         # print("max from pic",np.max(slika1[:, :, 0]),np.max(slika1[:, :, 1]),np.max(slika1[:, :, 2]))
         #print("Image size",slika1.shape[0]," ",slika1.shape[1])
@@ -758,73 +747,77 @@ class CameraDevice:
             return False
 
     def calibrate(self):
-        tx = ty = np.arange(-7, 7 + 1)
-        Tx, Ty = np.meshgrid(ty, tx, indexing='ij')
+        tx = ty = np.arange(-4, 4 + 1)
+        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
+
+        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+        slika2 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
 
         time.sleep(1)
-        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
         self.camera.capture(slika1, 'rgb', use_video_port=True)
-        logger.debug('Calibration test. Move camera')
+        logger.debug('Calibration in progress. Try to move camera to test, 5s sleep')
         time.sleep(5)
-        slika2 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
         self.camera.capture(slika2, 'rgb', use_video_port=True)
 
         matrix = self.rigid_sm(slika1[:, :, 0], slika2[:, :, 0], Tx, Ty)
-
-        matrixr = matrix.reshape((np.size(tx),np.size(ty)))
-        print(matrixr)
-
-        a = np.argmax(matrix)
-
-        x = np.mod(a, np.size(tx))
-        y = int(np.floor(a / np.size(tx)))
-        print(223,x,y)
-        self.dx = Tx[x, 0]
-        self.dy = Ty[0, y]
+        m = np.argmax(matrix)
+        x = np.mod(m, np.size(tx))
+        y = int(np.floor(m / np.size(ty)))
+        self.dx = Tx[0, x]
+        self.dy = Ty[y, 0]
         logger.debug("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
 
     def close(self):
         self.camera.close()
 
-    def take_pictures(self, imgNum=40):
-        for i in range(imgNum):
-            t1 = datetime.now()
-            self.camera.capture(self.img[:, :, :, i], 'rgb', use_video_port=True)
-            t2 = datetime.now()
-            dt = t2 - t1
-            while (dt.microseconds < self.interval):
+    def take_pictures(self, imNum=40):
+        if imNum > self.imgNum:
+            logger.error("Memory only for %s pictures. Change configuratio file",self.imgNum)
+            return False
+        else:
+            self.imgCount = 0
+            image = np.empty((self.Xres,self.Yres,3),dtype=np.uint8)
+            for i in range(imNum):
+                t1 = datetime.now()
+                self.camera.capture(image, 'rgb', use_video_port=True)
+                self.img[:,:,i] = image[:,:,0]
                 t2 = datetime.now()
                 dt = t2 - t1
-                sleep(0.005)
-            logger.debug('Took picture %s', i)
+                while (dt.microseconds < (self.interval*1000)):
+                    t2 = datetime.now()
+                    dt = t2 - t1
+                    sleep(0.005)
+                logger.debug('Took picture %s in %s us', i, dt.microseconds/1000)
+                self.imgCount = self.imgCount + 1
+            return True
+
 
     def get_picture(self, Idx=0):
-        return self.img[:,:,0,Idx]
+        if Idx < 0 or Idx > self.imgCount:
+            logger.error("Idx out of bounds for picture access")
+            return False
+        else:
+            return self.img[:,:,Idx]
 
-    def take_img(self,xres=128,yres=80):
-        self.camera.resolution = (xres,yres)
-        time.sleep(3)
+    def take_img(self,xres=128, yres=80, RGB=0):
         slika = np.empty([xres,yres,3], dtype=np.uint8)
         self.camera.capture(slika,'rgb')
-        print("Picture max RGB",np.max(slika[:,:,0]),np.max(slika[:,:,1]),np.max(slika[:,:,2]))
+        #print("Picture max RGB",np.max(slika[:,:,0]),np.max(slika[:,:,1]),np.max(slika[:,:,2]))
+        return slika[:,:,RGB]
 
 
     def run_test(self):
-        failed = 0
-        for j in range(len(self.Idx)):
-            slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
-            self.camera.capture(slika1, 'rgb', use_video_port=True)
-            pix = 0
-            failed = failed + 1
+        for j in range(self.imgCount):
+            slika = self.get_picture(j)
             for i in range(len(self.Idx)):
                 x = self.Idx[i]["x"] + self.dx
                 y = self.Idx[i]["y"] + self.dy
-                b1 = slika1[y, x, 0] >> 7
+                b1 = slika[y, x] >> 7
                 if b1 != 0 and i != j:
-                    logger.error("Test failed, sequence : %s",failed)
+                    logger.error("Test failed, picture : %s",j+1)
                     return False
                 elif i == j and b1 == 0:
-                    logger.error("Test failed, sequence : %s",failed)
+                    logger.error("Test failed, picture : %s",j+1)
                     return False
         return True
 

@@ -72,15 +72,12 @@ class Product:
         if not raw_scanned_string:
             logging.error("Not scanned yet!")
         else:
-            try:
-                ss = raw_scanned_string
-                self.production_datetime = datetime.datetime.now()
-                self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
-                self.serial = int(ss[7:11])
-                self.product_type = ss[-7:]
-            except Exception as e:
-                module_logger.error("Problem with parsing data matrix!")
-                raise strips_tester.CriticalEventException
+            ss = raw_scanned_string
+            self.production_datetime = datetime.datetime.now()
+            self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
+            self.serial = int(ss[7:11])
+            self.product_type = ss[-7:]
+            # print(self.product_type, self.serial, self.production_datetime)
 
 class Task:
     """

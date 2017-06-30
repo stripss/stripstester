@@ -334,11 +334,14 @@ class CameraTest(Task):
     def set_up(self):
         self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
         self.camera_device.calibrate()
-        #self.camera_device.take_pictures(3)
 
     def run(self):
+        if  self.camera_device.take_pictures(5):
+            self.camera_device.run_test()
+        else:
+            module_logger.error("Failed taking pictures")
 
-        return False, "not implemented yet"
+        return True, "Display test went through"
 
     def tear_down(self):
         self.camera_device.close()
@@ -356,17 +359,22 @@ class FinishProcedureTask(Task):
         if strips_tester.current_product.test_status:
 
             module_logger.debug("Test SUCCESSFUL!")
-
+            GPIO.output(gpios["LIGHT_GREEN"], G_HIGH)
+            module_logger.debug("Green light lit")
         else:
             module_logger.debug("Tests FAILED!")
-            for i in range(7):
+            for i in range(6):
+                if GPIO.input(gpios.get("START_SWITCH")):
+                    break
                 self.relay_board.close_relay(relays["LED_RED"])
-                time.sleep(0.3)
+                time.sleep(0.5)
                 self.relay_board.open_relay(relays["LED_RED"])
-                time.sleep(0.3)
+                time.sleep(0.5)
         module_logger.info("Open lid and remove product.")
         GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
         module_logger.debug("Lid opened")
+        GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
+        module_logger.debug("Green light turned off")
         return True, "finished"
 
     def tear_down(self):

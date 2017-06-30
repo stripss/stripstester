@@ -35,6 +35,8 @@ gpios_config = {"START_SWITCH": {"pin": 12, "function": G_INPUT, "pull": G_PUD_U
                 "CONFIRM_BAD_SWITCH": {"pin": 32, "function": G_INPUT, "pull": G_PUD_UP},
                 "RST": {"pin": 18, "function": G_OUTPUT, "initial": G_LOW},
                 "DTR": {"pin": 22, "function": G_OUTPUT, "initial": G_LOW},
+                "LIGHT_GREEN": {"pin": 24, "function": G_OUTPUT, "initial": G_LOW},
+
                 }
 # GPIO pin finder helper. Example: gpios["START_SWITCH"] -> pin_number:int
 gpios = {gpio: gpios_config.get(gpio).get("pin") for gpio in gpios_config}

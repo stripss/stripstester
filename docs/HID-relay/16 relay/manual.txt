@@ -1,26 +1,26 @@
-Ò».ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½ï¿½ï¿½ CommandApp_USBRelay.exe Ê¹ï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½
+Ò».ÃüÁî²âÊÔ¹¤¾ß CommandApp_USBRelay.exe Ê¹ÓÃËµÃ÷£º
 
-ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½CommandApp_USBRelay [ï¿½è±¸ï¿½ï¿½ï¿½Ðºï¿½]  [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½]  [ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½]
+ÃüÁî¸ñÊ½£ºCommandApp_USBRelay [Éè±¸ÐòÁÐºÅ]  [²Ù×÷ÀàÐÍ]  [¼ÌµçÆ÷¿ª¹Ø]
 
-[ï¿½ï¿½ï¿½ï¿½Ëµï¿½ï¿½]
-ï¿½è±¸ï¿½ï¿½ï¿½ÐºÅ£ï¿½Ã¿ï¿½ï¿½ï¿½è±¸ï¿½ï¿½Ò»ï¿½ï¿½Î¨Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ÐºÅ£ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½GuiApp_Chinese.exeï¿½ï¿½ï¿½ï¿½GuiApp_English.exeï¿½ï¿½ï¿½ï¿½ï¿½È¡
-ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½  open_relay--ï¿½ò¿ª¼Ìµï¿½ï¿½ï¿½ï¿½ï¿½ close_relay-- ï¿½Ø±Õ¼Ìµï¿½ï¿½ï¿½
-ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½01ï¿½ï¿½Ê¾ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½02ï¿½ï¿½Ê¾ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½... 255ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½Ð¼Ìµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+[²ÎÊýËµÃ÷]
+Éè±¸ÐòÁÐºÅ£ºÃ¿¸öÉè±¸ÓÐÒ»¸öÎ¨Ò»µÄÐòÁÐºÅ£¬¿ÉÒÔÍ¨¹ýGuiApp_Chinese.exe»òÕßGuiApp_English.exe³ÌÐò»ñÈ¡
+²Ù×÷ÀàÐÍ£º  open--´ò¿ª¼ÌµçÆ÷£¬ close-- ¹Ø±Õ¼ÌµçÆ÷
+¼ÌµçÆ÷¿ª¹Ø£º01±íÊ¾µÚÒ»¸ö¼ÌµçÆ÷£¬02±íÊ¾µÚ¶þ¸ö¼ÌµçÆ÷£¬... 255±íÊ¾ËùÓÐ¼ÌµçÆ÷¶¯×÷
 
-ï¿½ï¿½ï¿½ç£º
-1. ï¿½ï¿½ï¿½ï¿½ï¿½Ðºï¿½afEd5ï¿½è±¸ï¿½Äµï¿½Ò»Â·ï¿½Ìµï¿½ï¿½ï¿½
-CommandApp_USBRelay  afEd5 open_relay 01
-2. ï¿½ï¿½ï¿½ï¿½ï¿½Ðºï¿½afEd5ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼Ìµï¿½ï¿½ï¿½
-CommandApp_USBRelay  afEd5 open_relay 255
-3. ï¿½Ø±ï¿½ï¿½ï¿½ï¿½Ðºï¿½afEd5ï¿½è±¸ï¿½Äµï¿½Ò»Â·ï¿½Ìµï¿½ï¿½ï¿½
-CommandApp_USBRelay  afEd5 close_relay 01
-4. ï¿½Ø±ï¿½ï¿½ï¿½ï¿½Ðºï¿½afEd5ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼Ìµï¿½ï¿½ï¿½
-CommandApp_USBRelay  afEd5 close_relay 255
+ÀýÈç£º
+1. ´ò¿ªÐòÁÐºÅafEd5Éè±¸µÄµÚÒ»Â·¼ÌµçÆ÷
+CommandApp_USBRelay  afEd5 open 01
+2. ´ò¿ªÐòÁÐºÅafEd5Éè±¸µÄËùÓÐ¼ÌµçÆ÷
+CommandApp_USBRelay  afEd5 open 255
+3. ¹Ø±ÕÐòÁÐºÅafEd5Éè±¸µÄµÚÒ»Â·¼ÌµçÆ÷
+CommandApp_USBRelay  afEd5 close 01
+4. ¹Ø±ÕÐòÁÐºÅafEd5Éè±¸µÄËùÓÐ¼ÌµçÆ÷
+CommandApp_USBRelay  afEd5 close 255
 
-ï¿½ï¿½ï¿½ï¿½ï¿½Ð¹ï¿½ï¿½ï¿½Ö´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ò·µ»ï¿½0ï¿½ï¿½ ï¿½ï¿½ï¿½ò·µ»ï¿½ 1
-ï¿½ï¿½ï¿½ï¿½ï¿½ß¿ï¿½ï¿½Ô¸ï¿½ï¿½Ý¸ï¿½Öµï¿½Ð¶ï¿½Ö´ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½È·
+ÃüÁîÐÐ¹¤¾ßÖ´ÐÐÍêÃüÁîºó£¬Èç¹ûÃ»ÓÐ´íÎó£¬Ôò·µ»Ø0£¬ ·ñÔò·µ»Ø 1
+µ÷ÓÃÕß¿ÉÒÔ¸ù¾Ý¸ÃÖµÅÐ¶ÏÖ´ÐÐÊÇ·ñÕýÈ·
 
-ï¿½ï¿½ï¿½ï¿½GuiApp_Chinese.exeï¿½ï¿½ï¿½ï¿½GuiApp_English.exe ï¿½Ç´ï¿½ï¿½ï¿½ï¿½ï¿½Ä²ï¿½ï¿½Ô³ï¿½ï¿½ï¿½
-ï¿½ï¿½Ê¹ï¿½Ã¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸ï¿½ï¿½ï¿½ï¿½Å¥ï¿½ï¿½Ñ¯ï¿½è±¸ï¿½ï¿½È»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸ï¿½ï¿½È»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É½ï¿½ï¿½Ð²ï¿½ï¿½ï¿½
+¶þ¡¢GuiApp_Chinese.exe»òÕßGuiApp_English.exe ÊÇ´ø½çÃæµÄ²âÊÔ³ÌÐò
+ÏÈÊ¹ÓÃ¡°²éÕÒÉè±¸¡±°´Å¥²éÑ¯Éè±¸£¬È»ºó´ÓÏÂÀ­ÁÐ±í¿òÑ¡ÔñÄãÐèÒª²Ù×÷µÄÉè±¸£¬È»ºóµã»÷¡°´ò¿ªÉè±¸¡±£¬¼´¿É½øÐÐ²Ù×÷
 
-ï¿½ï¿½ï¿½ï¿½Smpl_HIDTransfer v2.4.hexÎªï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+Èý¡¢Smpl_HIDTransfer v2.4.hexÎªÏÂÎ»»úµ¥Æ¬»ú³ÌÐò
