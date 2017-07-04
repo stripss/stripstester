@@ -72,14 +72,16 @@ relays = {relay: relays_config.get(relay).get("pin") for relay in relays_config}
 # import here to prevent circular dependency
 import custom_tasks
 tasks_execution_order = (
-    custom_tasks.BarCodeReadTask,
-    custom_tasks.StartProcedureTask,
-    custom_tasks.VoltageTest,
+    # custom_tasks.BarCodeReadTask,
+    # custom_tasks.StartProcedureTask,
+
+    # custom_tasks.VoltageTest,
     # custom_tasks.FlashWifiModuleTask,
-    custom_tasks.FlashMCUTask,
+    # custom_tasks.FlashMCUTask,
     # custom_tasks.UartPingTest,
-    # custom_tasks.InternalTest,
+    custom_tasks.InternalTest,
     custom_tasks.ManualLCDTest,
+
     # custom_tasks.CameraTest,
     custom_tasks.FinishProcedureTask,
     custom_tasks.PrintSticker,
@@ -94,7 +96,7 @@ def on_critical_event(event: str):
     # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
     module_logger.exception("On critical Event!")
     finish = custom_tasks.FinishProcedureTask()
-    finish._execute(strips_tester.CRITICAL)
-    print = custom_tasks.PrintSticker()
-    print._execute(strips_tester.ERROR)
+    finish._execute(strips_tester.NOTSET)  # NOTSET executes it no matter what
+    p = custom_tasks.PrintSticker()
+    p._execute(strips_tester.NOTSET)
 

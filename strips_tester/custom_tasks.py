@@ -3,6 +3,7 @@ import sys
 import time
 
 import serial
+import struct
 import wifi
 import RPi.GPIO as GPIO
 import devices
@@ -13,6 +14,8 @@ from garo.stm32loader import CmdException
 import strips_tester
 from tester import Task, Product, connect_to_wifi
 from garo import Flash, garo_uart_mitm
+from datetime import datetime
+import numpy as np
 
 module_logger = logging.getLogger(".".join((strips_tester.PACKAGE_NAME, __name__)))
 
@@ -241,42 +244,90 @@ class InternalTest(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
+        # self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB1')
         self.relay_board.close_relay(relays["UART_MCU_RX"])
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.serial_port = garo_uart_mitm.open_mitm(aport="/dev/ttyAMA0", abaudrate=115200)
+        self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
+        self.start_t = None
+
+    def _update_crc(self, crc, byte_):
+        crc = (crc >> 8) | ((crc & 0xFF) << 8)
+        crc ^= byte_ & 0xFF
+        crc ^= (crc & 0xFF) >> 4
+        crc ^= ((crc & 0x0F) << 8) << 4
+        crc ^= ((crc & 0xFF) << 4) << 1
+        # print (crc)
+        return crc
+
+    def crc(self, data):
+        crc = 0
+        for c in data:
+            crc = self._update_crc(crc, c)
+        # change endianess
+        return struct.unpack("BB", struct.pack("<H", crc))
+
+    def test_relays(self):
+        # before test start
+        self.relay_board.close_relay(relays["COMMON"])
+        self.relay_board.close_relay(relays["RE1"])
+        self.relay_board.close_relay(relays["RE1"])
+        dmm_measurement = self.vc820.read()
+        if abs(dmm_measurement.numeric_val) < 0.1:
+            module_logger.debug("Open Voltage ok: %s ", dmm_measurement.numeric_val)
+        else:
+            module_logger.error("Open Voltage fail: %s ", dmm_measurement.numeric_val)
+        time.sleep()
+
 
     def run(self):
-        test_passed = True
+        test_passed = False
         try:
-            self.serial_port.write((0x00, 0x04, 0x06, 0x21, 0x10))
-            buffer = bytes(3)
-            test_result = bytearray()
-            while True:
-                module_logger.debug("Start listening on uart...")
-                resp = self.serial_port.read(1, timeout=0)
-                buffer = buffer[1:] + resp
-                print(buffer)
-                if buffer[0] == 0x00 and buffer[2] == 0x06:
-                    for b in range(buffer[1]):
-                        test_result.append(self.serial_port.read(1))
-                    if test_result[-2:] == garo_uart_mitm.crc16_ccitt(buffer[1:]+test_result[:-2]):
-                        module_logger.debug("CRC ok")
-                    break
-            temperature_sensor_value = int.from_bytes(test_result[0:2], "big") / 100
-            rtc_status = test_result[2]
-            flash_status = test_result[3]
+            module_logger.debug("Wait, boot time 5s...")
+            time.sleep(5)
+            op_code = bytearray([0x01])
+            crc_part_1 = self.crc(op_code)[0]
+            crc_part_2 = self.crc(op_code)[1]
+            self.serial_port.write([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2])
+            self.start_t = time.time()
+            for i in range(14):
+                self.camera_device.take_picture()
+                dt = time.time() - self.start_t
+                while dt < (i + 1) * 0.1:
+                    dt = time.time() - self.start_t
+                    time.sleep(0.001)
+                module_logger.debug('Took picture %s at %s ms', i, dt)
+            self.camera_device.save_img()
 
-            if 0 < temperature_sensor_value < 50:
-                module_logger.debug("temperature in bounds")
-            else:
-                module_logger.warning("temperature out of bounds")
-                test_passed = False
-            if rtc_status > 0:
-                module_logger.warning("temperature out of bounds")
-                test_passed = False
-            if flash_status > 0:
-                module_logger.debug("flash failed")
-                test_passed = False
+            # buffer = bytes(3)
+            # test_result = bytearray()
+            # while True:
+            #     module_logger.debug("Start listening on uart...")
+            #     resp = self.serial_port.read(1, timeout=0)
+            #     buffer = buffer[1:] + resp
+            #     print(buffer)
+            #     if buffer[0] == 0x00 and buffer[2] == 0x06:
+            #         for b in range(buffer[1]):
+            #             test_result.append(self.serial_port.read(1))
+            #         if test_result[-2:] == garo_uart_mitm.crc16_ccitt(buffer[1:]+test_result[:-2]):
+            #             module_logger.debug("CRC ok")
+            #         break
+            # temperature_sensor_value = int.from_bytes(test_result[0:2], "big") / 100
+            # rtc_status = test_result[2]
+            # flash_status = test_result[3]
+            #
+            # if 0 < temperature_sensor_value < 50:
+            #     module_logger.debug("temperature in bounds")
+            # else:
+            #     module_logger.warning("temperature out of bounds")
+            #     test_passed = False
+            # if rtc_status > 0:
+            #     module_logger.warning("temperature out of bounds")
+            #     test_passed = False
+            # if flash_status > 0:
+            #     module_logger.debug("flash failed")
+            #     test_passed = False
+
         except:
             raise CmdException("Can't read port or timeout")
 
@@ -287,8 +338,6 @@ class InternalTest(Task):
         self.relay_board.open_relay(relays["UART_MCU_RX"])
         self.relay_board.open_relay(relays["UART_MCU_TX"])
         self.relay_board.hid_device.close()
-
-
 
 
 class ManualLCDTest(Task):
@@ -349,32 +398,28 @@ class CameraTest(Task):
 
 class FinishProcedureTask(Task):
     def __init__(self):
+        module_logger.debug("FinishProcedureTask init")
         super().__init__(strips_tester.ERROR)
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(0x0416, 0x5020, initial_status=0x0000)
 
     def run(self):
-        strips_tester.current_product.test_status = all(strips_tester.current_product.task_results)
+        strips_tester.current_product.test_status = all(strips_tester.current_product.task_results) and len(strips_tester.current_product.task_results)
         if strips_tester.current_product.test_status:
 
             module_logger.debug("Test SUCCESSFUL!")
-            GPIO.output(gpios["LIGHT_GREEN"], G_HIGH)
-            module_logger.debug("Green light lit")
+
         else:
             module_logger.debug("Tests FAILED!")
-            for i in range(6):
-                if GPIO.input(gpios.get("START_SWITCH")):
-                    break
+            for i in range(7):
                 self.relay_board.close_relay(relays["LED_RED"])
-                time.sleep(0.5)
+                time.sleep(0.3)
                 self.relay_board.open_relay(relays["LED_RED"])
-                time.sleep(0.5)
+                time.sleep(0.3)
         module_logger.info("Open lid and remove product.")
         GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
         module_logger.debug("Lid opened")
-        GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        module_logger.debug("Green light turned off")
         return True, "finished"
 
     def tear_down(self):
