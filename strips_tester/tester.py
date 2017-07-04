@@ -113,9 +113,11 @@ class Task:
                     self.logger.error("Implement proper two part return for the Task! %s", type(self).__name__)
                 self.passed, self.result = ret
             except strips_tester.CriticalEventException as cee:
+                self.tear_down()
                 raise strips_tester.CriticalEventException("Re raise exception")
 
             except Exception as ex:
+                self.tear_down()
                 self.logger.exception("Task crashed with Exception: %s", ex)
                 self.passed = False
                 self.result = str(ex)

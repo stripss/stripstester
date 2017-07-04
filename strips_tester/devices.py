@@ -474,17 +474,25 @@ class SainBoard16:
     CLOSE_CMD = (0x71, 0x0E, 0x71, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0x2A, 0x02, 0x00, 0x00)
 
     def __init__(self, vid: int = 0x0416, pid=0x5020, path: str = None, initial_status=None, number_of_relays: int = 16):
+        self.vid = vid
+        self.pid = pid
+        self.path = path
         self.__WRITE_CMD = [0xC3, 0x0E, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0xEE, 0x01, 0x00, 0x00]
         self.number_of_relays = number_of_relays
         self.hid_device = hid.device()
-        if path:
-            self.hid_device.open_path(path)
-        else:
-            self.hid_device.open(vid, pid)
-        self.hid_device.write(self.OPEN_CMD)
+        self.open()
         self.logger = logging.getLogger(__name__)
         self.status = initial_status if initial_status else [False] * number_of_relays
 
+    def open(self):
+        if self.path:
+            self.hid_device.open_path(self.path)
+        else:
+            self.hid_device.open(self.vid, self.pid)
+        self.hid_device.write(self.OPEN_CMD)
+
+    def close(self):
+        self.hid_device.close()
     # def __del__(self):
     #     self.hid_device.write(self.CLOSE_CMD)
     #     self.hid_device.close()
@@ -761,28 +769,7 @@ class CameraDevice:
         self.dy = Ty[y, 0]
         logger.debug("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
 
-    def take_pictures(self, imNum=40):
-        if imNum > self.imgNum:
-            logger.error("Memory only for %s pictures. Change configuratio file", self.imgNum)
-            return False
-        else:
-
-            self.imgCount = 0
-            image = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
-            for i in range(imNum):
-                t1 = datetime.now()
-                self.camera.capture(image, 'rgb', use_video_port=True)
-                self.img[:, :, i] = image[:, :, 0]
-                t2 = datetime.now()
-                dt = t2 - t1
-                while (dt.microseconds < (self.interval * 1000)):
-                    t2 = datetime.now()
-                    dt = t2 - t1
-                    sleep(0.001)
-                logger.debug('Took picture %s in %s us', i, dt.microseconds / 1000)
-                self.imgCount = self.imgCount + 1
-            return True
-
+# HERE
     def take_picture(self):
         image = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
         self.camera.capture(image, 'rgb', use_video_port=True)
@@ -808,11 +795,68 @@ class CameraDevice:
     def save_img(self, num=None):
         if num == None:
             for i in range(self.imgCount):
-                img = Image.fromarray(self.img[:, :, i], mode="P")
-                img.save('/home/pi/Desktop/Picture{}.jpg'.format(i), format="bmp")
+                #img = Image.fromarray(self.img[:, :, i], mode="P")
+                #img.save('/home/pi/Desktop/Picture{}.jpg'.format(i), format="bmp")
+                #self.imSaveRaw3d('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i])
+                pass
         else:
             img = Image.fromarray(self.img[:, :, num], mode="P", format="bmp")
             img.save('/home/pi/Desktop/Picture{}.jpg'.format(num))
+
+    def imSaveRaw2d(self, fid, data):
+        """
+
+        Funkcija shrani 2d sliko v surovem formatu.
+
+        Parametri
+        -------
+            fid:
+                Ime datoteke
+
+            data:
+                Podatki - slika
+
+        """
+        data.tofile(fid)
+
+    def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
+        """
+
+        Funkcija nalozi 2d sliko v surovem formatu
+
+        Parametri
+        -------
+            fid:
+                Ime datoteke
+
+            width:
+                Sirina slike
+            height:
+                Visina slike
+            dtype:
+                Podatkovni tip slikovnega elementa
+            order:
+                Vrstni red zapisa surove slike:
+                    'xy' - slika zapisana po vrsticah
+                    'yx' - slika zapisana po stolpcih
+
+            Vrne:
+            -------
+            Podatkovno polje numpy. Oblika podatkovnega polja je [height,width]
+
+        """
+
+        slika = np.fromfile(fid, dtype=dtype)
+
+        if order == 'xy':
+            slika.shape = [height, width]
+        elif order == 'yx':
+            slika.shape = [width, height]
+            slika = slika.transpose()
+        else:
+            raise ValueError('Vrstni red ima napačno vrednost.' \
+                             'Dopustne vrednosti so \'xy\' ali \'yx\'.')
+        return slika
 
     def run_test(self):
         for j in range(self.imgCount):

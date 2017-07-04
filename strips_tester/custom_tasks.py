@@ -1,7 +1,7 @@
 import logging
 import sys
 import time
-
+from multiprocessing import Process
 import serial
 import struct
 import wifi
@@ -101,7 +101,6 @@ class VoltageTest(Task):
             module_logger.debug("Vc looks normal, measured: %sV", dmm_value.val)
         else:
             module_logger.error("Vc is out of bounds: %sV", dmm_value.val)
-            self.tear_down()
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 12V
         self.relay_board.close_relay(relays["12V"])
@@ -112,7 +111,6 @@ class VoltageTest(Task):
             module_logger.debug("12V looks normal, measured: %sV", dmm_value.val)
         else:
             module_logger.error("12V is out of bounds: %sV", dmm_value.val)
-            self.tear_down()
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 5V
         self.relay_board.close_relay(relays["5V"])
@@ -123,7 +121,6 @@ class VoltageTest(Task):
             module_logger.debug("5V looks normal, measured: %sV", dmm_value.val)
         else:
             module_logger.error("5V is out of bounds: %sV", dmm_value.val)
-            self.tear_down()
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 3V3
         self.relay_board.close_relay(relays["3V3"])
@@ -134,7 +131,6 @@ class VoltageTest(Task):
             module_logger.debug("3V3 looks normal, measured: %sV", dmm_value.val)
         else:
             module_logger.error("3V3 is out of bounds: %sV", dmm_value.val)
-            self.tear_down()
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         return True, "All Voltages in specified ranges"
 
@@ -244,47 +240,76 @@ class InternalTest(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        # self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB1')
         self.relay_board.close_relay(relays["UART_MCU_RX"])
         self.relay_board.close_relay(relays["UART_MCU_TX"])
+        self.relay_board.close()
+        self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB1')
         self.serial_port = garo_uart_mitm.open_mitm(aport="/dev/ttyAMA0", abaudrate=115200)
         self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
         self.start_t = None
 
-    def _update_crc(self, crc, byte_):
-        crc = (crc >> 8) | ((crc & 0xFF) << 8)
-        crc ^= byte_ & 0xFF
-        crc ^= (crc & 0xFF) >> 4
-        crc ^= ((crc & 0x0F) << 8) << 4
-        crc ^= ((crc & 0xFF) << 4) << 1
-        # print (crc)
-        return crc
-
     def crc(self, data):
+        def _update_crc( crc, byte_):
+            crc = (crc >> 8) | ((crc & 0xFF) << 8)
+            crc ^= byte_ & 0xFF
+            crc ^= (crc & 0xFF) >> 4
+            crc ^= ((crc & 0x0F) << 8) << 4
+            crc ^= ((crc & 0xFF) << 4) << 1
+            # print (crc)
+            return crc
         crc = 0
         for c in data:
-            crc = self._update_crc(crc, c)
+            crc = _update_crc(crc, c)
         # change endianess
         return struct.unpack("BB", struct.pack("<H", crc))
 
     def test_relays(self):
+        self.relay_board.open()
+        inter_mesurment_delay_s = 0.2
+
+        def assert_voltage(voltage):
+            tolerance = voltage * 0.1 if voltage else 0.1
+            time.sleep(inter_mesurment_delay_s)
+            dmm_measurement = self.vc820.read()
+            if abs(dmm_measurement.numeric_val) < tolerance:
+                module_logger.debug("Open Voltage ok: %s ", dmm_measurement.numeric_val)
+            else:
+                module_logger.error("Open Voltage fail: %s ", dmm_measurement.numeric_val)
+
         # before test start
+
         self.relay_board.close_relay(relays["COMMON"])
         self.relay_board.close_relay(relays["RE1"])
+        self.relay_board.close_relay(relays["RE2"])
+        time.sleep(0.8)  # first delay to settle multimeter
+        assert_voltage(0)
+        # first relay on RE1 measurement
         self.relay_board.close_relay(relays["RE1"])
-        dmm_measurement = self.vc820.read()
-        if abs(dmm_measurement.numeric_val) < 0.1:
-            module_logger.debug("Open Voltage ok: %s ", dmm_measurement.numeric_val)
-        else:
-            module_logger.error("Open Voltage fail: %s ", dmm_measurement.numeric_val)
-        time.sleep()
-
+        self.relay_board.open_relay(relays["RE2"])
+        time.sleep(0.25)
+        assert_voltage(15)
+        # first relay on, RE2 measurement
+        self.relay_board.open_relay(relays["RE1"])
+        self.relay_board.close_relay(relays["RE2"])
+        time.sleep(0.25)
+        assert_voltage(0)
+        # both relays on, RE1 measurement
+        self.relay_board.open_relay(relays["RE1"])
+        self.relay_board.close_relay(relays["RE2"])
+        time.sleep(0.25)
+        assert_voltage(0)
 
     def run(self):
         test_passed = False
         try:
             module_logger.debug("Wait, boot time 5s...")
-            time.sleep(5)
+            # time.sleep(5)
+            # self.test_relays()
+
+
+            p = Process(target=self.test_relays, args=())
+            p.start()
+
             op_code = bytearray([0x01])
             crc_part_1 = self.crc(op_code)[0]
             crc_part_2 = self.crc(op_code)[1]
@@ -298,7 +323,7 @@ class InternalTest(Task):
                     time.sleep(0.001)
                 module_logger.debug('Took picture %s at %s ms', i, dt)
             self.camera_device.save_img()
-
+            p.join()
             # buffer = bytes(3)
             # test_result = bytearray()
             # while True:
@@ -334,6 +359,8 @@ class InternalTest(Task):
         return test_passed, ""
 
     def tear_down(self):
+        self.camera_device.close()
+        self.vc820.close()
         self.serial_port.close()
         self.relay_board.open_relay(relays["UART_MCU_RX"])
         self.relay_board.open_relay(relays["UART_MCU_TX"])
