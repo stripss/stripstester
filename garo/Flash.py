@@ -168,6 +168,7 @@ def flashUC(configFile='/stmConfig.json', UCbinFile='mcu0'):
     cmd = STM.CommandInterface(config)
     cmd.open(config.port, config.baud)
     logger.debug( "Open port %s, baud %s" , config.port, config.baud)
+    logger.debug( "Open port %s" ,  cmd.sp.get_settings())
 
     try:
         cmd.initChip()

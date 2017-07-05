@@ -79,6 +79,7 @@ class Honeywell1400:
             #     return "".join((hid_lookup.get(c) if 3 < c < 57 else "?" for c in chars))
 
 
+
 class DigitalMultiMeter:
     """
     # the port that we're going to use.  This can be a number or device name.
@@ -146,6 +147,7 @@ class DigitalMultiMeter:
     bytes_per_read = 14
 
     def __init__(self, port='/dev/ttyUSB1', retries=3, timeout=3.0):
+        self.logger = logging.getLogger(__name__)
         self.ser = serial.Serial(
             port=port,
             baudrate=2400,
@@ -167,7 +169,6 @@ class DigitalMultiMeter:
 
         self._synchronize()
 
-        self.logger = logging.getLogger(__name__)
 
     def close(self):
         """Close the serial port connection."""
@@ -219,14 +220,14 @@ class DigitalMultiMeter:
     def _synchronize(self):
         v = self.ser.read(1)
         if len(v) != 1:
+            self.logger.warning("Problem synchronizing Digital multimeter")
             raise self.DmmNoData()
         n = ord(v)
         pos = n // 16
         if pos == 0 or pos == 15:
-            logger.warning("Problem synchronizing Digital multimeter")
-            module_logger.debug("Synchronizing")
+            self.logger.debug("Synchronizing even more...")
             self._synchronize()  # watch out, possible infinite loop
-            raise self.DmmInvalidSyncValue()
+            # raise self.DmmInvalidSyncValue()
 
         bytes_needed = self.bytes_per_read - pos
         if bytes_needed:
@@ -534,13 +535,13 @@ class SainBoard16:
         self.logger.debug("Relay %s CLOSED", relay_number)
 
     # Opens all relays_config
-    def open_all(self):
+    def open_all_relays(self):
         self.status = [False] * self.number_of_relays
         self._write_status()
         self.logger.debug("All relays_config opened")
 
     # Closes all relays_config
-    def close_all(self):
+    def close_all_relays(self):
         self.status = [True] * self.number_of_relays
         self._write_status()
         self.logger.debug("All relays_config closed")

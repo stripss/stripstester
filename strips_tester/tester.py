@@ -84,12 +84,11 @@ class Task:
     Inherit from this class when creating custom tasks
     accepts level
     """
-    def __init__(self, product: Product, level: int=logging.CRITICAL):
+    def __init__(self, level: int=logging.CRITICAL):
         self.test_level = level
         self.passed = False
         self.result = None
         self.logger = logging.getLogger(__name__)
-        self.product = product
 
     def set_up(self):
         """Used for environment setup"""
