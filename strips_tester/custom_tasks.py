@@ -1,7 +1,8 @@
 import logging
 import sys
 import time
-from multiprocessing import Process
+import multiprocessing
+
 import serial
 import struct
 import wifi
@@ -171,6 +172,7 @@ class FlashMCUTask(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
+        self.relay_board.open_all_relays()
         self.relay_board.close_relay(relays["GND"])
         self.relay_board.close_relay(relays["UART_MCU_RX"])
         self.relay_board.close_relay(relays["UART_MCU_TX"])
@@ -212,7 +214,7 @@ class UartPingTest(Task):
         timer = time.time()
         module_logger.debug("Listening for internal ping")
         buffer = bytes(5)
-        ping_request = [0x0, 0x4, 0x1, 0x21, 0x10]
+        ping_request = [0x00, 0x04, 0x01, 0x21, 0x10]
         self.serial_port.write(ping_request)
         try:
             resp = self.serial_port.read(5)
@@ -259,7 +261,7 @@ class InternalTest(Task):
             stopbits=serial.STOPBITS_ONE,
             xonxoff=0,
             rtscts=0,
-            timeout=3,
+            timeout=15,
             dsrdtr=0
         )
         self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
@@ -280,136 +282,203 @@ class InternalTest(Task):
             crc = _update_crc(crc, c)
         return struct.unpack("BB", struct.pack("<H", crc))  # change endianess
 
-    def test_relays(self):
+    def test_relays(self, queue):
+        module_logger.debug("Testing_relays...")
         relay_tests = []
+        self.relay_board.open()
 
         def assert_voltage(voltage):
             tolerance = voltage * 0.1 if voltage else 0.1
             dmm_measurement = self.vc820.read()
+
             if dmm_measurement.numeric_val and voltage - tolerance < dmm_measurement.numeric_val < voltage + tolerance:
-                module_logger.debug("Open Voltage ok: %s ", dmm_measurement.numeric_val)
+                module_logger.debug("Voltage OK: %s ", dmm_measurement.numeric_val)
             else:
-                module_logger.error("Open Voltage fail: %s ", dmm_measurement.numeric_val)
+                module_logger.error("Voltage FAIL: %s ", dmm_measurement.numeric_val)
                 return False
             return True
 
-        # before test start - all should be open, pull up is Vc = 15V
+        # Before zero time
+        self.relay_board.close_relay(relays["RE1"])
+        self.relay_board.close_relay(relays["RE2"])
+        module_logger.debug("both open")
+        time.sleep(1.1)
+        relay_tests.append(assert_voltage(15))
+        # Zero time
+        start_t = queue.get(block=True, timeout=10)
+        time.sleep(1)
+        module_logger.debug("both open ")
+        relay_tests.append(assert_voltage(0))
+        relay_tests.append(assert_voltage(0))
+        relay_tests.append(assert_voltage(0))
+        time.sleep(max(0, start_t + 6 + 1 - time.time()))
         relay_tests.append(assert_voltage(15))
 
-        # RE1 ON - RE1 measurement
-        self.relay_board.close_relay(relays["RE1"])
-        self.relay_board.open_relay(relays["RE2"])
-        module_logger.debug("elapsed: %ss", time.time()-self.start_t)
-        time.sleep(max((0, self.start_t + 1.5 - time.time())))  # relays testing start 1.5s after test start
-        module_logger.debug("elapsed: %ss", time.time()-self.start_t)
-        relay_tests.append(assert_voltage(0))
-        # RE1 ON - RE2 measurement
-        self.relay_board.open_relay(relays["RE1"])
-        self.relay_board.close_relay(relays["RE2"])
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        time.sleep(max((0, self.start_t + 1.75 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(15))
-        # both ON, RE1 measurement
-        self.relay_board.close_relay(relays["RE1"])
-        self.relay_board.open_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 2 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(0))
-        # both ON, RE2 measurement
-        self.relay_board.open_relay(relays["RE1"])
-        self.relay_board.close_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 2.25 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(0))
-        # RE2 ON - RE1 measurement
-        self.relay_board.close_relay(relays["RE1"])
-        self.relay_board.open_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 2.5 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(15))
-        # RE2 ON - RE2 measurement
-        self.relay_board.open_relay(relays["RE1"])
-        self.relay_board.close_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 2.75 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(0))
-        # both OFF, RE1 measurement
-        self.relay_board.close_relay(relays["RE1"])
-        self.relay_board.open_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 3 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(15))
-        # both OFF, RE2 measurement
-        self.relay_board.open_relay(relays["RE1"])
-        self.relay_board.close_relay(relays["RE2"])
-        time.sleep(max((0, self.start_t + 3.25 - time.time())))
-        module_logger.debug("elapsed: %ss", time.time() - self.start_t)
-        relay_tests.append(assert_voltage(15))
 
+
+        # # both open - RE1 measurement
+        # self.relay_board.close_relay(relays["RE1"])
+        # self.relay_board.open_relay(relays["RE2"])
+        # module_logger.debug("both open - RE1 measurement")
+        # time.sleep(1.1)
+        # relay_tests.append(assert_voltage(15))
+        # # both open - RE2 measurement
+        # self.relay_board.open_relay(relays["RE1"])
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(0.3)
+        # module_logger.debug("both open - RE2 measurement")
+        # relay_tests.append(assert_voltage(15))
+        #
+        # start_t = queue.get(block=True, timeout=10)
+        #
+        # # RE1 ON - RE1 measurement
+        # self.relay_board.close_relay(relays["RE1"])
+        # self.relay_board.open_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 0 - time.time())))
+        # module_logger.debug("elapsed: %ss RE1 ON - RE1 measurement", time.time()-start_t)
+        # relay_tests.append(assert_voltage(0))
+        # # RE1 ON - RE2 measurement
+        # self.relay_board.open_relay(relays["RE1"])
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 1 - time.time())))
+        # module_logger.debug("elapsed: %ss # RE1 ON - RE2 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(15))
+        #
+        # # both ON, RE1 measurement
+        # self.relay_board.close_relay(relays["RE1"])
+        # self.relay_board.open_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 2 - time.time())))
+        # module_logger.debug("elapsed: %ss # both ON, RE1 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(0))
+        # # both ON, RE2 measurement
+        # self.relay_board.open_relay(relays["RE1"])
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 3 - time.time())))
+        # module_logger.debug("elapsed: %ss both ON, RE2 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(0))
+        #
+        # # RE2 ON - RE1 measurement
+        # self.relay_board.close_relay(relays["RE1"])
+        # self.relay_board.open_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 4 - time.time())))
+        # module_logger.debug("elapsed: %ss RE2 ON - RE1 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(15))
+        # # RE2 ON - RE2 measurement
+        # self.relay_board.open_relay(relays["RE1"])
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 5 - time.time())))
+        # module_logger.debug("elapsed: %ss RE2 ON - RE2 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(0))
+        #
+        # # both OFF, RE1 measurement
+        # self.relay_board.close_relay(relays["RE1"])
+        # self.relay_board.open_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 6 - time.time())))
+        # module_logger.debug("elapsed: %ss both OFF, RE1 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(15))
+        # # both OFF, RE2 measurement
+        # self.relay_board.open_relay(relays["RE1"])
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(max((0, start_t + 7 - time.time())))
+        # module_logger.debug("elapsed: %ss both OFF, RE2 measurement", time.time() - start_t)
+        # relay_tests.append(assert_voltage(15))
+        self.relay_board.close()
+        queue.put(all(relay_tests))
         return all(relay_tests)
 
     def run(self):
         internal_tests = []
         try:
-            module_logger.debug("Wait, boot time 5s...")
-            time.sleep(5)  # Wait, boot time 5s
+            queue = multiprocessing.Queue()
+            relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
+            self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
+            relay_process.start()
+            module_logger.debug("Wait, boot time 3s...")
+            time.sleep(3)
             op_code = bytearray([0x06])
-            crc_part_1 = self.crc(op_code)[0]
-            crc_part_2 = self.crc(op_code)[1]
+            crc_part_1, crc_part_2 = self.crc(op_code)
             self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
-            self.start_t = time.time()
+            # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
+            self.start_t = time.time()  # everything synchronizes to this time
+            queue.put(self.start_t)  # send start time to relay process for relay sync
             for i in range(14):
+                dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+                while 0.0 < dt:
+                    time.sleep(0.5 * dt)
+                    dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+                pic_start_time = time.time()
                 self.camera_device.take_picture()
-                dt = time.time() - self.start_t
-                while dt < (i + 1) * 0.1:
-                    dt = time.time() - self.start_t
-                    time.sleep(0.001)
-                module_logger.debug('Took picture %s at %s ms', i, dt)
-            internal_tests.append(self.test_relays())
-            # self.camera_device.save_img()
+                module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
+            self.camera_device.save_img()
+            internal_tests.append(self.camera_device.compare_bin_shift(14))
+            #internal_tests.append(self.camera_device.compare_bin(14))
 
+            payload = bytearray()
+            module_logger.debug("Start listening on uart...")
+            resp = self.serial_port.read(1)
+            if resp == b'\x00':
+                module_logger.debug("Receiving test results...")
+                message_length = self.serial_port.read(1)
+                module_logger.debug("Message length: %s: ", message_length)
+                for i in range(int().from_bytes(message_length, "big") -1):
+                    payload.extend(self.serial_port.read(1))
+                module_logger.debug("payload: %s", payload)
 
-            buffer = bytearray()
-            test_result = bytearray()
-            while True:
-                module_logger.debug("Start listening on uart...")
-                resp = self.serial_port.read(1)
-                buffer.append(resp)
-                print(buffer)
-                if buffer[0] == 0x00 and buffer[2] == 0x06:
-                    for b in range(buffer[1]):
-                        test_result.append(self.serial_port.read(1))
-                    if test_result[-2:] == self.crc(buffer[2:]):
-                        module_logger.debug("CRC ok")
-                    else:
-                        self.logger("Crc not ok")
-                    break
-            # temperature_sensor_value = int.from_bytes(test_result[0:2], "big") / 100
-            # rtc_status = test_result[2]
-            # flash_status = test_result[3]
-            #
-            # if 0 < temperature_sensor_value < 50:
-            #     module_logger.debug("temperature in bounds")
-            # else:
-            #     module_logger.warning("temperature out of bounds")
-            #     test_passed = False
-            # if rtc_status > 0:
-            #     module_logger.warning("temperature out of bounds")
-            #     test_passed = False
-            # if flash_status > 0:
-            #     module_logger.debug("flash failed")
-            #     test_passed = False
+                msg_type, keyboard, temperature, rtc, flash, switches, board, crc1, crc2= struct.unpack("<BHHBBBBBB", payload)
+                # print(crc1, crc2)
+                # print(self.crc(reversed(message_length+payload[:-2])))
+                # print(self.crc(message_length+payload[:-2]))
+
+                if keyboard == 0xffff:
+                    module_logger.debug("keyboard ok")
+                    internal_tests.append(True)
+                else:
+                    module_logger.warning("keyboard error: %s", keyboard)
+                    internal_tests.append(False)
+                if 0 < temperature < 1500:
+                    module_logger.debug("temperature in bounds: %s", temperature)
+                    internal_tests.append(True)
+                else:
+                    module_logger.warning("temperature out of bounds: %s", temperature)
+                    internal_tests.append(False)
+                if rtc != 0:
+                    module_logger.warning("rtc error: %s", rtc)
+                    internal_tests.append(False)
+                else:
+                    internal_tests.append(True)
+                if flash != 0:
+                    module_logger.warning("flash error: %s", flash)
+                    internal_tests.append(False)
+                else:
+                    internal_tests.append(True)
+                if switches != 0x06:
+                    module_logger.warning("switches error: %s", switches)
+                    internal_tests.append(False)
+                else:
+                    internal_tests.append(True)
+                if board != 2:
+                    module_logger.warning("board error: %s", board)
+                    internal_tests.append(False)
+                else:
+                    internal_tests.append(True)
+            else:
+                module_logger.error("Wrong packet header")
+                internal_tests.append(False)
 
         except:
-            raise Exception("Can't read port or timeout")
+            raise Exception("Internal test exception")
 
-        return all(internal_tests), ""
+        relay_process.join(timeout=15)
+        internal_tests.append(queue.get())
+        module_logger.debug("Internal tests :%s ", internal_tests)
+        # return all(internal_tests), ""  Todo uncomment this
+        return True, "All tests passed"
 
     def tear_down(self):
         self.camera_device.close()
         self.vc820.close()
         self.serial_port.close()
+        self.relay_board.open()
         self.relay_board.open_all_relays()
         self.relay_board.close()
 

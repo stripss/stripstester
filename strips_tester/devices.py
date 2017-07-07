@@ -221,11 +221,13 @@ class DigitalMultiMeter:
         v = self.ser.read(1)
         if len(v) != 1:
             self.logger.warning("Problem synchronizing Digital multimeter")
+            print("Problem synchronizing Digital multimeter")
             raise self.DmmNoData()
         n = ord(v)
         pos = n // 16
         if pos == 0 or pos == 15:
             self.logger.debug("Synchronizing even more...")
+            print("Synchronizing even more...")
             self._synchronize()  # watch out, possible infinite loop
             # raise self.DmmInvalidSyncValue()
 
@@ -471,6 +473,8 @@ class GoDEXG300:
 
 class SainBoard16:
     # define command messages
+    is_open = False
+    hid_device = None
     OPEN_CMD = (0xD2, 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x48, 0x49, 0x44, 0x43, 0x80, 0x02, 0x00, 0x00)
     CLOSE_CMD = (0x71, 0x0E, 0x71, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0x2A, 0x02, 0x00, 0x00)
 
@@ -481,22 +485,47 @@ class SainBoard16:
         self.__WRITE_CMD = [0xC3, 0x0E, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0xEE, 0x01, 0x00, 0x00]
         self.number_of_relays = number_of_relays
         self.hid_device = hid.device()
-        self.open()
         self.logger = logging.getLogger(__name__)
         self.status = initial_status if initial_status else [False] * number_of_relays
+        self.open()
 
     def open(self):
-        if self.path:
-            self.hid_device.open_path(self.path)
+        if self.is_open:
+            self.close()
+            self.is_open = False
+            if self.path:
+                self.hid_device.open_path(self.path)
+            else:
+                self.hid_device.open(self.vid, self.pid)
+            self.hid_device.write(self.OPEN_CMD)
+            self.is_open = True
+            module_logger.debug("Relay device opened")
         else:
-            self.hid_device.open(self.vid, self.pid)
-        self.hid_device.write(self.OPEN_CMD)
+            try:
+                if self.path:
+                    self.hid_device.open_path(self.path)
+                else:
+                    self.hid_device.open(self.vid, self.pid)
+                self.hid_device.write(self.OPEN_CMD)
+                self.is_open = True
+            except Exception as e:
+                self.is_open = False
+                module_logger.warning("Could not open device: %s", e)
 
     def close(self):
-        self.hid_device.close()
-    # def __del__(self):
-    #     self.hid_device.write(self.CLOSE_CMD)
-    #     self.hid_device.close()
+        if self.is_open:
+            self.hid_device.close()
+            self.is_open = False
+            module_logger.debug("hid closed")
+        else:
+            module_logger.debug("hid was already closed")
+
+    def lock(self):
+        if self.is_open:
+            self.hid_device.write(self.CLOSE_CMD)
+            module_logger.debug("device locked")
+        else:
+            module_logger.debug("device not open")
 
     def _write_status(self):
         # update status
@@ -556,6 +585,7 @@ class SainBoard16:
         #     return new
 
 
+
 class CameraDevice:
     logger = logging.getLogger(".".join((PACKAGE_NAME, __name__, "CameraDevice")))
 
@@ -565,19 +595,22 @@ class CameraDevice:
         self.thr = 0.8
         self.Idx = None
         self.interval = 80
-        self.imgNum = 40
+        self.imgNum = 20
 
         self.dx = None
         self.dy = None
         self.imgCount = 0
-        self.t_start = None
+
         self.load(config_path)
-        self.img = np.empty((self.Xres, self.Yres, self.imgNum), dtype=np.uint8)
+        self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
+        self.Mesh = np.empty((128,240,14),dtype=np.uint8)
+        self.loadMeshImages('/strips_tester_project/garo/mesh', 14)
         self.camera = picamera.PiCamera()
-        self.set_camera_parameters()
+        self.set_camera_parameters(flag=True)
         try:
-            logger.debug("Starting self test")
+            # logger.debug("Starting self test")
             # self.self_test()
+            pass
         except:
             logger.error("Failed to init Camera")
 
@@ -649,6 +682,93 @@ class CameraDevice:
         sumImg2 = np.sum(np.logical_and(img1, img2))
         return (sumImg2 / sumImg1)
 
+    def loadMeshImages(self, path, imgnum=14):
+        tmp_path = path
+        for i in range(imgnum):
+            path = os.path.join(tmp_path, 'PictureMask{}.jpg'.format(i))
+            img = self.imLoadRaw2d(path, 240, 128, order='xy')
+            self.Mesh[:, :, i] = img // 255
+
+    def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
+        """
+
+        Funkcija nalozi 2d sliko v surovem formatu
+
+        Parametri
+        -------
+            fid:
+                Ime datoteke
+
+            width:
+                Sirina slike
+            height:
+                Visina slike
+            dtype:
+                Podatkovni tip slikovnega elementa
+            order:
+                Vrstni red zapisa surove slike:
+                    'xy' - slika zapisana po vrsticah
+                    'yx' - slika zapisana po stolpcih
+
+            Vrne:
+            -------
+            Podatkovno polje numpy. Oblika podatkovnega polja je [height,width]
+
+        """
+
+        slika = np.fromfile(fid, dtype=dtype)
+
+        if order == 'xy':
+            slika.shape = [height, width]
+        elif order == 'yx':
+            slika.shape = [width, height]
+            slika = slika.transpose()
+        else:
+            raise ValueError('Vrstni red ima napačno vrednost.' \
+                             'Dopustne vrednosti so \'xy\' ali \'yx\'.')
+        return slika
+
+    def compare_bin(self, imgnum=14):
+        image = np.zeros((128, 240), dtype=np.uint8)
+        for i in range(imgnum):
+            image = self.img_thr(self.img[i,:,:,0],50)
+            sumMesh = np.sum(self.Mesh[:, :, i])
+            sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+            if sumImg != sumMesh:
+                logger.warning("Screen test failed at picture %s", i)
+                return False
+        logger.debug("Screen test succesfull")
+        return True
+
+    def compare_bin_shift(self, imgnum=14, shift=1):
+        image = np.zeros((128, 240), dtype=np.uint8)
+        tx = ty = np.arange(-shift, shift + 1)
+        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
+        tx = np.asarray(Tx).flatten()
+        ty = np.asarray(Ty).flatten()
+        img_sum = np.empty((imgnum, tx.size),dtype=np.uint8)
+        for i in range(imgnum):
+            for j in range(tx.size):
+                image = self.img_thr(self.img[i, :, :, 0], 50)
+                image = self.shift_picture(image, ty[j], tx[j])
+                sumMesh = np.sum(self.Mesh[:, :, i])
+                img_sum[i,j] = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+            ind = img_sum[i,:] == sumMesh
+            if not ind.any():
+                logger.warning("Screen test failed at picture %s", i)
+                return False
+        logger.debug("Screen test succesfull")
+        return True
+
+
+    def rigidSm(self, imgnum=14):
+        image = np.zeros((128, 240), dtype=np.uint8)
+        for i in range(imgnum):
+            image = self.img_thr(self.img[i, :, :, 0], 50)
+            sumMesh = np.sum(self.Mesh[:, :, i])
+            sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+
+
     # def setResolution(self):
     #     self.camera.resolution = (self.conf.Xres, self.conf.Yres)
     #     self.camera.framerate = 80
@@ -678,17 +798,28 @@ class CameraDevice:
 
     def set_camera_parameters(self, flag=False):
         if flag:
-            self.camera.shutter_speed = self.camera.exposure_speed
+            logger.debug("Set parameters. Setting iso and exposure time. Wait 2.5 s")
+            self.camera.resolution = (self.Xres, self.Yres)
+            self.camera.framerate = 80
+            time.sleep(1)
+            self.camera.iso = 10 # change accordingly
+            time.sleep(1)
+            self.camera.shutter_speed = self.camera.exposure_speed//2
             self.camera.exposure_mode = 'off'
             g = self.camera.awb_gains
             self.camera.awb_mode = 'off'
             self.camera.awb_gains = g
-            self.camera.resolution = (self.Xres, self.Yres)
-            self.camera.framerate = 80
+            time.sleep(0.5)
         else:
             self.camera.resolution = (self.Xres, self.Yres)
             self.camera.framerate = 80
-        time.sleep(3)
+            time.sleep(3)
+
+    def img_thr(self, img, thr = 128):
+        oimg = np.zeros_like(img)
+        ind1 = img >= thr
+        oimg[ind1] = 1
+        return oimg
 
     def im_window(self, img, center, width, ls=1):
         oimg = np.zeros_like(img)
@@ -728,7 +859,7 @@ class CameraDevice:
         MSE = np.zeros(txxshape, dtype=np.float64)
         for i in range(tx.size):
             shiftImg = self.shift_picture(imgB, ty[i], tx[i])
-            MSE[i] = self.compare_img(imgA, shiftImg)
+            MSE[i] = self.compare_img(imgA, shiftImg, 0.6)
         MSE.shape = txshape
         return MSE
 
@@ -752,17 +883,40 @@ class CameraDevice:
             logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
             return False
 
+    def imLoadRaw3d(self, fid, width, height, depth, dtype=np.uint8, order='xyz'):
+
+        slika = np.fromfile(fid, dtype=dtype)
+
+        if order == 'xyz':
+            slika.shape = [depth, height, width]
+
+        # ...
+        elif order == 'yxz':
+            slika.shape = [height, width, depth]
+            # slika = slika.transpose([1, 2, 0])
+
+        elif order == 'zyx':
+            # Indeksi osi: [ 0  1  2]
+            slika.shape = [width, height, depth]
+            slika = slika.transpose([2, 1, 0])
+        else:
+            raise ValueError('Vrstni red ima napačno vrednost.' \
+                             'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
+        return slika
+
     def calibrate(self):
+        rgbPath = '/strips_tester_project/garo/mesh'
+        path = os.path.join(rgbPath, 'Picture5.jpg')
+        referencna = self.imLoadRaw3d(path, 240, 128, 3, order='yxz')
+        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
         tx = ty = np.arange(-4, 4 + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
-        slika2 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+
         time.sleep(1)
         self.camera.capture(slika1, 'rgb', use_video_port=True)
-        logger.debug('Calibration in progress. Try to move camera to test, 5s sleep')
-        time.sleep(5)
-        self.camera.capture(slika2, 'rgb', use_video_port=True)
-        matrix = self.rigid_sm(slika1[:, :, 0], slika2[:, :, 0], Tx, Ty)
+        logger.debug('Calibration in progress...')
+
+        matrix = self.rigid_sm(referencna, slika1[:, :, 0], Tx, Ty)
         m = np.argmax(matrix)
         x = np.mod(m, np.size(tx))
         y = int(np.floor(m / np.size(ty)))
@@ -772,17 +926,19 @@ class CameraDevice:
 
 # HERE
     def take_picture(self):
-        image = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
-        self.camera.capture(image, 'rgb', use_video_port=True)
-        self.img[:, :, self.imgCount] = image[:, :, 0]
-        self.imgCount = self.imgCount + 1
+        if self.imgCount >= 0 and  self.imgCount < self.imgNum:
+            self.camera.capture(self.img[self.imgCount,:,:,:], 'rgb', use_video_port=True)
+            self.imgCount = self.imgCount + 1
+        else:
+            logger.error("Out of memory for picture capture")
+
 
     def get_picture(self, Idx=0):
         if Idx < 0 or Idx > self.imgCount:
             logger.error("Idx out of bounds for picture access")
             return False
         else:
-            return self.img[:, :, Idx]
+            return self.img[Idx]
 
     def take_img_to_array_RGB(self, xres=128, yres=80, RGB=0):
         slika = np.empty([xres, yres, 3], dtype=np.uint8)
@@ -793,18 +949,19 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(file_path)
 
-    def save_img(self, num=None):
+    def save_img(self, num=None,):
         if num == None:
             for i in range(self.imgCount):
                 #img = Image.fromarray(self.img[:, :, i], mode="P")
                 #img.save('/home/pi/Desktop/Picture{}.jpg'.format(i), format="bmp")
-                #self.imSaveRaw3d('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i])
-                pass
-        else:
-            img = Image.fromarray(self.img[:, :, num], mode="P", format="bmp")
-            img.save('/home/pi/Desktop/Picture{}.jpg'.format(num))
+                self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,:,:,:])
 
-    def imSaveRaw2d(self, fid, data):
+        else:
+            #img = Image.fromarray(self.img[:, :, num], mode="P", format="bmp")
+            self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(num), self.img[num,:,:,:])
+            #img.save('/home/pi/Desktop/Picture{}.jpg'.format(num))
+
+    def imSaveRaw(self, fid, data):
         """
 
         Funkcija shrani 2d sliko v surovem formatu.
@@ -821,31 +978,6 @@ class CameraDevice:
         data.tofile(fid)
 
     def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
-        """
-
-        Funkcija nalozi 2d sliko v surovem formatu
-
-        Parametri
-        -------
-            fid:
-                Ime datoteke
-
-            width:
-                Sirina slike
-            height:
-                Visina slike
-            dtype:
-                Podatkovni tip slikovnega elementa
-            order:
-                Vrstni red zapisa surove slike:
-                    'xy' - slika zapisana po vrsticah
-                    'yx' - slika zapisana po stolpcih
-
-            Vrne:
-            -------
-            Podatkovno polje numpy. Oblika podatkovnega polja je [height,width]
-
-        """
 
         slika = np.fromfile(fid, dtype=dtype)
 

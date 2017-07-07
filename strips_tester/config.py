@@ -51,8 +51,8 @@ relays_config = {"Vc": {"pin": 1, "initial": R_OPEN},
                  "5V": {"pin": 3, "initial": R_OPEN},
                  "3V3": {"pin": 4, "initial": R_OPEN},
                  "COMMON": {"pin": 5, "initial": R_OPEN},
-                 "RE1": {"pin": 6, "initial": R_OPEN},
-                 "RE2": {"pin": 7, "initial": R_OPEN},
+                 "RE2": {"pin": 6, "initial": R_OPEN},
+                 "RE1": {"pin": 7, "initial": R_OPEN},
                  "UART_MCU_RX": {"pin": 8, "initial": R_OPEN},
                  "UART_MCU_TX": {"pin": 9, "initial": R_OPEN},
                  "UART_WIFI_RX": {"pin": 10, "initial": R_OPEN},
@@ -72,19 +72,19 @@ relays = {relay: relays_config.get(relay).get("pin") for relay in relays_config}
 # import here to prevent circular dependency
 import custom_tasks
 tasks_execution_order = (
-    # custom_tasks.BarCodeReadTask,
-    # custom_tasks.StartProcedureTask,
+    custom_tasks.BarCodeReadTask,
+    custom_tasks.StartProcedureTask,
 
-    # custom_tasks.VoltageTest,
+    custom_tasks.VoltageTest,
     # custom_tasks.FlashWifiModuleTask,
-    # custom_tasks.FlashMCUTask,
-    custom_tasks.UartPingTest,
+    custom_tasks.FlashMCUTask,
+    # custom_tasks.UartPingTest,
     custom_tasks.InternalTest,
     # custom_tasks.ManualLCDTest,
 
     # custom_tasks.CameraTest,
-    # custom_tasks.FinishProcedureTask,
-    # custom_tasks.PrintSticker,
+    custom_tasks.FinishProcedureTask,
+    custom_tasks.PrintSticker,
 )
 
 
