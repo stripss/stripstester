@@ -2,7 +2,7 @@ import os
 import select
 
 import logging
-
+import sys
 import numpy as np
 import serial
 import hid
@@ -14,10 +14,11 @@ import time
 import json
 import picamera
 from picamera import PiCamera
+sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 from PIL import Image
 
-module_logger = logging.getLogger(".".join((PACKAGE_NAME, __name__)))
+module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 
 class Honeywell1400:
@@ -587,7 +588,6 @@ class SainBoard16:
 
 
 class CameraDevice:
-    logger = logging.getLogger(".".join((PACKAGE_NAME, __name__, "CameraDevice")))
 
     def __init__(self, config_path: str):
         self.Xres = 128
@@ -604,6 +604,7 @@ class CameraDevice:
         self.load(config_path)
         self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
         self.Mesh = np.empty((128,240,14),dtype=np.uint8)
+        self.mesh_all = np.empty((128, 240, 1), dtype=np.uint8)
         self.loadMeshImages('/strips_tester_project/garo/mesh', 14)
         self.camera = picamera.PiCamera()
         self.set_camera_parameters(flag=True)
@@ -612,7 +613,7 @@ class CameraDevice:
             # self.self_test()
             pass
         except:
-            logger.error("Failed to init Camera")
+            module_logger.error("Failed to init Camera")
 
     def close(self):
         self.camera.close()
@@ -688,6 +689,8 @@ class CameraDevice:
             path = os.path.join(tmp_path, 'PictureMask{}.jpg'.format(i))
             img = self.imLoadRaw2d(path, 240, 128, order='xy')
             self.Mesh[:, :, i] = img // 255
+        self.mesh_all = self.imLoadRaw2d('/strips_tester_project/garo/mesh/Mesh.jpg', 240, 128, order='xy')
+        self.mesh_all = self.mesh_all // 255
 
     def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
         """
@@ -732,32 +735,45 @@ class CameraDevice:
         image = np.zeros((128, 240), dtype=np.uint8)
         for i in range(imgnum):
             image = self.img_thr(self.img[i,:,:,0],50)
-            sumMesh = np.sum(self.Mesh[:, :, i])
+            #sumMesh = np.sum(self.Mesh[:, :, i])
+            #sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+            sumMesh = np.sum(np.logical_and(image,self.mesh_all))
             sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
             if sumImg != sumMesh:
-                logger.warning("Screen test failed at picture %s", i)
+                module_logger.warning("Screen test failed at picture %s", i)
                 return False
-        logger.debug("Screen test succesfull")
+        module_logger.debug("Screen test succesfull")
         return True
 
-    def compare_bin_shift(self, imgnum=14, shift=1):
+    def compare_bin_shift(self, imgnum=14, shift=5):
+        self.calibrate()
         image = np.zeros((128, 240), dtype=np.uint8)
         tx = ty = np.arange(-shift, shift + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
         tx = np.asarray(Tx).flatten()
         ty = np.asarray(Ty).flatten()
         img_sum = np.empty((imgnum, tx.size),dtype=np.uint8)
+        img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
         for i in range(imgnum):
             for j in range(tx.size):
-                image = self.img_thr(self.img[i, :, :, 0], 50)
+                image = self.img_thr(self.img[i, :, :, 0], 70)
                 image = self.shift_picture(image, ty[j], tx[j])
-                sumMesh = np.sum(self.Mesh[:, :, i])
-                img_sum[i,j] = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-            ind = img_sum[i,:] == sumMesh
+                #sumMesh = np.sum(self.Mesh[:, :, i])
+                #img_sum[i,j] = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+                sumMesh = np.sum(np.logical_and(image, self.mesh_all))
+                isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+                img_sum[i,j] = isum
+                img_sum1[i,j] = sumMesh
+            Idx_num =  np.sum(self.Mesh[:, :, i])
+            ind = img_sum[i,:] == Idx_num
             if not ind.any():
-                logger.warning("Screen test failed at picture %s", i)
+                module_logger.warning("Screen test failed at picture %s", i)
                 return False
-        logger.debug("Screen test succesfull")
+            ind = img_sum1[i,:] == Idx_num
+            if not ind.any():
+                module_logger.warning("Screen test failed at picture %s", i)
+                return False
+        module_logger.debug("Screen test succesfull")
         return True
 
 
@@ -798,7 +814,7 @@ class CameraDevice:
 
     def set_camera_parameters(self, flag=False):
         if flag:
-            logger.debug("Set parameters. Setting iso and exposure time. Wait 2.5 s")
+            module_logger.debug("Set parameters. Setting iso and exposure time. Wait 2.5 s")
             self.camera.resolution = (self.Xres, self.Yres)
             self.camera.framerate = 80
             time.sleep(1)
@@ -871,16 +887,16 @@ class CameraDevice:
         slika1 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
         slika2 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
         self.camera.capture(slika1, 'rgb', use_video_port=True)
-        logger.debug("first pic")
+        module_logger.debug("first pic")
         time.sleep(1)
         self.camera.capture(slika2, 'rgb', use_video_port=True)
-        logger.debug("second pic")
+        module_logger.debug("second pic")
         perc, result = self.compare(slika1[:, :, 0], slika2[:, :, 0])
         if result:
-            logger.debug('Self test done. Pictures match by : %s percent', perc)
+            module_logger.debug('Self test done. Pictures match by : %s percent', perc)
             return True
         else:
-            logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
+            module_logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
             return False
 
     def imLoadRaw3d(self, fid, width, height, depth, dtype=np.uint8, order='xyz'):
@@ -909,20 +925,17 @@ class CameraDevice:
         path = os.path.join(rgbPath, 'Picture5.jpg')
         referencna = self.imLoadRaw3d(path, 240, 128, 3, order='yxz')
         slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
-        tx = ty = np.arange(-4, 4 + 1)
+        tx = ty = np.arange(-6, 6 + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
+        module_logger.debug('Calibration in progress...')
 
-        time.sleep(1)
-        self.camera.capture(slika1, 'rgb', use_video_port=True)
-        logger.debug('Calibration in progress...')
-
-        matrix = self.rigid_sm(referencna, slika1[:, :, 0], Tx, Ty)
+        matrix = self.rigid_sm(referencna[:,:,0], self.img[4, :, :, 0], Tx, Ty)
         m = np.argmax(matrix)
         x = np.mod(m, np.size(tx))
         y = int(np.floor(m / np.size(ty)))
         self.dx = Tx[0, x]
         self.dy = Ty[y, 0]
-        logger.debug("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
+        module_logger.debug("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
 
 # HERE
     def take_picture(self):
@@ -930,12 +943,12 @@ class CameraDevice:
             self.camera.capture(self.img[self.imgCount,:,:,:], 'rgb', use_video_port=True)
             self.imgCount = self.imgCount + 1
         else:
-            logger.error("Out of memory for picture capture")
+            module_logger.error("Out of memory for picture capture")
 
 
     def get_picture(self, Idx=0):
         if Idx < 0 or Idx > self.imgCount:
-            logger.error("Idx out of bounds for picture access")
+            module_logger.error("Idx out of bounds for picture access")
             return False
         else:
             return self.img[Idx]
@@ -999,9 +1012,9 @@ class CameraDevice:
                 y = self.Idx[i]["y"] + self.dy
                 b1 = slika[y, x] >> 7
                 if b1 != 0 and i != j:
-                    logger.error("Test failed, picture : %s", j + 1)
+                    module_logger.error("Test failed, picture : %s", j + 1)
                     return False
                 elif i == j and b1 == 0:
-                    logger.error("Test failed, picture : %s", j + 1)
+                    module_logger.error("Test failed, picture : %s", j + 1)
                     return False
         return True

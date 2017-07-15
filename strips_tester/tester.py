@@ -2,13 +2,16 @@ import logging
 import os
 
 import datetime
+
+import sys
 import wifi
-import config
 import RPi.GPIO as GPIO
+sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 import strips_tester
+import config
 
-module_logger = logging.getLogger(".".join((strips_tester.PACKAGE_NAME, "tester")))
-
+# name hardcoded, because program starts here so it would be "main" otherwise
+module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 
 def connect_to_wifi(ssid: str, password: str, interface: str = "wlan0", scheme_name: str = "test_scheme", recreate_scheme: bool = False):
     cell_dict = {}
@@ -88,7 +91,7 @@ class Task:
         self.test_level = level
         self.passed = False
         self.result = None
-        self.logger = logging.getLogger(__name__)
+        # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
 
     def set_up(self):
         """Used for environment setup"""
@@ -105,11 +108,11 @@ class Task:
     def _execute(self, test_level: int):
         if test_level < self.test_level:
             self.set_up()
-            self.logger.debug("Task: %s setUp", type(self).__name__)
+            module_logger.debug("Task: %s setUp", type(self).__name__)
             try:
                 ret = self.run()
                 if ret is None or len(ret) != 2:
-                    self.logger.error("Implement proper two part return for the Task! %s", type(self).__name__)
+                    module_logger.error("Implement proper two part return for the Task! %s", type(self).__name__)
                 self.passed, self.result = ret
             except strips_tester.CriticalEventException as cee:
                 self.tear_down()
@@ -117,17 +120,19 @@ class Task:
 
             except Exception as ex:
                 self.tear_down()
-                self.logger.exception("Task crashed with Exception: %s", ex)
+                module_logger.exception("Task crashed with Exception: %s", ex)
                 self.passed = False
+                print(11,ex)
+                print(11,str(ex))
                 self.result = str(ex)
             if self.passed:
-                self.logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, self.result)
+                module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, self.result)
             else:
-                self.logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, self.result)
+                module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, self.result)
             self.tear_down()
-            self.logger.debug("Task: %s tearDown", type(self).__name__)
+            module_logger.debug("Task: %s tearDown", type(self).__name__)
         else:
-            self.logger.info("Task: %s was NOT executed because test level is too high", type(self).__name__)
+            module_logger.info("Task: %s was NOT executed because test level is too high", type(self).__name__)
 
     def set_level(self, level: int):
         self.test_level = level
@@ -148,7 +153,7 @@ def initialize_gpios():
     # GPIO.cleanup()
     GPIO.setmode(GPIO.BOARD)
     # GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(True)
+    GPIO.setwarnings(False)
     for gpio in config.gpios_config.values():
         if gpio.get("function") == config.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))

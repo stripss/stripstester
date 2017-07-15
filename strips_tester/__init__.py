@@ -4,6 +4,8 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 
+import config
+
 VERSION = '0.0.1'
 
 # test levels == logging levels (ints)
@@ -14,11 +16,11 @@ INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
-PACKAGE_NAME = __name__
+# PACKAGE_NAME = __name__
 
 
 def initialize_logging(level: int = logging.INFO):
-    lgr = logging.getLogger(name=PACKAGE_NAME)
+    lgr = logging.getLogger(name=__name__)
     lgr.setLevel(level)
     # logging.basicConfig(level=logging.DEBUG)
     # create a logging format
@@ -26,7 +28,7 @@ def initialize_logging(level: int = logging.INFO):
     # create handlers
     logs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "logs")
 
-    file_handler = RotatingFileHandler(filename=os.path.join(logs_path, "tester.log"), encoding="utf-8", maxBytes=1234567, backupCount=2)
+    file_handler = RotatingFileHandler(filename=os.path.join(logs_path, "tester.log"), encoding="utf-8", maxBytes=12345678, backupCount=100)
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
     lgr.addHandler(file_handler)
@@ -40,7 +42,7 @@ def initialize_logging(level: int = logging.INFO):
     return lgr
 
 
-logger = initialize_logging(logging.DEBUG)
+logger = initialize_logging(config.LOGGING_LEVEL)
 LOGGER = logger
 current_product = None
 

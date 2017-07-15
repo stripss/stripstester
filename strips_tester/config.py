@@ -4,14 +4,13 @@ import logging
 import RPi.GPIO as GPIO
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
-import strips_tester
 
 
-module_logger = logging.getLogger(".".join((strips_tester.PACKAGE_NAME, __name__)))
+module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 ######## CONSTANTS ########
-TEST_LEVEL = strips_tester.NOTSET  # test everything above this level. NOTSET (0) is default and covers all levels
-LOGGING_LEVEL = strips_tester.NOTSET  # log everything above this level. NOTSET (0) is default and covers all levels
+TEST_LEVEL = logging.NOTSET  # test everything above this level. NOTSET (0) is default and covers all levels
+LOGGING_LEVEL = logging.INFO  # log everything above this level. NOTSET (0) is default and covers all levels
 
 G_INPUT = GPIO.IN  #1
 G_OUTPUT = GPIO.OUT  #0
@@ -96,7 +95,7 @@ def on_critical_event(event: str):
     # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
     module_logger.exception("On critical Event!")
     finish = custom_tasks.FinishProcedureTask()
-    finish._execute(strips_tester.NOTSET)  # NOTSET executes it no matter what
+    finish._execute(logging.NOTSET)  # NOTSET executes it no matter what
     p = custom_tasks.PrintSticker()
-    p._execute(strips_tester.NOTSET)
+    p._execute(logging.NOTSET)
 
