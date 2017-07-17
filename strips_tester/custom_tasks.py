@@ -29,10 +29,16 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 # First param is test level, default is set to CRITICAL
 # run method should return test status (True if test passed/False if it failed) and result (value)
 
+def check_lid_open():
+    if GPIO.input(gpios["START_SWITCH"]):
+        module_logger.debug("Lid opened /")
+        raise strips_tester.CriticalEventException("Lid opened Exception")
+
 
 class BarCodeReadTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
+
 
     def set_up(self):
         self.reader = devices.Honeywell1400(path="/dev/hidraw1", max_code_length=50)
@@ -81,6 +87,9 @@ class StartProcedureTask(Task):
             module_logger.info("START_SWITCH not defined in config.py!")
         return True, "Test started manually with start switch " + strips_tester.current_product.variant
 
+    def tear_down(self):
+        pass
+
 
 class VoltageTest(Task):
     def __init__(self):
@@ -92,6 +101,7 @@ class VoltageTest(Task):
         self.mesurement_delay = 0.2
 
     def run(self) -> (bool, str):
+        check_lid_open()
         # Vc
         self.relay_board.close_relay(relays["Vc"])
         time.sleep(self.mesurement_delay)
@@ -144,6 +154,7 @@ class VoltageTest(Task):
         self.relay_board.hid_device.close()
 
 
+
 class FlashWifiModuleTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
@@ -154,6 +165,7 @@ class FlashWifiModuleTask(Task):
         self.relay_board.close_relay(relays["UART_WIFI_TX"])
 
     def run(self):
+        check_lid_open()
         if strips_tester.current_product.variant.lower().startswith("wifi"):
             success = Flash.flash_wifi()
             if success:
@@ -168,6 +180,7 @@ class FlashWifiModuleTask(Task):
         self.relay_board.open_relay(relays["UART_WIFI_RX"])
         self.relay_board.open_relay(relays["UART_WIFI_TX"])
         self.relay_board.hid_device.close()
+
 
 
 class FlashMCUTask(Task):
@@ -185,6 +198,7 @@ class FlashMCUTask(Task):
         time.sleep(1)
 
     def run(self):
+        check_lid_open()
         module_logger.info("Flashing MCU...")
         try:
             Flash.flashUC()
@@ -197,6 +211,7 @@ class FlashMCUTask(Task):
     def tear_down(self):
         self.relay_board.open_all_relays()
         self.relay_board.close()
+
 
 
 class UartPingTest(Task):
@@ -221,6 +236,7 @@ class UartPingTest(Task):
         )
 
     def run(self):
+        check_lid_open()
         timer = time.time()
         module_logger.info("Listening for internal ping")
         buffer = bytes(5)
@@ -250,6 +266,7 @@ class UartPingTest(Task):
         self.serial_port.close()
         self.relay_board.open_all_relays()
         self.relay_board.close()
+
 
 
 class InternalTest(Task):
@@ -410,6 +427,7 @@ class InternalTest(Task):
         return all(relay_tests)
 
     def run(self):
+        check_lid_open()
         internal_tests = []
         try:
             queue = multiprocessing.Queue()
@@ -417,7 +435,7 @@ class InternalTest(Task):
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
             relay_process.start()
             module_logger.debug("Wait, boot time 3.5s...")
-            time.sleep(3.5)
+            time.sleep(4)
             op_code = bytearray([0x06])
             crc_part_1, crc_part_2 = self.crc(op_code)
             self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
@@ -441,7 +459,7 @@ class InternalTest(Task):
 
             payload = bytearray()
             module_logger.debug("Start listening on uart...")
-            for try_number in range(30):
+            for try_number in range(40):
                 module_logger.debug("Trying to read header \x00")
                 header = self.serial_port.read(1)
                 if header == b'\x00':
@@ -526,6 +544,7 @@ class InternalTest(Task):
         #return True, "All tests passed"
 
     def tear_down(self):
+
         self.camera_device.close()
         self.vc820.close()
         self.serial_port.close()
@@ -534,7 +553,9 @@ class InternalTest(Task):
         self.relay_board.close()
 
 
+
 class ManualLCDTest(Task):
+    check_lid_open()
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
@@ -635,16 +656,21 @@ class PrintSticker(Task):
         self.g.close()
 
 
+
 class TestTask(Task):
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
     def run(self):
+        check_lid_open()
 
         connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
         # connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
 
         return False, "not implemented yet"
+
+    def tear_down(self):
+        pass
 
 
 
