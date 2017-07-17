@@ -116,6 +116,7 @@ class Task:
                 self.passed, self.result = ret
             except strips_tester.CriticalEventException as cee:
                 self.tear_down()
+                strips_tester.current_product.task_results.append[False]
                 raise strips_tester.CriticalEventException("Re raise exception")
 
             except Exception as ex:

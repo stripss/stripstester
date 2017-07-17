@@ -29,11 +29,6 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 # First param is test level, default is set to CRITICAL
 # run method should return test status (True if test passed/False if it failed) and result (value)
 
-def check_lid_open():
-    if GPIO.input(gpios["START_SWITCH"]):
-        module_logger.debug("Lid opened /")
-        raise strips_tester.CriticalEventException("Lid opened Exception")
-
 
 class BarCodeReadTask(Task):
     def __init__(self):
@@ -101,7 +96,9 @@ class VoltageTest(Task):
         self.mesurement_delay = 0.2
 
     def run(self) -> (bool, str):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         # Vc
         self.relay_board.close_relay(relays["Vc"])
         time.sleep(self.mesurement_delay)
@@ -165,7 +162,9 @@ class FlashWifiModuleTask(Task):
         self.relay_board.close_relay(relays["UART_WIFI_TX"])
 
     def run(self):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         if strips_tester.current_product.variant.lower().startswith("wifi"):
             success = Flash.flash_wifi()
             if success:
@@ -198,7 +197,9 @@ class FlashMCUTask(Task):
         time.sleep(1)
 
     def run(self):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         module_logger.info("Flashing MCU...")
         try:
             Flash.flashUC()
@@ -236,7 +237,9 @@ class UartPingTest(Task):
         )
 
     def run(self):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         timer = time.time()
         module_logger.info("Listening for internal ping")
         buffer = bytes(5)
@@ -427,7 +430,9 @@ class InternalTest(Task):
         return all(relay_tests)
 
     def run(self):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         internal_tests = []
         try:
             queue = multiprocessing.Queue()
@@ -555,7 +560,7 @@ class InternalTest(Task):
 
 
 class ManualLCDTest(Task):
-    check_lid_open()
+
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
@@ -563,6 +568,9 @@ class ManualLCDTest(Task):
         pass
 
     def run(self):
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
         good_triggered = False
         bad_triggered = False
 
@@ -662,7 +670,9 @@ class TestTask(Task):
         super().__init__(strips_tester.ERROR)
 
     def run(self):
-        check_lid_open()
+        if GPIO.input(gpios["START_SWITCH"]):
+            module_logger.error("Lid opened /")
+            raise strips_tester.CriticalEventException("Lid opened Exception")
 
         connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
         # connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
