@@ -76,7 +76,7 @@ class CommandInterface:
             serial.STOPBITS_ONE,
             xonxoff=0,              # don't enable software flow control
             rtscts=0,               # don't enable RTS/CTS flow control
-            timeout=3,               # set a timeout value, None for waiting forever
+            timeout=1,               # set a timeout value, None for waiting forever
             dsrdtr = 0
         )
 

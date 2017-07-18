@@ -45,6 +45,7 @@ def initialize_logging(level: int = logging.INFO):
 logger = initialize_logging(config.LOGGING_LEVEL)
 LOGGER = logger
 current_product = None
+emergency_break_tasks = False
 
 
 class CriticalEventException(Exception):

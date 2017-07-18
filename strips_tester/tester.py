@@ -1,8 +1,6 @@
 import logging
 import os
-
 import datetime
-
 import sys
 import wifi
 import RPi.GPIO as GPIO
@@ -12,6 +10,7 @@ import config
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
+
 
 def connect_to_wifi(ssid: str, password: str, interface: str = "wlan0", scheme_name: str = "test_scheme", recreate_scheme: bool = False):
     cell_dict = {}
@@ -61,6 +60,7 @@ class Product:
         self.hw_release = hw_release
         self.production_datetime = production_datetime
         self.task_results = []
+
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
         """ example:
@@ -116,15 +116,13 @@ class Task:
                 self.passed, self.result = ret
             except strips_tester.CriticalEventException as cee:
                 self.tear_down()
-                strips_tester.current_product.task_results.append[False]
+
                 raise strips_tester.CriticalEventException("Re raise exception")
 
             except Exception as ex:
                 self.tear_down()
                 module_logger.exception("Task crashed with Exception: %s", ex)
                 self.passed = False
-                print(11,ex)
-                print(11,str(ex))
                 self.result = str(ex)
             if self.passed:
                 module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, self.result)
@@ -156,10 +154,17 @@ def initialize_gpios():
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
     for gpio in config.gpios_config.values():
+        print(gpio,gpio.get("function"))
         if gpio.get("function") == config.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))
         elif gpio.get("function") == config.G_OUTPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), initial=gpio.get("initial", config.DEFAULT_PULL))
+            # for i in range(10):
+            #     import time
+            #     time.sleep(0.2)
+            #     GPIO.output(gpio.get("pin"), 1)
+            #     time.sleep(0.2)
+            #     GPIO.output(gpio.get("pin"), 0)
         else:
             module_logger.critical("Not implemented gpio function")
     module_logger.debug("GPIOs initialized")
@@ -167,12 +172,18 @@ def initialize_gpios():
 
 def run_custom_tasks():
     strips_tester.current_product = Product()
-    for CustomTask in config.tasks_execution_order:
+    tasks = config.Tasks()
+    for CustomTask in tasks.execution_order:
         try:
-            module_logger.debug("Executing: %s ...", CustomTask)
-            custom_task = CustomTask()
-            custom_task._execute(config.TEST_LEVEL)
-            strips_tester.current_product.task_results.append(custom_task.passed)
+            if strips_tester.emergency_break_tasks:
+                strips_tester.current_product.task_results.append(False)
+                config.on_critical_event("Emergency break tasks")
+                break
+            else:
+                module_logger.debug("Executing: %s ...", CustomTask)
+                custom_task = CustomTask()
+                custom_task._execute(config.TEST_LEVEL)
+                strips_tester.current_product.task_results.append(custom_task.passed)
         except strips_tester.CriticalEventException as cee:
             config.on_critical_event(str(cee))
             strips_tester.current_product.task_results.append(False)
@@ -185,4 +196,5 @@ def run_custom_tasks():
 if __name__ == "__main__":
     #parameter = str(sys.argv[1])
     module_logger.info("Starting tester ...")
+
     start_test_device()

@@ -11,6 +11,8 @@ import json
 # from esptool import NotImplementedInROMError
 from argparse import Namespace
 import garo.stm32loader as STM
+import strips_tester
+
 
 logger = logging.getLogger("strips_tester.garo.flash")
 
@@ -170,11 +172,26 @@ def flashUC(configFile='/stmConfig.json', UCbinFile='mcu0'):
     logger.debug( "Open port %s, baud %s" , config.port, config.baud)
     logger.debug( "Open port %s" ,  cmd.sp.get_settings())
 
+    # count = 0
+    # for i in range(3):
+    #     try:
+    #         cmd.initChip()
+    #         logger.debug("Init done")
+    #     except Exception as ex:
+    #         count = count + 1
+    #         logger.debug("Failed to init. Ensure that BOOT0 is enabled and reset device, exception: %s. Tried %s time", ex, count)
+    #     else:
+    #         break
+    #
+    # if count == 3:
+    #     raise strips_tester.CriticalEventException("Filed to init Flash")
+
     try:
         cmd.initChip()
         logger.debug("Init done")
     except Exception as ex:
         logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
+
 
     bootversion = cmd.cmdGet()
     logger.debug("Bootloader version %s" , bootversion)
