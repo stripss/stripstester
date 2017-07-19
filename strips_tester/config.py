@@ -6,7 +6,7 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 ######## CONSTANTS ########
 TEST_LEVEL = logging.NOTSET  # test everything above this level. NOTSET (0) is default and covers all levels
-LOGGING_LEVEL = logging.DEBUG  # log everything above this level. NOTSET (0) is default and covers all levels
+LOGGING_LEVEL = logging.INFO  # log everything above this level. NOTSET (0) is default and covers all levels
 
 G_INPUT = GPIO.IN  #1
 G_OUTPUT = GPIO.OUT  #0
@@ -47,10 +47,10 @@ relays_config = {"Vc": {"pin": 1, "initial": R_OPEN},
                  "COMMON": {"pin": 5, "initial": R_OPEN},
                  "RE2": {"pin": 6, "initial": R_OPEN},
                  "RE1": {"pin": 7, "initial": R_OPEN},
-                 "UART_MCU_RX": {"pin": 8, "initial": R_OPEN},
-                 "UART_MCU_TX": {"pin": 9, "initial": R_OPEN},
-                 "UART_WIFI_RX": {"pin": 10, "initial": R_OPEN},
-                 "UART_WIFI_TX": {"pin": 11, "initial": R_OPEN},
+                 "UART_MCU_RX": {"pin": 10, "initial": R_OPEN},
+                 "UART_MCU_TX": {"pin": 11, "initial": R_OPEN},
+                 "UART_WIFI_RX": {"pin": 8, "initial": R_OPEN},
+                 "UART_WIFI_TX": {"pin": 9, "initial": R_OPEN},
                  "GND": {"pin": 12, "initial": R_OPEN},
                  "DTR_MCU": {"pin": 13, "initial": R_OPEN},
                  "RST": {"pin": 14, "initial": R_OPEN},

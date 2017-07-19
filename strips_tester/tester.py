@@ -154,17 +154,10 @@ def initialize_gpios():
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
     for gpio in config.gpios_config.values():
-        print(gpio,gpio.get("function"))
         if gpio.get("function") == config.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))
         elif gpio.get("function") == config.G_OUTPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), initial=gpio.get("initial", config.DEFAULT_PULL))
-            # for i in range(10):
-            #     import time
-            #     time.sleep(0.2)
-            #     GPIO.output(gpio.get("pin"), 1)
-            #     time.sleep(0.2)
-            #     GPIO.output(gpio.get("pin"), 0)
         else:
             module_logger.critical("Not implemented gpio function")
     module_logger.debug("GPIOs initialized")

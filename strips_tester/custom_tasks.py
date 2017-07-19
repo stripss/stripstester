@@ -29,7 +29,10 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 # First param is test level, default is set to CRITICAL
 # run method should return test status (True if test passed/False if it failed) and result (value)
 
-class LidOpenedCheck:
+
+# checks if lid is opened
+# prevents cyclic import, because gpios aren't available on import time
+class LidOpenCheck:
     def __init__(self):
         # if lid is opened
         if GPIO.input(gpios["START_SWITCH"]):
@@ -37,7 +40,7 @@ class LidOpenedCheck:
             strips_tester.current_product.task_results.append(False)
             strips_tester.emergency_break_tasks = True
         else:
-            module_logger.info("Lid closed")
+            module_logger.debug("Lid closed")
 
 
 class BarCodeReadTask(Task):
@@ -49,12 +52,6 @@ class BarCodeReadTask(Task):
         self.reader = devices.Honeywell1400(path="/dev/hidraw1", max_code_length=50)
 
     def run(self) -> (bool, str):
-        # for i in range(10):
-        #     time.sleep(0.2)
-        #     GPIO.output(gpios["LIGHT_GREEN"], G_HIGH)
-        #     time.sleep(0.2)
-        #     GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        GPIO.output(gpios["LIGHT_GREEN"], G_HIGH)
         module_logger.info("Prepared for reading matrix code:")
         # global current_product
         raw_scanned_string = self.reader.wait_for_read()
@@ -68,7 +65,7 @@ class BarCodeReadTask(Task):
         return True, "Code read successful: " + str(serial)
 
     def tear_down(self):
-        self.relay_board.hid_device.close()
+        self.relay_board.close()
         pass
 
 
@@ -78,24 +75,21 @@ class StartProcedureTask(Task):
 
     def run(self) -> (bool, str):
         if "START_SWITCH" in gpios_config:
-            module_logger.info("Waiting for DETECT_SWITCH...")
-            # todo
+            # module_logger.info("Waiting for DETECT_SWITCH...")
             # while True:
             #     GPIO.wait_for_edge(gpios.get("DETECT_SWITCH"), GPIO.FALLING)
             #     time.sleep(0.1)
             #     if not GPIO.input(gpios.get("DETECT_SWITCH")):
             #         break
-            module_logger.debug("Detect switch: %s", GPIO.input(gpios.get("DETECT_SWITCH")))
+            # module_logger.debug("Detect switch: %s", GPIO.input(gpios.get("DETECT_SWITCH")))
             module_logger.info("Waiting for START_SWITCH...")
             # prevent switch bounce
             while True:
-                # if GPIO.input(gpios.get("START_SWITCH")):
-                #     break
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
-                # time.sleep(0.1)
                 if not GPIO.input(gpios.get("START_SWITCH")):
-                    module_logger.info("START_SWITCH pressed")
+                    module_logger.info("START_SWITCH pressed(lid closed)")
                     break
+                time.sleep(0.1)
             strips_tester.current_product.variant = "MVC " + ("wifi" if GPIO.input(gpios.get("WIFI_PRESENT_SWITCH")) else "basic")
             strips_tester.current_product.hw_release = "v1.3"
         else:
@@ -116,7 +110,6 @@ class VoltageTest(Task):
         self.mesurement_delay = 0.2
 
     def run(self) -> (bool, str):
-        LidOpenedCheck()
         # Vc
         self.relay_board.close_relay(relays["Vc"])
         time.sleep(self.mesurement_delay)
@@ -162,6 +155,7 @@ class VoltageTest(Task):
             module_logger.error("3V3 is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
+        LidOpenCheck()
         return True, "All Voltages in specified ranges"
 
     def tear_down(self):
@@ -179,15 +173,17 @@ class FlashWifiModuleTask(Task):
         self.relay_board.close_relay(relays["UART_WIFI_TX"])
 
     def run(self):
-        LidOpenedCheck()
         if strips_tester.current_product.variant.lower().startswith("wifi"):
             success = Flash.flash_wifi()
             if success:
+                LidOpenCheck()
                 return True, "Flash SUCCESS"
             else:
+                LidOpenCheck()
                 return False, "Flash FAILED"
         else:
             module_logger.info("Not wifi product, no flashing needed!")
+            LidOpenCheck()
             return True, "Flash not needed"
 
     def tear_down(self):
@@ -205,23 +201,18 @@ class FlashMCUTask(Task):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         self.relay_board.open_all_relays()
         self.relay_board.close_relay(relays["GND"])
-        time.sleep(0.2)
         self.relay_board.close_relay(relays["UART_MCU_RX"])
-        time.sleep(0.2)
         self.relay_board.close_relay(relays["UART_MCU_TX"])
-        time.sleep(0.2)
         self.relay_board.close_relay(relays["DTR_MCU"])
-        time.sleep(0.2)
         self.relay_board.close_relay(relays["RST"])
         time.sleep(1)
 
     def run(self):
-        LidOpenedCheck()
+
         module_logger.info("Flashing MCU...")
         success = False
         for try_number in range(5):
             try:
-                LidOpenedCheck()
                 Flash.flashUC()
                 success = True
                 break
@@ -230,8 +221,9 @@ class FlashMCUTask(Task):
         if not success:
             strips_tester.current_product.task_results.append(False)
             raise strips_tester.CriticalEventException("Flashing FAIL")
-
+        LidOpenCheck()
         module_logger.info("Flash successful")
+
         return True, "MCU flash went through"
 
     def tear_down(self):
@@ -446,30 +438,26 @@ class InternalTest(Task):
         # time.sleep(max((0, start_t + 7 - time.time())))
         # module_logger.debug("elapsed: %ss both OFF, RE2 measurement", time.time() - start_t)
         # relay_tests.append(assert_voltage(15))
-        #print("before cl")
         self.relay_board.close()
-        #print("aftr cl")
 
         queue.put(all(relay_tests))
-        #print("aftr qput")
         return all(relay_tests)
 
     def run(self):
-        LidOpenedCheck()
+
         internal_tests = []
         try:
             queue = multiprocessing.Queue()
             relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
             relay_process.start()
-            module_logger.debug("Wait, boot time 3.5s...")
-            time.sleep(4)
+            module_logger.debug("Wait, boot time 4s...")
+            time.sleep(5)
             op_code = bytearray([0x06])
             crc_part_1, crc_part_2 = self.crc(op_code)
             self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
             # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
             module_logger.info("Testing segment display...")
-
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
             for i in range(14):
@@ -487,6 +475,7 @@ class InternalTest(Task):
 
             payload = bytearray()
             module_logger.debug("Start listening on uart...")
+            # retries end with serial timeout which is in set_up
             for try_number in range(40):
                 module_logger.debug("Trying to read header \x00")
                 header = self.serial_port.read(1)
@@ -497,12 +486,7 @@ class InternalTest(Task):
                     for i in range(int().from_bytes(message_length, "big") -1):
                         payload.extend(self.serial_port.read(1))
                     module_logger.debug("payload: %s", payload)
-
-                    msg_type, keyboard, temperature, rtc, flash, switches, board, crc1, crc2= struct.unpack("<BHHBBBBBB", payload)
-                    # #print(crc1, crc2)
-                    # #print(self.crc(reversed(message_length+payload[:-2])))
-                    # #print(self.crc(message_length+payload[:-2]))
-
+                    msg_type, keyboard, temperature, rtc, flash, switches, board, crc1, crc2= struct.unpack("<BHhBBBBBB", payload)
                     if keyboard == 0xb03b: #0x8030:
                         module_logger.info("keyboard ok")
                         internal_tests.append(True)
@@ -528,7 +512,7 @@ class InternalTest(Task):
                     else:
                         module_logger.info("Flash test successful")
                         internal_tests.append(True)
-                    if switches != 0x06:
+                    if switches != 0x00:
                         module_logger.warning("switches error: %s", switches)
                         internal_tests.append(False)
                     else:
@@ -554,11 +538,8 @@ class InternalTest(Task):
                 module_logger.warning("Unable to get any data from uart")
         except:
             raise Exception("Internal test exception")
-        #print("before join")
         relay_process.join(timeout=30)
-        #print("after join")
         result = queue.get()
-        #print("result", result)
         if result == False:
             module_logger.warning("Relay error ")
             internal_tests.append(False)
@@ -568,6 +549,7 @@ class InternalTest(Task):
 
         #internal_tests.append(queue.get())
         module_logger.debug("Internal tests :%s ", internal_tests)
+        LidOpenCheck()
         return all(internal_tests), ""
         #return True, "All tests passed"
 
@@ -581,9 +563,7 @@ class InternalTest(Task):
         self.relay_board.close()
 
 
-
 class ManualLCDTest(Task):
-
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
@@ -591,7 +571,6 @@ class ManualLCDTest(Task):
         pass
 
     def run(self):
-        LidOpenedCheck()
         good_triggered = False
         bad_triggered = False
 
@@ -615,6 +594,7 @@ class ManualLCDTest(Task):
 
         GPIO.remove_event_detect(gpios["CONFIRM_GOOD_SWITCH"])
         GPIO.remove_event_detect(gpios["CONFIRM_BAD_SWITCH"])
+        LidOpenCheck()
         return True if good_triggered else False, "Button pressed"
 
     def tear_down(self):
@@ -632,10 +612,12 @@ class FinishProcedureTask(Task):
     def run(self):
         strips_tester.current_product.test_status = all(strips_tester.current_product.task_results) and len(strips_tester.current_product.task_results)
         if strips_tester.current_product.test_status:
-            GPIO.output(gpios["LIGHT_GREEN", G_HIGH])
+            GPIO.output(gpios["LIGHT_GREEN"], G_HIGH)
+            module_logger.debug("LIGHT_GREEN ON")
             module_logger.info("Test SUCCESSFUL!")
         else:
             self.relay_board.close_relay(relays["LIGHT_RED"])
+            module_logger.debug("LIGHT_RED ON")
             #print(22, GPIO.input(gpios["START_SWITCH"]))
             # module_logger.error("Tests FAILED!")
             # #print(22, GPIO.input(gpios["START_SWITCH"]))
@@ -654,7 +636,7 @@ class FinishProcedureTask(Task):
         return True, "finished"
 
     def tear_down(self):
-        self.relay_board.hid_device.close()
+        self.relay_board.close()
 
 
 class PrintSticker(Task):
@@ -685,38 +667,14 @@ class PrintSticker(Task):
         self.g.close()
 
 
-
 class TestTask(Task):
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
     def run(self):
-        LidOpenedCheck()
-
         connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
-        # connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
-
         return False, "not implemented yet"
 
     def tear_down(self):
         pass
 
-
-
-
-
-# self.test_voltages,
-# self.connect_uart,
-# self.flash_wifi_module,
-# self.flash_mcu,
-# self.test_ping,
-# self.get_self_test_report,
-# self.test_segment_screen,
-# self.test_leds,
-# self.test_buttons,
-# self.test_relay,
-# self.test_slider,
-# self.print_sticker,
-# self.test_wifi_connect,
-# self.test_voltages,
-# )

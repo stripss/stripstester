@@ -935,7 +935,7 @@ class CameraDevice:
         y = int(np.floor(m / np.size(ty)))
         self.dx = Tx[0, x]
         self.dy = Ty[y, 0]
-        module_logger.debug("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
+        module_logger.info("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
 
 # HERE
     def take_picture(self):

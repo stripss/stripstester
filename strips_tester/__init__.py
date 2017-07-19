@@ -29,9 +29,14 @@ def initialize_logging(level: int = logging.INFO):
     logs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "logs")
 
     file_handler = RotatingFileHandler(filename=os.path.join(logs_path, "tester.log"), encoding="utf-8", maxBytes=12345678, backupCount=100)
-    file_handler.setLevel(level)
+    file_handler.setLevel(config.LOGGING_LEVEL)
     file_handler.setFormatter(formatter)
     lgr.addHandler(file_handler)
+
+    file_handler2 = RotatingFileHandler(filename=os.path.join(logs_path, "tester_debug.log"), encoding="utf-8", maxBytes=12345678, backupCount=100)
+    file_handler2.setLevel(logging.DEBUG)
+    file_handler2.setFormatter(formatter)
+    lgr.addHandler(file_handler2)
 
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
     stdout_handler.setLevel(level)
@@ -42,7 +47,7 @@ def initialize_logging(level: int = logging.INFO):
     return lgr
 
 
-logger = initialize_logging(config.LOGGING_LEVEL)
+logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
 emergency_break_tasks = False
