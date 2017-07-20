@@ -82,6 +82,7 @@ class Product:
             self.product_type = ss[-7:]
             # print(self.product_type, self.serial, self.production_datetime)
 
+
 class Task:
     """
     Inherit from this class when creating custom tasks
@@ -165,6 +166,8 @@ def initialize_gpios():
 
 def run_custom_tasks():
     strips_tester.current_product = Product()
+    # reset emergency break on start
+    strips_tester.emergency_break_tasks = False
     tasks = config.Tasks()
     for CustomTask in tasks.execution_order:
         try:
