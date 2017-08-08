@@ -150,7 +150,7 @@ def start_test_device():
             raise e
 
 def initialize_gpios():
-    # GPIO.cleanup()
+    # GPIO.cleanup( )
     GPIO.setmode(GPIO.BOARD)
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
