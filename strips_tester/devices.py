@@ -605,6 +605,7 @@ class CameraDevice:
         self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
         self.Mesh = np.empty((128,240,14),dtype=np.uint8)
         self.mesh_all = np.empty((128, 240, 1), dtype=np.uint8)
+        self.dil_mesh = np.empty((128, 240, 1), dtype=np.uint8)
         self.loadMeshImages('/strips_tester_project/garo/mesh', 14)
         self.camera = picamera.PiCamera()
         self.set_camera_parameters(flag=True)
@@ -655,20 +656,6 @@ class CameraDevice:
     def is_complete(self):
         return self.images is not None and self.t1 is not None and self.t2 is not None
 
-    def podrocje(self, img, msg):
-        if self.t1 is None or self.t2 is None:
-            pp.figure()
-            pp.imshow(img)
-            pp.title(msg)
-            t1, t2 = pp.ginput(n=2)
-            x1 = int(t1[1])
-            x2 = int(t2[1])
-            y1 = int(t1[0])
-            y2 = int(t2[0])
-            pp.close()
-            self.t1 = (x1, y1)
-            self.t2 = (x2, y2)
-
     @staticmethod
     def shift_picture(img, dx, dy):
         non = lambda s: s if s < 0 else None
@@ -684,13 +671,18 @@ class CameraDevice:
         return (sumImg2 / sumImg1)
 
     def loadMeshImages(self, path, imgnum=14):
+        '''
+        :param path: path to save mesh on rpi
+        :param imgnum: number of mesh loaded
+        :return:
+        '''
         tmp_path = path
         for i in range(imgnum):
             path = os.path.join(tmp_path, 'PictureMask{}.jpg'.format(i))
             img = self.imLoadRaw2d(path, 240, 128, order='xy')
-            self.Mesh[:, :, i] = img // 255
+            self.Mesh[:, :, i] = img // 255 # load every seperate mesh
         self.mesh_all = self.imLoadRaw2d('/strips_tester_project/garo/mesh/Mesh.jpg', 240, 128, order='xy')
-        self.mesh_all = self.mesh_all // 255
+        self.mesh_all = self.mesh_all // 255 # to get 0s and 1s
 
     def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
         """
@@ -735,8 +727,6 @@ class CameraDevice:
         image = np.zeros((128, 240), dtype=np.uint8)
         for i in range(imgnum):
             image = self.img_thr(self.img[i,:,:,0],50)
-            #sumMesh = np.sum(self.Mesh[:, :, i])
-            #sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
             sumMesh = np.sum(np.logical_and(image,self.mesh_all))
             sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
             if sumImg != sumMesh:
@@ -746,71 +736,34 @@ class CameraDevice:
         return True
 
     def compare_bin_shift(self, imgnum=14, shift=5):
-        self.calibrate()
-        image = np.zeros((128, 240), dtype=np.uint8)
+        x, y, matrix = self.calibrate()
+        module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', x, y, 0)
+
         tx = ty = np.arange(-shift, shift + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
         tx = np.asarray(Tx).flatten()
         ty = np.asarray(Ty).flatten()
         img_sum = np.empty((imgnum, tx.size),dtype=np.uint8)
         img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
+
         for i in range(imgnum):
+            image_i = self.shift_picture(self.img[i, :, :, 0], self.dx, self.dy)
+            image_i = self.img_thr(image_i, 128)
+            xx, yy, matrix = self.calibrate(image_i)
+            module_logger.info('Max separate match at, dx :%s, dy : %s, dfi : %s', xx, yy, 0)
             for j in range(tx.size):
-                image = self.img_thr(self.img[i, :, :, 0], 70)
-                image = self.shift_picture(image, ty[j], tx[j])
-                #sumMesh = np.sum(self.Mesh[:, :, i])
-                #img_sum[i,j] = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
+                image = self.shift_picture(image_i, ty[j], tx[j])
                 sumMesh = np.sum(np.logical_and(image, self.mesh_all))
                 isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
                 img_sum[i,j] = isum
                 img_sum1[i,j] = sumMesh
             Idx_num =  np.sum(self.Mesh[:, :, i])
             ind = img_sum[i,:] == Idx_num
-            if not ind.any():
-                module_logger.warning("Screen test failed at picture %s", i)
-                return False
-            ind = img_sum1[i,:] == Idx_num
-            if not ind.any():
+            if not np.equal(img_sum[i, :], img_sum1[i, :]).all() or not ind.any():
                 module_logger.warning("Screen test failed at picture %s", i)
                 return False
         module_logger.debug("Screen test succesfull")
         return True
-
-
-    def rigidSm(self, imgnum=14):
-        image = np.zeros((128, 240), dtype=np.uint8)
-        for i in range(imgnum):
-            image = self.img_thr(self.img[i, :, :, 0], 50)
-            sumMesh = np.sum(self.Mesh[:, :, i])
-            sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-
-
-    # def setResolution(self):
-    #     self.camera.resolution = (self.conf.Xres, self.conf.Yres)
-    #     self.camera.framerate = 80
-    #     self.camera.start_preview()
-    #     sleep(3)
-    #     dx = 32
-    #     dy = 16
-    #
-    #     while True:
-    #         sleep(1)
-    #         calibPic = np.empty((self.conf.Xres, self.conf.Yres,3),dtype=np.uint8)
-    #         self.camera.capture(calibPic, 'rgb', use_video_port=True)
-    #         self.podrocje(calibPic[:,:,0],'Izberi levi zgornji in desni spodnji kot dvopičja ')
-    #
-    #         if (self.conf.t2[0]-self.conf.t1[0])*(self.conf.t2[1]-self.conf.t1[1])< self.conf.res:
-    #             print("Resolution to low : get camera closer to the screen or increase resolution !!!")
-    #             sleep(10)
-    #         elif (self.conf.t2[0]-self.conf.t1[0])*(self.conf.t2[1]-self.conf.t1[1]) > self.conf.res*1.5:
-    #                 print("Resolution to high : Changing camera resolution ...")
-    #                 self.camera.resolution = (self.conf.Xres-dx, self.conf.Yres-dy)
-    #                 sleep(2)
-    #         else:
-    #             print("Resolution set succesfully")
-    #             break
-    #
-    #     self.camera.stop_preview()
 
     def set_camera_parameters(self, flag=False):
         if flag:
@@ -855,7 +808,7 @@ class CameraDevice:
         oimg[ind2] = 0
         return oimg
 
-    def compare(self, img1, img2):
+    def compare_step_sum(self, img1, img2):
         # img1 = self.im_window(img1,230, 40)
         # img2 = self.im_window(img2, 230, 40)
         img1 = self.im_step(img1, 0.6)
@@ -891,7 +844,7 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(slika2, 'rgb', use_video_port=True)
         module_logger.debug("second pic")
-        perc, result = self.compare(slika1[:, :, 0], slika2[:, :, 0])
+        perc, result = self.compare_step_sum(slika1[:, :, 0], slika2[:, :, 0])
         if result:
             module_logger.debug('Self test done. Pictures match by : %s percent', perc)
             return True
@@ -899,45 +852,26 @@ class CameraDevice:
             module_logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
             return False
 
-    def imLoadRaw3d(self, fid, width, height, depth, dtype=np.uint8, order='xyz'):
-
-        slika = np.fromfile(fid, dtype=dtype)
-
-        if order == 'xyz':
-            slika.shape = [depth, height, width]
-
-        # ...
-        elif order == 'yxz':
-            slika.shape = [height, width, depth]
-            # slika = slika.transpose([1, 2, 0])
-
-        elif order == 'zyx':
-            # Indeksi osi: [ 0  1  2]
-            slika.shape = [width, height, depth]
-            slika = slika.transpose([2, 1, 0])
-        else:
-            raise ValueError('Vrstni red ima napačno vrednost.' \
-                             'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
-        return slika
-
-    def calibrate(self):
+    def calibrate(self, img=None):
         rgbPath = '/strips_tester_project/garo/mesh'
-        path = os.path.join(rgbPath, 'Picture5.jpg')
-        referencna = self.imLoadRaw3d(path, 240, 128, 3, order='yxz')
-        slika1 = np.empty((self.Xres, self.Yres, 3), dtype=np.uint8)
+        path = os.path.join(rgbPath, 'cal_dil_mesh.jpg')
+        self.dil_mesh = self.imLoadRaw2d(path, 240, 128, 3, order='xy')
         tx = ty = np.arange(-6, 6 + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
         module_logger.debug('Calibration in progress...')
-
-        matrix = self.rigid_sm(referencna[:,:,0], self.img[4, :, :, 0], Tx, Ty)
+        matrix = 0
+        if img != None:
+            matrix = self.rigid_sm(self.dil_mesh, img, Tx, Ty)
+        else:
+            matrix = self.rigid_sm(self.dil_mesh, self.img[4, :, :, 0], Tx, Ty)
         m = np.argmax(matrix)
         x = np.mod(m, np.size(tx))
         y = int(np.floor(m / np.size(ty)))
         self.dx = Tx[0, x]
         self.dy = Ty[y, 0]
-        module_logger.info("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
+        #module_logger.info("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
+        return x, y, matrix
 
-# HERE
     def take_picture(self):
         if self.imgCount >= 0 and  self.imgCount < self.imgNum:
             self.camera.capture(self.img[self.imgCount,:,:,:], 'rgb', use_video_port=True)
@@ -945,13 +879,12 @@ class CameraDevice:
         else:
             module_logger.error("Out of memory for picture capture")
 
-
     def get_picture(self, Idx=0):
         if Idx < 0 or Idx > self.imgCount:
             module_logger.error("Idx out of bounds for picture access")
             return False
         else:
-            return self.img[Idx]
+            return self.img[Idx,:,:,:]
 
     def take_img_to_array_RGB(self, xres=128, yres=80, RGB=0):
         slika = np.empty([xres, yres, 3], dtype=np.uint8)
@@ -962,21 +895,20 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(file_path)
 
-    def save_img(self, num=None,):
+    def save_img(self, num=None):
+        '''
+        Save taken picture in raw format to specified path
+        :param num: picture number
+        :return:
+        '''
         if num == None:
             for i in range(self.imgCount):
-                #img = Image.fromarray(self.img[:, :, i], mode="P")
-                #img.save('/home/pi/Desktop/Picture{}.jpg'.format(i), format="bmp")
                 self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,:,:,:])
-
         else:
-            #img = Image.fromarray(self.img[:, :, num], mode="P", format="bmp")
             self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(num), self.img[num,:,:,:])
-            #img.save('/home/pi/Desktop/Picture{}.jpg'.format(num))
 
     def imSaveRaw(self, fid, data):
         """
-
         Funkcija shrani 2d sliko v surovem formatu.
 
         Parametri
@@ -986,35 +918,5 @@ class CameraDevice:
 
             data:
                 Podatki - slika
-
         """
         data.tofile(fid)
-
-    def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
-
-        slika = np.fromfile(fid, dtype=dtype)
-
-        if order == 'xy':
-            slika.shape = [height, width]
-        elif order == 'yx':
-            slika.shape = [width, height]
-            slika = slika.transpose()
-        else:
-            raise ValueError('Vrstni red ima napačno vrednost.' \
-                             'Dopustne vrednosti so \'xy\' ali \'yx\'.')
-        return slika
-
-    def run_test(self):
-        for j in range(self.imgCount):
-            slika = self.get_picture(j)
-            for i in range(len(self.Idx)):
-                x = self.Idx[i]["x"] + self.dx
-                y = self.Idx[i]["y"] + self.dy
-                b1 = slika[y, x] >> 7
-                if b1 != 0 and i != j:
-                    module_logger.error("Test failed, picture : %s", j + 1)
-                    return False
-                elif i == j and b1 == 0:
-                    module_logger.error("Test failed, picture : %s", j + 1)
-                    return False
-        return True
