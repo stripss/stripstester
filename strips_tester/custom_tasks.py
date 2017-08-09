@@ -17,6 +17,7 @@ from tester import Task, connect_to_wifi
 from garo import Flash
 from datetime import datetime
 import numpy as np
+import strips_tester.postgr
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -62,7 +63,9 @@ class BarCodeReadTask(Task):
         # TODO SHRANI V BAZO
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
         self.relay_board.open_relay(relays["LIGHT_RED"])
-        return True, "Code read successful: " + str(serial)
+        #("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+        strips_tester.current_product.tests["serial"] = ("serial", strips_tester.current_product.serial, "ok", 0)
+        return True, "Code read successful: " + str(serial),
 
     def tear_down(self):
         self.relay_board.close()
@@ -92,8 +95,14 @@ class StartProcedureTask(Task):
                 time.sleep(0.1)
             strips_tester.current_product.variant = "MVC " + ("wifi" if GPIO.input(gpios.get("WIFI_PRESENT_SWITCH")) else "basic")
             strips_tester.current_product.hw_release = "v1.3"
+
         else:
             module_logger.info("START_SWITCH not defined in config.py!")
+
+        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+        strips_tester.current_product.tests["variant"] = ("variant", strips_tester.current_product.variant, "ok", 0)
+        strips_tester.current_product.tests["hw_release"] = ("hw_release", strips_tester.current_product.hw_release, "ok", 0)
+
         return True, "Test started manually with start switch " + strips_tester.current_product.variant
 
     def tear_down(self):
@@ -118,9 +127,13 @@ class VoltageTest(Task):
         self.relay_board.open_relay(relays["Vc"])
         if dmm_value.numeric_val and 13.5 < dmm_value.numeric_val < 16.5:
             module_logger.info("Vc looks normal, measured: %sV", dmm_value.val)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["Vc"] = ("Vc", dmm_value.numeric_val, "ok", 4)
         else:
             module_logger.error("Vc is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["Vc"] = ("Vc", dmm_value.numeric_val, "fail", 4)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 12V
         self.relay_board.close_relay(relays["12V"])
@@ -129,9 +142,13 @@ class VoltageTest(Task):
         self.relay_board.open_relay(relays["12V"])
         if dmm_value.numeric_val and 11 < dmm_value.numeric_val < 13:
             module_logger.info("12V looks normal, measured: %sV", dmm_value.val)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["12V"] = ("12V", dmm_value.numeric_val, "ok", 4)
         else:
             module_logger.error("12V is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["12V"] = ("12V", dmm_value.numeric_val, "fail", 4)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 5V
         self.relay_board.close_relay(relays["5V"])
@@ -140,9 +157,13 @@ class VoltageTest(Task):
         self.relay_board.open_relay(relays["5V"])
         if dmm_value.numeric_val and 4.5 < dmm_value.numeric_val < 5.5:
             module_logger.info("5V looks normal, measured: %sV", dmm_value.val)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["5V"] = ("5V", dmm_value.numeric_val, "ok", 4)
         else:
             module_logger.error("5V is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["5V"] = ("5V", dmm_value.numeric_val, "fail", 4)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 3V3
         self.relay_board.close_relay(relays["3V3"])
@@ -151,9 +172,13 @@ class VoltageTest(Task):
         self.relay_board.open_relay(relays["3V3"])
         if dmm_value.numeric_val and 3.0 < dmm_value.numeric_val < 3.8:
             module_logger.info("3V3 looks normal, measured: %sV", dmm_value.val)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["3V3"] = ("3V3", dmm_value.numeric_val, "ok", 4)
         else:
             module_logger.error("3V3 is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["3V3"] = ("3V3", dmm_value.numeric_val, "fail", 4)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
         LidOpenCheck()
         return True, "All Voltages in specified ranges"
@@ -220,10 +245,14 @@ class FlashMCUTask(Task):
                 module_logger.warning("Flash try failed")
         if not success:
             strips_tester.current_product.task_results.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["MCU flash"] = ("MCU flash", 0, "fail", 4)
             raise strips_tester.CriticalEventException("Flashing FAIL")
         LidOpenCheck()
         module_logger.info("Flash successful")
 
+        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+        strips_tester.current_product.tests["MCU flash"] = ("MCU flash", 1, "ok", 4)
         return True, "MCU flash went through"
 
     def tear_down(self):
@@ -439,8 +468,15 @@ class InternalTest(Task):
         # module_logger.debug("elapsed: %ss both OFF, RE2 measurement", time.time() - start_t)
         # relay_tests.append(assert_voltage(15))
         self.relay_board.close()
+        result = all(relay_tests)
+        if result==True:
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["relays"] = ("relays", 1, "ok", 0)
+        else:
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["relays"] = ("relays", 0, "fail", 0)
 
-        queue.put(all(relay_tests))
+        queue.put(result)
         return all(relay_tests)
 
     def run(self):
@@ -470,7 +506,13 @@ class InternalTest(Task):
                 module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
             module_logger.info("Input button sequence...")
             self.camera_device.save_img()
-            internal_tests.append(self.camera_device.compare_bin_shift(14))
+            camera_result = self.camera_device.compare_bin_shift(14)
+            if camera_result == True:
+                # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                strips_tester.current_product.tests["display"] = ("display", 1, "ok", 0)
+            else:
+                strips_tester.current_product.tests["display"] = ("display", 0, "fail", 0)
+            internal_tests.append(camera_result)
             #internal_tests.append(self.camera_device.compare_bin(14))
 
             payload = bytearray()
@@ -490,40 +532,64 @@ class InternalTest(Task):
                     if keyboard == 0xb03b: #0x8030:
                         module_logger.info("keyboard ok")
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["keyboard"] = ("keyboard", 1, "ok", 0)
                     else:
                         module_logger.warning("keyboard error: %s", hex(keyboard))
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["keyboard"] = ("keyboard", 0, "fail", 0)
 
                     if 700 < temperature < 2500:
                         module_logger.info("temperature in bounds: %s", temperature)
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["temperature"] = ("temperature", temperature, "ok", 0)
                     else:
                         module_logger.warning("temperature out of bounds: %s", temperature)
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["temperature"] = ("temperature", temperature, "fail", 0)
                     if rtc != 1:
                         module_logger.warning("rtc error: %s", rtc)
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["RTC"] = ("RTC", 0, "fail", 0)
                     else:
                         module_logger.info("RTC test successful")
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["RTC"] = ("RTC", 1, "ok", 0)
                     if flash != 1:
                         module_logger.warning("flash error: %s", flash)
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["flash test"] = ("flash test", 0, "fail", 0)
                     else:
                         module_logger.info("Flash test successful")
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["flash test"] = ("flash test", 1, "ok", 0)
                     if switches != 0x00:
                         module_logger.warning("switches error: %s", switches)
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["switches"] = ("switches", 0, "fail", 0)
                     else:
                         module_logger.info("Switches test successful")
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["switches"] = ("switches", 1, "ok", 0)
                     if board != 2:
                         module_logger.warning("board error: %s", board)
                         internal_tests.append(False)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["board test"] = ("board test", 0, "fail", 0)
                     else:
                         module_logger.info("Board test successful")
                         internal_tests.append(True)
+                        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+                        strips_tester.current_product.tests["board test"] = ("board test", 1, "ok", 0)
                     break
                 # if there is no data, like timeout
                 elif header == b'':
@@ -543,9 +609,13 @@ class InternalTest(Task):
         if result == False:
             module_logger.warning("Relay error ")
             internal_tests.append(False)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["relay"] = ("relay", 0, "fail", 0)
         else:
             module_logger.info("Relay test successful")
             internal_tests.append(True)
+            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
+            strips_tester.current_product.tests["relay"] = ("relay", 1, "ok", 0)
 
         #internal_tests.append(queue.get())
         module_logger.debug("Internal tests :%s ", internal_tests)
@@ -665,6 +735,27 @@ class PrintSticker(Task):
 
     def tear_down(self):
         self.g.close()
+
+class WriteToDB(Task):
+    def __init__(self):
+        super().__init__(strips_tester.ERROR)
+
+    def set_up(self):
+       pass
+
+    def run(self):
+        try:
+            pass
+
+            for test in strips_tester.current_product.tests:
+                pass
+        except:
+            pass
+
+        return True, "Data written to db"
+
+    def tear_down(self):
+        pass
 
 
 class TestTask(Task):
