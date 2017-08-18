@@ -60,6 +60,7 @@ class Product:
         self.hw_release = hw_release
         self.production_datetime = production_datetime
         self.task_results = []
+        self.tests = []
 
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
