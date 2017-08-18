@@ -9,16 +9,17 @@ import hid
 from time import sleep
 from datetime import datetime
 import picamera.array
-#from matplotlib import pyplot as pp
+from matplotlib import pyplot as pp
 import time
 import json
 import picamera
 from picamera import PiCamera
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
-#from PIL import Image
+from PIL import Image
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
+
 
 class Honeywell1400:
     hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
@@ -146,7 +147,7 @@ class DigitalMultiMeter:
 
     bytes_per_read = 14
 
-    def __init__(self, port='/dev/ttyUSB0', retries=3, timeout=3.0):
+    def __init__(self, port='/dev/ttyUSB1', retries=3, timeout=3.0):
         self.logger = logging.getLogger(__name__)
         self.ser = serial.Serial(
             port=port,
@@ -607,7 +608,7 @@ class CameraDevice:
         self.dil_mesh = np.empty((128, 240, 1), dtype=np.uint8)
         self.loadMeshImages('/strips_tester_project/garo/mesh', 14)
         self.camera = picamera.PiCamera()
-        self.set_camera_parameters(flag=False)
+        self.set_camera_parameters(flag=True)
         try:
             # logger.debug("Starting self test")
             # self.self_test()
@@ -655,8 +656,8 @@ class CameraDevice:
     def is_complete(self):
         return self.images is not None and self.t1 is not None and self.t2 is not None
 
-    #@staticmethod
-    def shift_picture(self, img, dx, dy):
+    @staticmethod
+    def shift_picture(img, dx, dy):
         non = lambda s: s if s < 0 else None
         mom = lambda s: max(0, s)
         newImg = np.zeros_like(img)
@@ -682,9 +683,7 @@ class CameraDevice:
             self.Mesh[:, :, i] = img // 255 # load every seperate mesh
         self.mesh_all = self.imLoadRaw2d('/strips_tester_project/garo/mesh/Mesh.jpg', 240, 128, order='xy')
         self.mesh_all = self.mesh_all // 255 # to get 0s and 1s
-        #imgcalib =  self.imLoadRaw3d('/strips_tester_project/garo/mesh/cal_dil_mesh.jpg', 240, 128, 3, order = 'yxz')
         self.dil_mesh = self.imLoadRaw2d('/strips_tester_project/garo/mesh/cal_dil_mesh.jpg', 240, 128, order='xy')
-        self.dil_mesh = self.dil_mesh * 255
 
     def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
         """
@@ -737,7 +736,7 @@ class CameraDevice:
         module_logger.debug("Screen test succesfull")
         return True
 
-    def compare_bin_shift(self, imgnum=14, shift=6):
+    def compare_bin_shift(self, imgnum=14, shift=5):
         x, y, matrix = self.calibrate(self.dil_mesh, self.img[4, :, :, 0])
         module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', x, y, 0)
 
@@ -747,14 +746,14 @@ class CameraDevice:
         ty = np.asarray(Ty).flatten()
         img_sum = np.empty((imgnum, tx.size),dtype=np.uint8)
         img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
-        image_i = None
+
         for i in range(imgnum):
-            image_i = self.img[i, :, :, 0] #np.copy(self.shift_picture(self.img[4, :, :, 0], x, y))
-            xx, yy, matrix = self.calibrate(self.dil_mesh, image_i)
+            image_i = self.shift_picture(self.img[i, :, :, 0], self.dx, self.dy)
             image_i = self.img_thr(image_i, 128)
+            xx, yy, matrix = self.calibrate(image_i)
             module_logger.info('Max separate match at, dx :%s, dy : %s, dfi : %s', xx, yy, 0)
             for j in range(tx.size):
-                image = self.shift_picture(image_i, tx[j], ty[j])
+                image = self.shift_picture(image_i, ty[j], tx[j])
                 sumMesh = np.sum(np.logical_and(image, self.mesh_all))
                 isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
                 img_sum[i,j] = isum
@@ -763,55 +762,19 @@ class CameraDevice:
             ind = img_sum[i,:] == Idx_num
             if not np.equal(img_sum[i, :], img_sum1[i, :]).all() or not ind.any():
                 module_logger.warning("Screen test failed at picture %s", i)
-                #return False
+                return False
         module_logger.debug("Screen test succesfull")
         return True
-
-    def compare_bin_shift2(self, imgnum=14, shift=4):
-        fail_flag = 0
-        x, y, matrix = self.calibrate(self.dil_mesh, self.img[4, :, :, 0], shift=7)
-        module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', x, y, 0)
-        tx = ty = np.arange(-shift, shift + 1)
-        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        tx = np.asarray(Tx).flatten()
-        ty = np.asarray(Ty).flatten()
-
-        img_sum = np.empty((imgnum, tx.size), dtype=np.uint8)
-        img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
-        for i in range(imgnum):
-            image_i = self.shift_picture(self.img[i, :, :, 0], x, y)
-            # if i==3:
-            #     image_i = shift_picture(images[:, :, 8], x, y)
-            image_i = self.img_thr(image_i, 128)
-            xx, yy, matrix = self.calibrate(self.dil_mesh, image_i, shift=7)
-            module_logger.info('Max separate match at, dx :%s, dy : %s, dfi : %s', xx, yy, 0)
-            for j in range(tx.size):
-                image = self.shift_picture(image_i, tx[j], ty[j])
-                sumMesh = np.sum(np.logical_and(image, self.mesh_all))
-                isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-                img_sum[i, j] = isum
-                img_sum1[i, j] = sumMesh
-            Idx_num = np.sum(self.Mesh[:, :, i])
-            ind = img_sum[i, :] == Idx_num
-            if not np.equal(img_sum[i, :],img_sum1[i, :]).all() or not ind.any():
-                module_logger.warning("Screen test failed at picture %s", i)
-                fail_flag = 1
-        if fail_flag ==1:
-            return False
-        else:
-            return True
-
 
     def set_camera_parameters(self, flag=False):
         if flag:
             module_logger.debug("Set parameters. Setting iso and exposure time. Wait 2.5 s")
             self.camera.resolution = (self.Xres, self.Yres)
             self.camera.framerate = 80
-            self.camera.brightness = 30
-            time.sleep(2)
-            self.camera.iso = 1 # change accordingly
             time.sleep(1)
-            self.camera.shutter_speed = self.camera.exposure_speed * 3
+            self.camera.iso = 10 # change accordingly
+            time.sleep(1)
+            self.camera.shutter_speed = self.camera.exposure_speed//2
             self.camera.exposure_mode = 'off'
             g = self.camera.awb_gains
             self.camera.awb_mode = 'off'
@@ -865,31 +828,9 @@ class CameraDevice:
         txxshape = tx.shape
         MSE = np.zeros(txxshape, dtype=np.float64)
         for i in range(tx.size):
-            shiftImg = self.shift_picture(imgB, tx[i], ty[i])
+            shiftImg = self.shift_picture(imgB, ty[i], tx[i])
             MSE[i] = self.compare_img(imgA, shiftImg, 0.6)
         MSE.shape = txshape
-        return MSE
-
-    def imSM(self, imA, imB, sm='CC', nb=16, span=(0, 255)):
-        imA = np.asarray(imA, dtype=np.float64)
-        imB = np.asarray(imB, dtype=np.float64)
-
-        if sm == 'MSE':
-            f = ((imA - imB) ** 2).mean()
-            return f
-
-    def rigid_sm_MSE(self, imgA, imgB, tx, ty, ):
-        txshape = tx.shape
-        tx = np.asarray(tx).flatten()
-        ty = np.asarray(ty).flatten()
-        txxshape = tx.shape
-
-        MSE = np.zeros(txxshape[0], dtype=np.float64)
-        for i in range(tx.size):
-            imgBT = self.shift_picture(imgB, tx[i], ty[i])
-            MSE[i] = self.imSM(imgA, imgBT, 'MSE')
-
-        MSE.shape = (txshape[0], txshape[1])
         return MSE
 
     def compare_idx(self):
@@ -912,22 +853,24 @@ class CameraDevice:
             module_logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
             return False
 
-    def calibrate(self, dilmesh, imgB, shift=6):
-        # rgbPath = '/strips_tester_project/garo/mesh'
-        # path = os.path.join(rgbPath, 'cal_dil_mesh.jpg')
-        tx = ty = np.arange(-8, 8 + 1)
+    def calibrate(self, img=None):
+        rgbPath = '/strips_tester_project/garo/mesh'
+        path = os.path.join(rgbPath, 'cal_dil_mesh.jpg')
+        tx = ty = np.arange(-6, 6 + 1)
         Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        matrix = self.rigid_sm_MSE(dilmesh, imgB, Tx, Ty)
-        txshape = tx.size
-
-        m = np.argmin(matrix)
+        module_logger.debug('Calibration in progress...')
+        matrix = 0
+        if img != None:
+            matrix = self.rigid_sm(self.dil_mesh, img, Tx, Ty)
+        else:
+            matrix = self.rigid_sm(self.dil_mesh, self.img[4, :, :, 0], Tx, Ty)
+        m = np.argmax(matrix)
         x = np.mod(m, np.size(tx))
-        y = int(np.floor(m / np.size(tx)))
-        ndx = int(Tx[0, x])
-        ndy = int(Ty[y, 0])
-        #module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', ndx, ndy, 0)  ## Todo modeule_logger.info
-        return ndx, ndy, matrix
-
+        y = int(np.floor(m / np.size(ty)))
+        self.dx = Tx[0, x]
+        self.dy = Ty[y, 0]
+        #module_logger.info("Calibration results. dx : %s, dy : %s ", self.dx, self.dy)
+        return x, y, matrix
 
     def take_picture(self):
         if self.imgCount >= 0 and  self.imgCount < self.imgNum:
@@ -977,24 +920,3 @@ class CameraDevice:
                 Podatki - slika
         """
         data.tofile(fid)
-
-    def imLoadRaw3d(fid, width, height, depth, dtype=np.uint8, order='xyz'):
-
-        slika = np.fromfile(fid, dtype=dtype)
-
-        if order == 'xyz':
-            slika.shape = [depth, height, width]
-
-        # ...
-        elif order == 'yxz':
-            slika.shape = [height, width, depth]
-            # slika = slika.transpose([1, 2, 0])
-
-        elif order == 'zyx':
-            # Indeksi osi: [ 0  1  2]
-            slika.shape = [width, height, depth]
-            slika = slika.transpose([2, 1, 0])
-        else:
-            raise ValueError('Vrstni red ima napačno vrednost.' \
-                             'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
-        return slika

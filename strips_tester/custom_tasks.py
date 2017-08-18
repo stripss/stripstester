@@ -5,7 +5,7 @@ import multiprocessing
 
 import serial
 import struct
-import wifi
+#import wifi
 import RPi.GPIO as GPIO
 import devices
 from config import *
@@ -13,7 +13,7 @@ from config import *
 from garo.stm32loader import CmdException
 # from strips_tester import *
 import strips_tester
-from tester import Task, connect_to_wifi
+from tester import Task #, connect_to_wifi
 from garo import Flash
 from datetime import datetime
 import numpy as np
@@ -35,7 +35,8 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 class LidOpenCheck:
     def __init__(self):
         # if lid is opened
-        if GPIO.input(gpios["START_SWITCH"]):
+        state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
+        if not state_GPIO_SWITCH:
             module_logger.error("Lid opened /")
             strips_tester.current_product.task_results.append(False)
             strips_tester.emergency_break_tasks = True
@@ -86,7 +87,8 @@ class StartProcedureTask(Task):
             # prevent switch bounce
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
-                if not GPIO.input(gpios.get("START_SWITCH")):
+                state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
+                if state_GPIO_SWITCH:
                     module_logger.info("START_SWITCH pressed(lid closed)")
                     break
                 time.sleep(0.1)
@@ -106,11 +108,12 @@ class VoltageTest(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB1')
+        #self.vc820 = devices.DigitalMultiMeter(port='/dev/list')
+        self.vc820 = devices.DigitalMultiMeter()
         self.mesurement_delay = 0.2
 
     def run(self) -> (bool, str):
-        # Vc
+        #Vc
         self.relay_board.close_relay(relays["Vc"])
         time.sleep(self.mesurement_delay)
         time.sleep(0.9)  # additional delay for multimeter to figure out proper auto range
@@ -122,17 +125,17 @@ class VoltageTest(Task):
             module_logger.error("Vc is out of bounds: %sV", dmm_value.val)
             strips_tester.current_product.task_results.append(False)
             raise strips_tester.CriticalEventException("Voltage out of bounds")
-        # 12V
-        self.relay_board.close_relay(relays["12V"])
-        time.sleep(self.mesurement_delay)
-        dmm_value = self.vc820.read()
-        self.relay_board.open_relay(relays["12V"])
-        if dmm_value.numeric_val and 11 < dmm_value.numeric_val < 13:
-            module_logger.info("12V looks normal, measured: %sV", dmm_value.val)
-        else:
-            module_logger.error("12V is out of bounds: %sV", dmm_value.val)
-            strips_tester.current_product.task_results.append(False)
-            raise strips_tester.CriticalEventException("Voltage out of bounds")
+        #12V
+        # self.relay_board.close_relay(relays["12V"])
+        # time.sleep(self.mesurement_delay)
+        # dmm_value = self.vc820.read()
+        # self.relay_board.open_relay(relays["12V"])
+        # if dmm_value.numeric_val and 11 < dmm_value.numeric_val < 13:
+        #     module_logger.info("12V looks normal, measured: %sV", dmm_value.val)
+        # else:
+        #     module_logger.error("12V is out of bounds: %sV", dmm_value.val)
+        #     strips_tester.current_product.task_results.append(False)
+        #     raise strips_tester.CriticalEventException("Voltage out of bounds")
         # 5V
         self.relay_board.close_relay(relays["5V"])
         time.sleep(self.mesurement_delay)
@@ -299,7 +302,7 @@ class InternalTest(Task):
         self.relay_board.close_relay(relays["UART_MCU_RX"])
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["COMMON"])
-        self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB1')
+        self.vc820 = devices.DigitalMultiMeter(port='/dev/ttyUSB0')
         self.serial_port = serial.Serial(
             port="/dev/ttyAMA0",
             baudrate=115200,

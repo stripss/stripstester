@@ -2,17 +2,52 @@ import os
 
 os.system("sudo apt-get update")
 os.system("sudo apt-get upgrade -y")
-os.system("sudo apt-get install python3-venv")
+os.system("sudo apt-get -y install python3-venv")
 os.system("sudo python3 -m venv /venv_strips_tester")
+os.system("virtualenv -p /venv_strips_tester/bin/python3.4 /venv_strips_tester")
 os.system("sudo chown -R pi /venv_strips_tester/")
-os.system("source /venv_strips_tester/bin/activate")
-os.system("pip install pip -UI")
-os.system("pip install setuptools -UI")
-os.system("pip install -r requirements.txt")
-os.system("sudo /venv_strips_tester/bin/python -m pip install pyserial -UI")
-os.system("sudo /venv_strips_tester/bin/python -m pip install picamera -UI")
-python_sudo_contents = '#!/bin/bash\n#Python Interpreter for running tests as root\n# user needs sudo NOPASSWD enabled\nsudo /venv_strips_tester/bin/python "$@"'
-os.system("cat "+python_sudo_contents+" >> /venv_strips_tester/bin/python-sudo2.sh")
+#os.system("source /venv_strips_tester/bin/activate")
+os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
+os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
+os.system("/venv_strips_tester/bin/python -m pip install -r requirements.txt")
+os.system("/venv_strips_tester/bin/python -m pip install pyserial -UI")
+os.system("/venv_strips_tester/bin/python -m pip install picamera -UI")
+os.system("/venv_strips_tester/bin/python -m pip install RPi.GPIO")
+os.system("/venv_strips_tester/bin/python -m pip install numpy")
+
+
+###hidapi dependencies
+os.system("sudo apt-get install libusb-1.0-0-dev")
+os.system("sudo apt-get install python-dev")
+os.system("sudo apt-get install libudev-dev")
+
+### build shared library
+os.system("sudo apt-get install build-essential")
+os.system("git clone https://github.com/signal11/hidapi.git")
+os.system("cd hidapi")
+os.system("./bootstrap")
+os.system("./configure")
+os.system("make")
+os.system("make install")
+os.system("/venv_strips_tester/bin/python -m pip install hidapi")
+
+os.system("sudo systemctl stop serial-getty@ttyS0.service")
+os.system("sudo systemctl disable serial-getty@ttyS0.service")
+#os.system("sudo mkdir strips_tester_project")
+#os.system("sudo chhmod 777 strips_tester_project")
+os.system("sudo rm /boot/cmdline.txt")
+os.system("sudo cp /strips_tester_project/setup_files/cmdline.txt /boot/cmdline.txt")
+os.system("sudo rm /boot/config.txt")
+os.system("sudo cp /strips_tester_project/setup_files/config.txt /boot/config.txt")
+
+
+os.system("sudo apt-get install postgresql-9.4")
+os.system("/venv_strips_tester/bin/python -m pip install psycopg2")
+os.system("sudo rm /etc/postgresql/9.4/main/pg_hba.conf")
+os.system("sudo cp /strips_tester_project/setup_files/pg_hba.conf /etc/postgresql/9.4/main/pg_hba.conf")
+os.system("sudo rm /etc/postgresql/9.4/main/postgresql.conf")
+os.system("sudo cp /strips_tester_project/setup_files/postgresql.conf /etc/postgresql/9.4/main/postgresql.conf")
+os.system("sudo iw wlan0 set power_save off")
 
 
 

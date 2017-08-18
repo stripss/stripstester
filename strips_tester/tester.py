@@ -2,7 +2,7 @@ import logging
 import os
 import datetime
 import sys
-import wifi
+#import wifi
 import RPi.GPIO as GPIO
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 import strips_tester
@@ -12,34 +12,34 @@ import config
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 
 
-def connect_to_wifi(ssid: str, password: str, interface: str = "wlan0", scheme_name: str = "test_scheme", recreate_scheme: bool = False):
-    cell_dict = {}
-    # os.system("sudo ifdown {}".format(interface))
-    os.system("sudo ifup {}".format(interface))
-    for cell in wifi.Cell.all(interface):
-        cell_dict[cell.ssid] = cell
-    if ssid in cell_dict:
-        cell = cell_dict[ssid]
-        if wifi.Scheme.find(interface, scheme_name):
-            scheme = wifi.Scheme.find(interface, scheme_name)
-            module_logger.debug("found scheme")
-            if recreate_scheme:
-                scheme.delete()
-                scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
-                scheme.save()
-        else:
-            scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
-            scheme.save()
-            module_logger.debug("created and saved scheme")
-        for i in range(5):
-            try:
-                module_logger.debug("connect try number: %s", i + 1)
-                scheme.activate()
-                break
-            except Exception as e:
-                module_logger.error("Wifi connection error: %s", e)
-    else:
-        module_logger.error("Wlan network unreachable!")
+# def connect_to_wifi(ssid: str, password: str, interface: str = "wlan0", scheme_name: str = "test_scheme", recreate_scheme: bool = False):
+#     cell_dict = {}
+#     # os.system("sudo ifdown {}".format(interface))
+#     os.system("sudo ifup {}".format(interface))
+#     for cell in wifi.Cell.all(interface):
+#         cell_dict[cell.ssid] = cell
+#     if ssid in cell_dict:
+#         cell = cell_dict[ssid]
+#         if wifi.Scheme.find(interface, scheme_name):
+#             scheme = wifi.Scheme.find(interface, scheme_name)
+#             module_logger.debug("found scheme")
+#             if recreate_scheme:
+#                 scheme.delete()
+#                 scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
+#                 scheme.save()
+#         else:
+#             scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
+#             scheme.save()
+#             module_logger.debug("created and saved scheme")
+#         for i in range(5):
+#             try:
+#                 module_logger.debug("connect try number: %s", i + 1)
+#                 scheme.activate()
+#                 break
+#             except Exception as e:
+#                 module_logger.error("Wifi connection error: %s", e)
+#     else:
+#         module_logger.error("Wlan network unreachable!")
 
 
 class Product:
@@ -82,11 +82,10 @@ class Product:
             self.product_type = ss[-7:]
             # print(self.product_type, self.serial, self.production_datetime)
 
-
 class Task:
     """
     Inherit from this class when creating custom tasks
-    accepts level
+    accepts levelr
     """
     def __init__(self, level: int=logging.CRITICAL):
         self.test_level = level
@@ -150,7 +149,7 @@ def start_test_device():
             raise e
 
 def initialize_gpios():
-    # GPIO.cleanup( )
+    # GPIO.cleanup()
     GPIO.setmode(GPIO.BOARD)
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -161,12 +160,14 @@ def initialize_gpios():
             GPIO.setup(gpio.get("pin"), gpio.get("function"), initial=gpio.get("initial", config.DEFAULT_PULL))
         else:
             module_logger.critical("Not implemented gpio function")
+
+    st_state = GPIO.input(config.gpios.get("START_SWITCH"))
+
     module_logger.debug("GPIOs initialized")
 
 
 def run_custom_tasks():
     strips_tester.current_product = Product()
-    # reset emergency break on start
     strips_tester.emergency_break_tasks = False
     tasks = config.Tasks()
     for CustomTask in tasks.execution_order:

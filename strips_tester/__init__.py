@@ -3,6 +3,7 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
+import json
 
 import config
 
@@ -46,11 +47,42 @@ def initialize_logging(level: int = logging.INFO):
     # db_handler = logging. # todo database logging handler
     return lgr
 
+class TestnaConfig:
+    def __init__(self):
+        self.name = 'Testna2'
+        self.product = 'MVC basic'
+        self.worker = 'Strips'
+    @classmethod
+    def load(cls, file_path):
+        conf = cls()
+        conf_path = os.path.join(os.path.dirname(__file__), file_path)
+        if os.path.exists(conf_path):
+            with open(conf_path, 'r') as f:
+                data = json.load(f)
+            conf.name = data['testna name']
+            conf.product = data['product']
+            conf.worker = data['worker']
+        return conf
+
+    def save(self, file_path):
+        data = {
+            'testna name': self.name,
+            'product': self.product,
+            'worker': self.worker
+        }
+        with open(file_path, 'w') as f:
+            json.dump(data, f)
+
+    def is_complete(self):
+        return self.name is not None and self.product is not None
+
 
 logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
 emergency_break_tasks = False
+testna_desc = TestnaConfig.load("TestnaConfig.json")
+
 
 
 class CriticalEventException(Exception):
@@ -58,13 +90,13 @@ class CriticalEventException(Exception):
         logger.critical("CriticalEventException exception: %s", msg)
 
 
-db_connecton = sqlite3.connect('tester_db')
-cursor = db_connecton.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS products (serial INTEGER NOT NULL, type TEXT, PRIMARY KEY (serial))") #todo add columns
-cursor.execute(
-    "CREATE TABLE IF NOT EXISTS test_results (serial INTEGER NOT NULL , datetime NUMERIC, passed BOOLEAN, result TEXT, FOREIGN KEY (serial) REFERENCES "
-    "products(serial))")
-db_connecton.commit()
+# db_connecton = sqlite3.connect('tester_db')
+# cursor = db_connecton.cursor()
+# cursor.execute("CREATE TABLE IF NOT EXISTS products (serial INTEGER NOT NULL, type TEXT, PRIMARY KEY (serial))") #todo add columns
+# cursor.execute(
+#     "CREATE TABLE IF NOT EXISTS test_results (serial INTEGER NOT NULL , datetime NUMERIC, passed BOOLEAN, result TEXT, FOREIGN KEY (serial) REFERENCES "
+#     "products(serial))")
+# db_connecton.commit()
 
 # c.execute('''CREATE TABLE stocks
 #              (date text, trans text, symbol text, qty real, price real)''')
