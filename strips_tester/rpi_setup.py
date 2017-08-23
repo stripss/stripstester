@@ -17,30 +17,33 @@ os.system("/venv_strips_tester/bin/python -m pip install numpy")
 
 
 ###hidapi dependencies
-os.system("sudo apt-get install libusb-1.0-0-dev")
-os.system("sudo apt-get install python-dev")
-os.system("sudo apt-get install libudev-dev")
+os.system("sudo apt-get install -y libusb-1.0-0-dev")
+os.system("sudo apt-get install -y python-dev")
+os.system("sudo apt-get install -y libudev-dev")
 
 ### build shared library
-os.system("sudo apt-get install build-essential")
+os.system("sudo apt-get install -y autoconf")
+os.system("sudo apt-get install -y build-essential")
+os.system("sudo apt-get install -y libpq-dev")
 os.system("git clone https://github.com/signal11/hidapi.git")
 os.system("cd hidapi")
 os.system("./bootstrap")
 os.system("./configure")
-os.system("make")
-os.system("make install")
+os.system("sudo make")
+os.system("sudo make install")
 os.system("/venv_strips_tester/bin/python -m pip install hidapi")
 
-os.system("sudo systemctl stop serial-getty@ttyS0.service")
-os.system("sudo systemctl disable serial-getty@ttyS0.service")
-#os.system("sudo mkdir strips_tester_project")
-#os.system("sudo chhmod 777 strips_tester_project")
+#os.system("sudo systemctl stop serial-getty@ttyS0.service")
+#os.system("sudo systemctl disable serial-getty@ttyS0.service")
 os.system("sudo rm /boot/cmdline.txt")
 os.system("sudo cp /strips_tester_project/setup_files/cmdline.txt /boot/cmdline.txt")
 os.system("sudo rm /boot/config.txt")
 os.system("sudo cp /strips_tester_project/setup_files/config.txt /boot/config.txt")
 
 
+### postgresql
+os.system("sudo apt-get install -y libpq-dev")
+os.system("sudo apt-get install -y")
 os.system("sudo apt-get install postgresql-9.4")
 os.system("/venv_strips_tester/bin/python -m pip install psycopg2")
 os.system("sudo rm /etc/postgresql/9.4/main/pg_hba.conf")
@@ -50,4 +53,7 @@ os.system("sudo cp /strips_tester_project/setup_files/postgresql.conf /etc/postg
 os.system("sudo iw wlan0 set power_save off")
 
 
+## I2C
+os.system("sudo apt-get install -y i2c-tools")
+os.system("/venv_strips_tester/bin/python -m pip install smbus2")
 
