@@ -7,6 +7,8 @@ import RPi.GPIO as GPIO
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 import strips_tester
 import config
+import postgr
+import random
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -60,7 +62,7 @@ class Product:
         self.hw_release = hw_release
         self.production_datetime = production_datetime
         self.task_results = []
-        self.tests = []
+        self.tests = {}
 
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
@@ -171,6 +173,7 @@ def run_custom_tasks():
     strips_tester.current_product = Product()
     strips_tester.emergency_break_tasks = False
     tasks = config.Tasks()
+    #db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
     for CustomTask in tasks.execution_order:
         try:
             if strips_tester.emergency_break_tasks:
@@ -189,7 +192,8 @@ def run_custom_tasks():
         except Exception as e:
             strips_tester.current_product.task_results.append(False)
             module_logger.error(str(e))
-
+    ## insert into DB
+    strips_tester.db.insert(strips_tester.current_product.tests, testna=strips_tester.testna_desc.name, variant=strips_tester.testna_desc.product, serial=random.randint(10000, 100000), hw_release = strips_tester.current_product.hw_release)  #hw_release=strips_tester.current_product
 
 if __name__ == "__main__":
     #parameter = str(sys.argv[1])

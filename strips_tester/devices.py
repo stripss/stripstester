@@ -26,7 +26,7 @@ class Honeywell1400:
                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-    def __init__(self, vendor_id: int = 0x0c2e, product_id: int = 0x0b81, path: str = "/dev/hidraw1", max_code_length: int = 50):
+    def __init__(self, vendor_id: int = 0x0c2e, product_id: int = 0x0b81, path: str = "/dev/hilslsdraw1", max_code_length: int = 50):
         self.vendor_id = vendor_id
         self.product_id = product_id
         self.path = path

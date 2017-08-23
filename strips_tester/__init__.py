@@ -4,6 +4,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
+import postgr
 
 import config
 
@@ -52,6 +53,7 @@ class TestnaConfig:
         self.name = 'Testna2'
         self.product = 'MVC basic'
         self.worker = 'Strips'
+        self.host = '10.48.253.129'
     @classmethod
     def load(cls, file_path):
         conf = cls()
@@ -62,13 +64,15 @@ class TestnaConfig:
             conf.name = data['testna name']
             conf.product = data['product']
             conf.worker = data['worker']
+            conf.host = data['host']
         return conf
 
     def save(self, file_path):
         data = {
             'testna name': self.name,
             'product': self.product,
-            'worker': self.worker
+            'worker': self.worker,
+            'host': self.host
         }
         with open(file_path, 'w') as f:
             json.dump(data, f)
@@ -81,8 +85,11 @@ logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
 emergency_break_tasks = False
-testna_desc = TestnaConfig.load("TestnaConfig.json")
 
+testna_desc = TestnaConfig.load("TestnaConfig.json")
+db = postgr.TestnaDB(testna_desc.host)
+###db.delete_tables() !!!
+db.insert_product_type(p_name=testna_desc.product, description="for garo", saop=2353)
 
 
 class CriticalEventException(Exception):

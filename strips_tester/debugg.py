@@ -106,13 +106,58 @@ class Camera:
 
 
 
+# my_camera = Camera()
+#
+# my_camera.set_camera_parameters(True)
+# my_camera.start_p()
+#
+#
+# my_camera.change_brightness(30)
+# sleep(1000)
+# my_camera.stop_p()
 
-my_camera = Camera()
-
-my_camera.set_camera_parameters(True)
-my_camera.start_p()
 
 
-my_camera.change_brightness(30)
-sleep(1000)
-my_camera.stop_p()
+
+try:
+    print("Opening the device")
+
+    h = hid.device()
+    vid = 0x05f9
+    pid = 0x2216
+    h.open(vid, pid) # TREZOR VendorID/ProductID
+
+    print("Manufacturer: %s" % h.get_manufacturer_string())
+    print("Product: %s" % h.get_product_string())
+    print("Serial No: %s" % h.get_serial_number_string())
+
+    # enable non-blocking mode
+    h.set_nonblocking(1)
+
+    # write some data to the device
+    print("Write the data")
+    h.write([0, 63, 35, 35] + [0] * 61)
+
+    # wait
+    time.sleep(0.05)
+
+    # read back the answer
+    print("Read the data")
+    while True:
+        d = h.read(64)
+        if d:
+            print(d)
+        else:
+            print("No data")
+
+        sleep(0.2)
+
+    print("Closing the device")
+    h.close()
+
+except IOError as ex:
+    print(ex)
+    print("You probably don't have the hard coded device. Update the hid.device line")
+    print("in this script with one from the enumeration list output above and try again.")
+
+print("Done")
