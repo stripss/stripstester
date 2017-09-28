@@ -188,7 +188,7 @@ class TestnaDB:
     except:
       raise ("Failed to write to DB")
 
-    module_logger.info("Written product to DB with dbname %s, user %s, password %s, host %s, port %s", params['dbname'], params['user'], params['password'], params['host'], params['port'])
+    module_logger.debug("Written product to DB with dbname %s, user %s, password %s, host %s, port %s", params['dbname'], params['user'], params['password'], params['host'], params['port'])
     return True, "Write to db succesfully"
 
   def close(self):

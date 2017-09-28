@@ -48,10 +48,13 @@ def initialize_logging(level: int = logging.INFO):
     # db_handler = logging. # todo database logging handler
     return lgr
 
+
 class TestnaConfig:
     def __init__(self):
-        self.name = 'Testna2'
-        self.product = 'MVC basic'
+        self.name = '000000'
+        self.product = 'NA'
+        self.desc = 'NA'
+        self.saop = 0000
         self.worker = 'Strips'
         self.host = '10.48.253.129'
     @classmethod
@@ -63,6 +66,8 @@ class TestnaConfig:
                 data = json.load(f)
             conf.name = data['testna name']
             conf.product = data['product']
+            conf.desc = data['desc']
+            conf.saop = data['saop']
             conf.worker = data['worker']
             conf.host = data['host']
         return conf
@@ -71,6 +76,8 @@ class TestnaConfig:
         data = {
             'testna name': self.name,
             'product': self.product,
+            'desc': self.desc,
+            'saop': self.saop,
             'worker': self.worker,
             'host': self.host
         }
@@ -81,35 +88,27 @@ class TestnaConfig:
         return self.name is not None and self.product is not None
 
 
+def getserial():
+  # Extract serial from cpuinfo file
+  cpuserial = "0000000000000000"
+  try:
+    f = open('/proc/cpuinfo','r')
+    for line in f:
+      if line[0:6]=='Serial':
+        cpuserial = line[10:26]
+    f.close()
+  except:
+    cpuserial = "ERROR000000000"
+  return cpuserial
+
+
 logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
-emergency_break_tasks = False
 
-testna_desc = TestnaConfig.load("TestnaConfig.json")
+config_file = str(getserial())+ ".json"
+testna_desc = TestnaConfig.load(config_file)
+
 db = postgr.TestnaDB(testna_desc.host)
-###db.delete_tables() !!!
-db.insert_product_type(p_name=testna_desc.product, description="for garo", saop=2353)
+db.insert_product_type(p_name=testna_desc.product, description=testna_desc.desc, saop=testna_desc.saop)
 
-
-class CriticalEventException(Exception):
-    def __init__(self, msg: str = ""):
-        logger.critical("CriticalEventException exception: %s", msg)
-
-
-# db_connecton = sqlite3.connect('tester_db')
-# cursor = db_connecton.cursor()
-# cursor.execute("CREATE TABLE IF NOT EXISTS products (serial INTEGER NOT NULL, type TEXT, PRIMARY KEY (serial))") #todo add columns
-# cursor.execute(
-#     "CREATE TABLE IF NOT EXISTS test_results (serial INTEGER NOT NULL , datetime NUMERIC, passed BOOLEAN, result TEXT, FOREIGN KEY (serial) REFERENCES "
-#     "products(serial))")
-# db_connecton.commit()
-
-# c.execute('''CREATE TABLE stocks
-#              (date text, trans text, symbol text, qty real, price real)''')
-#
-# # Insert a row of data
-# c.execute("INSERT INTO stocks VALUES ('2006-01-05','BUY','RHAT',100,35.14)")
-#
-# # Save (commit) the changes
-# conn.commit()

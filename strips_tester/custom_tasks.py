@@ -19,6 +19,9 @@ from datetime import datetime
 import numpy as np
 import strips_tester.postgr
 
+from yocto_api import *
+from yocto_voltage import *
+
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 # You may set global test level and logging level in config.py file
@@ -50,8 +53,8 @@ class BarCodeReadTask(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
-        self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        self.reader = devices.Honeywell1400(path="/dev/hidraw1", max_code_length=50)
+        #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
+        self.reader = devices.Honeywell1400(path="/dev/hidraw0", max_code_length=50)
 
     def run(self) -> (bool, str):
         module_logger.info("Prepared for reading matrix code:")
@@ -63,13 +66,12 @@ class BarCodeReadTask(Task):
         module_logger.debug("%s", strips_tester.current_product)
         # TODO SHRANI V BAZO
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        self.relay_board.open_relay(relays["LIGHT_RED"])
-        #("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-        strips_tester.current_product.tests["serial"] = ("serial", strips_tester.current_product.serial, "ok", 0)
-        return True, "Code read successful: " + str(serial),
+        #self.relay_board.open_relay(relays["LIGHT_RED"])
+        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str )
+        return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
-        self.relay_board.close()
+        #self.relay_board.close()
         pass
 
 
@@ -79,15 +81,7 @@ class StartProcedureTask(Task):
 
     def run(self) -> (bool, str):
         if "START_SWITCH" in gpios_config:
-            # module_logger.info("Waiting for DETECT_SWITCH...")
-            # while True:
-            #     GPIO.wait_for_edge(gpios.get("DETECT_SWITCH"), GPIO.FALLING)
-            #     time.sleep(0.1)
-            #     if not GPIO.input(gpios.get("DETECT_SWITCH")):
-            #         break
-            # module_logger.debug("Detect switch: %s", GPIO.input(gpios.get("DETECT_SWITCH")))
             module_logger.info("Waiting for START_SWITCH...")
-            # prevent switch bounce
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
                 state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
@@ -95,16 +89,8 @@ class StartProcedureTask(Task):
                     module_logger.info("START_SWITCH pressed(lid closed)")
                     break
                 time.sleep(0.1)
-            strips_tester.current_product.variant = "MVC " + ("wifi" if GPIO.input(gpios.get("WIFI_PRESENT_SWITCH")) else "basic")
-            strips_tester.current_product.hw_release = "v1.3"
-
         else:
             module_logger.info("START_SWITCH not defined in config.py!")
-
-        # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-        #strips_tester.current_product.tests["variant"] = ("variant", strips_tester.current_product.variant, "ok", 0)
-        #strips_tester.current_product.tests["hw_release"] = ("hw_release", strips_tester.current_product.hw_release, "ok", 0)
-
         return True, "Test started manually with start switch " + strips_tester.current_product.variant
 
     def tear_down(self):
@@ -117,74 +103,45 @@ class VoltageTest(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        #self.vc820 = devices.DigitalMultiMeter(port='/dev/list')
-        self.vc820 = devices.DigitalMultiMeter()
-        self.mesurement_delay = 0.2
+        self.mesurement_delay = 0.14
+        self.measurement_results = {}
+        self.voltmeter = devices.YoctoVolt(self.mesurement_delay)
 
     def run(self) -> (bool, str):
         #Vc
         self.relay_board.close_relay(relays["Vc"])
-        time.sleep(self.mesurement_delay)
-        time.sleep(0.9)  # additional delay for multimeter to figure out proper auto range
-        dmm_value = self.vc820.read()
-        self.relay_board.open_relay(relays["Vc"])
-        if dmm_value.numeric_val and 13.5 < dmm_value.numeric_val < 16.5:
-            module_logger.info("Vc looks normal, measured: %sV", dmm_value.val)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["Vc"] = ("Vc", dmm_value.numeric_val, "ok", 4, "V")
+        if self.voltmeter.voltage_in_range(13.5, 16.5):
+            self.measurement_results['Vc'] = [self.voltmeter.voltage, "ok", 5, "V"]
         else:
-            module_logger.error("Vc is out of bounds: %sV", dmm_value.val)
-            strips_tester.current_product.task_results.append(False)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["Vc"] = ("Vc", dmm_value.numeric_val, "fail", 4, "V")
-            raise strips_tester.CriticalEventException("Voltage out of bounds")
-        #12V
-        # self.relay_board.close_relay(relays["12V"])
-        # time.sleep(self.mesurement_delay)
-        # dmm_value = self.vc820.read()
-        # self.relay_board.open_relay(relays["12V"])
-        # if dmm_value.numeric_val and 11 < dmm_value.numeric_val < 13:
-        #     module_logger.info("12V looks normal, measured: %sV", dmm_value.val)
-        # else:
-        #     module_logger.error("12V is out of bounds: %sV", dmm_value.val)
-        #     strips_tester.current_product.task_results.append(False)
-        #     raise strips_tester.CriticalEventException("Voltage out of bounds")
-
+            self.measurement_results['Vc'] = [self.voltmeter.voltage, "fail", 5, "V"]
+        self.relay_board.open_relay(relays["Vc"])
+        # 12V
+        self.relay_board.close_relay(relays["12V"])
+        if self.voltmeter.voltage_in_range(11, 13):
+            self.measurement_results['12V'] = [self.voltmeter.voltage, "ok", 5, "V"]
+        else:
+            self.measurement_results['12V'] = [self.voltmeter.voltage, "fail", 5, "V"]
+        self.relay_board.open_relay(relays["12V"])
         # 5V
         self.relay_board.close_relay(relays["5V"])
-        time.sleep(self.mesurement_delay)
-        dmm_value = self.vc820.read()
-        self.relay_board.open_relay(relays["5V"])
-        if dmm_value.numeric_val and 4.5 < dmm_value.numeric_val < 5.5:
-            module_logger.info("5V looks normal, measured: %sV", dmm_value.val)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["5V"] = ("5V", dmm_value.numeric_val, "ok", 4, "V")
+        if self.voltmeter.voltage_in_range(4.5, 5.5):
+            self.measurement_results['5V'] = [self.voltmeter.voltage, "ok", 5, "V"]
         else:
-            module_logger.error("5V is out of bounds: %sV", dmm_value.val)
-            strips_tester.current_product.task_results.append(False)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["5V"] = ("5V", dmm_value.numeric_val, "fail", 4, "V")
-            raise strips_tester.CriticalEventException("Voltage out of bounds")
+            self.measurement_results['5V'] = [self.voltmeter.voltage, "fail", 5, "V"]
+        self.relay_board.open_relay(relays["5V"])
         # 3V3
         self.relay_board.close_relay(relays["3V3"])
-        time.sleep(self.mesurement_delay)
-        dmm_value = self.vc820.read()
-        self.relay_board.open_relay(relays["3V3"])
-        if dmm_value.numeric_val and 3.0 < dmm_value.numeric_val < 3.8:
-            module_logger.info("3V3 looks normal, measured: %sV", dmm_value.val)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["3V3"] = ("3V3", dmm_value.numeric_val, "ok", 4, "V")
+        if self.voltmeter.voltage_in_range(3.0, 3.8):
+            self.measurement_results['3V3'] = [self.voltmeter.voltage, "ok", 5, "V"]
         else:
-            module_logger.error("3V3 is out of bounds: %sV", dmm_value.val)
-            strips_tester.current_product.task_results.append(False)
-            # ("name": db_test_type_name , "data": db_val(float)  , "status": str ->ok/fail , "level": 0-4 )
-            strips_tester.current_product.tests["3V3"] = ("3V3", dmm_value.numeric_val, "fail", 4, "V")
-            raise strips_tester.CriticalEventException("Voltage out of bounds")
+            self.measurement_results['3V3'] = [self.voltmeter.voltage, "fail", 5, "V"]
+        self.relay_board.open_relay(relays["3V3"])
+
         LidOpenCheck()
-        return True, "All Voltages in specified ranges"
+        return self.measurement_results
 
     def tear_down(self):
-        self.vc820.close()
+        self.voltmeter.close()
         self.relay_board.hid_device.close()
 
 
@@ -223,6 +180,7 @@ class FlashMCUTask(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
+        self.flasher = Flash.STM32M0Flasher(5)
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         self.relay_board.open_all_relays()
         self.relay_board.close_relay(relays["GND"])
@@ -230,28 +188,19 @@ class FlashMCUTask(Task):
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["DTR_MCU"])
         self.relay_board.close_relay(relays["RST"])
-        time.sleep(1)
+        time.sleep(0.5)
 
     def run(self):
+        if self.flasher.run_flashing():
+            LidOpenCheck()
+            return {"MCU flash": ["MCU flash", 1, "ok", 5, "bool"]}
 
-        module_logger.info("Flashing MCU...")
-        success = False
-        for try_number in range(5):
-            try:
-                Flash.flashUC()
-                success = True
-                break
-            except Exception as e:
-                module_logger.warning("Flash try failed")
-        if not success:
-            strips_tester.current_product.task_results.append(False)
-            strips_tester.current_product.tests["MCU flash"] = ("MCU flash", 0, "fail", 4, "bool")
-            raise strips_tester.CriticalEventException("Flashing FAIL")
         LidOpenCheck()
-        module_logger.info("Flash successful")
+        return {"MCU flash": ["MCU flash", 0, "fail", 5, "bool"]}
 
-        strips_tester.current_product.tests["MCU flash"] = ("MCU flash", 1, "ok", 4, "bool")
-        return True, "MCU flash went through"
+
+
+
 
     def tear_down(self):
         self.relay_board.open_all_relays()

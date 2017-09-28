@@ -1,5 +1,20 @@
 import os
 
+'''
+1. Image on SD card
+2. Boot without screen
+3. Boot with sceen
+4. Allow SSH interface and set keyboard
+5. Connect with wifi
+
+6. mkdir /strips_tester_project
+7. git clone repo
+8. run python rpi_setup
+'''
+
+
+
+
 os.system("sudo apt-get update")
 os.system("sudo apt-get upgrade -y")
 os.system("sudo apt-get -y install python3-venv")
@@ -22,16 +37,16 @@ os.system("sudo apt-get install -y python-dev")
 os.system("sudo apt-get install -y libudev-dev")
 
 ### build shared library
-os.system("sudo apt-get install -y autoconf")
-os.system("sudo apt-get install -y build-essential")
-os.system("sudo apt-get install -y libpq-dev")
-os.system("git clone https://github.com/signal11/hidapi.git")
-os.system("cd hidapi")
-os.system("./bootstrap")
-os.system("./configure")
-os.system("sudo make")
-os.system("sudo make install")
-os.system("/venv_strips_tester/bin/python -m pip install hidapi")
+# os.system("sudo apt-get install -y autoconf")
+# os.system("sudo apt-get install -y build-essential")
+# os.system("sudo apt-get install -y libpq-dev")
+# os.system("git clone https://github.com/signal11/hidapi.git")
+# os.system("cd hidapi")
+# os.system("./bootstrap")
+# os.system("./configure")
+# os.system("sudo make")
+# os.system("sudo make install")
+# os.system("/venv_strips_tester/bin/python -m pip install hidapi")
 
 #os.system("sudo systemctl stop serial-getty@ttyS0.service")
 #os.system("sudo systemctl disable serial-getty@ttyS0.service")
@@ -56,4 +71,4 @@ os.system("sudo iw wlan0 set power_save off")
 ## I2C
 os.system("sudo apt-get install -y i2c-tools")
 os.system("/venv_strips_tester/bin/python -m pip install smbus2")
-
+os.system("sudo cp /strips_tester_project/setup_files/python-sudo.sh /venv_strips_tester/bin/")

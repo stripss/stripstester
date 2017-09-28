@@ -17,6 +17,9 @@ from picamera import PiCamera
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 #from PIL import Image
+from yocto_api import *
+from yocto_voltage import *
+from DeviceImpl import Voltmeter, Flasher
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -26,9 +29,9 @@ class Honeywell1400:
                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-    def __init__(self, vendor_id: int = 0x0c2e, product_id: int = 0x0b81, path: str = "/dev/hilslsdraw1", max_code_length: int = 50):
-        self.vendor_id = vendor_id
-        self.product_id = product_id
+    def __init__(self, vid: int = 0x0c2e, pid: int = 0x0b81, path: str = "/dev/hilslsdraw1", max_code_length: int = 50):
+        self.vid = vid
+        self.pid = pid
         self.path = path
         self.max_code_length = max_code_length
         self.logger = logging.getLogger(__name__)
@@ -584,7 +587,33 @@ class SainBoard16:
         #         new = original | mask  # If value was True, set the bit indicated by the mask.
         #     return new
 
+class YoctoVolt(Voltmeter):
+    def __init__(self, delay: int = 1.4):
+        super().__init__(delay)
+        self.sensor = None
 
+        errmsg = None
+        if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
+            module_logger.error("Can't load yocto API : %s", errmsg)
+            raise "Can't load yocto API"
+        # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
+        self.sensor = YVoltage.FindVoltage("VOLTAGE1-A08C8.voltage1");
+        if (self.sensor == None):
+            raise ("No yocto device is connected")
+        m = self.sensor.get_module()
+        target = m.get_serialNumber()
+        module_logger.debug("Module %s found with serial number %s", m, target);
+        if not (self.sensor.isOnline()):
+            raise ('yocto volt is not on')
+        module_logger.debug("Yocto-volt init done")
+
+    def get_voltage(self):
+        if (self.sensor.isOnline()):
+            return self.sensor.get_currentValue()
+        raise ("Yocto volt is not active")
+
+    def close(self):
+        YAPI.FreeAPI()
 
 class CameraDevice:
 

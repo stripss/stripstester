@@ -61,7 +61,6 @@ class Product:
         self.product_type = product_type  # SAOP code
         self.hw_release = hw_release
         self.production_datetime = production_datetime
-        self.task_results = []
         self.tests = {}
 
 
@@ -92,7 +91,9 @@ class Task:
     """
     def __init__(self, level: int=logging.CRITICAL):
         self.test_level = level
-        self.passed = False
+        self.prior = 4
+        self.end = []
+        self.passed = []
         self.result = None
         # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
 
@@ -109,35 +110,50 @@ class Task:
         pass
 
     def _execute(self, test_level: int):
-        if test_level < self.test_level:
-            self.set_up()
-            module_logger.debug("Task: %s setUp", type(self).__name__)
-            try:
-                ret = self.run()
-                if ret is None or len(ret) != 2:
-                    module_logger.error("Implement proper two part return for the Task! %s", type(self).__name__)
-                self.passed, self.result = ret
-            except strips_tester.CriticalEventException as cee:
-                self.tear_down()
+        self.set_up()
+        module_logger.debug("Task: %s setUp", type(self).__name__)
 
-                raise strips_tester.CriticalEventException("Re raise exception")
-
-            except Exception as ex:
-                self.tear_down()
-                module_logger.exception("Task crashed with Exception: %s", ex)
-                self.passed = False
-                self.result = str(ex)
-            if self.passed:
-                module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, self.result)
+        # { "db_test_type_name1":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str },
+        # "db_test_type_name2":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str }}
+        ret = self.run()
+        # if len(ret) != 5:
+        #     raise "Wrong argument length"
+        for keys, values in ret.items():
+            if keys == "signal":
+                if values[1] == "fail" and self.prior <= values[2]:
+                    self.tear_down()  # normal tear down
+                    self.passed.append(False)
+                    self.end.append(True)
+                else:
+                    self.passed.append(True)
+###########################################################################
             else:
-                module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, self.result)
-            self.tear_down()
-            module_logger.debug("Task: %s tearDown", type(self).__name__)
+                strips_tester.current_product.tests[keys] = values # insert test to be written to DB
+                if values[1] == "fail" and self.prior <= values[2]:
+                    self.tear_down()
+                    module_logger.debug("Task: %s tearDown", type(self).__name__)
+                    self.end.append(True)
+                if values[1] == 'ok':
+                    self.passed.append(True)
+                else:
+                    self.passed.append(False)
+                    self.end.append(False)
+##########################################################################
+        # normal flow when task is not critical
+        result = all(self.passed)
+        end = any(self.end)
+        if result:
+            module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, result)
         else:
-            module_logger.info("Task: %s was NOT executed because test level is too high", type(self).__name__)
+            module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, result)
+        self.tear_down() # normal tear down
+        return result, end # to indicate further testing
+
 
     def set_level(self, level: int):
         self.test_level = level
+
+
 
 
 def start_test_device():
@@ -150,6 +166,7 @@ def start_test_device():
         except Exception as e:
             module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
             raise e
+
 
 def initialize_gpios():
     # GPIO.cleanup()
@@ -165,38 +182,35 @@ def initialize_gpios():
             module_logger.critical("Not implemented gpio function")
 
     st_state = GPIO.input(config.gpios.get("START_SWITCH"))
-
     module_logger.debug("GPIOs initialized")
 
 
 def run_custom_tasks():
     strips_tester.current_product = Product()
-    strips_tester.emergency_break_tasks = False
     tasks = config.Tasks()
-    #db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
+    task_results = []
     for CustomTask in tasks.execution_order:
         try:
-            if strips_tester.emergency_break_tasks:
-                strips_tester.current_product.task_results.append(False)
-                config.on_critical_event("Emergency break tasks")
-                break
-            else:
-                module_logger.debug("Executing: %s ...", CustomTask)
-                custom_task = CustomTask()
-                custom_task._execute(config.TEST_LEVEL)
-                strips_tester.current_product.task_results.append(custom_task.passed)
-        except strips_tester.CriticalEventException as cee:
-            config.on_critical_event(str(cee))
-            strips_tester.current_product.task_results.append(False)
-            break
+            module_logger.debug("Executing: %s ...", CustomTask)
+            custom_task = CustomTask()
+            result, end = custom_task._execute(config.TEST_LEVEL)
+            task_results.append(result)
+            if end == True:
+                config.on_critical_event() # release all hardware, print sticker, etc...
+        # catch code exception and bugs. It shouldn't be for functional use
         except Exception as e:
-            strips_tester.current_product.task_results.append(False)
             module_logger.error(str(e))
+            raise "Code error -> REMOVE THE BUG"
     ## insert into DB
-    strips_tester.db.insert(strips_tester.current_product.tests, testna=strips_tester.testna_desc.name, variant=strips_tester.testna_desc.product, serial=random.randint(10000, 100000), hw_release = strips_tester.current_product.hw_release)  #hw_release=strips_tester.current_product
+    if all(task_results) == True:
+        module_logger.info("TEST USPEL :)")
+    else:
+        module_logger.warning("TEST NI USPEL !!! ")
+
+    strips_tester.db.insert(strips_tester.current_product.tests, testna=strips_tester.testna_desc.name, variant=strips_tester.current_product.variant, serial=random.randint(10000, 100000), hw_release = strips_tester.testna_desc.hw_release)  #hw_release=strips_tester.current_product
+
 
 if __name__ == "__main__":
     #parameter = str(sys.argv[1])
     module_logger.info("Starting tester ...")
-
     start_test_device()

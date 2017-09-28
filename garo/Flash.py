@@ -11,10 +11,11 @@ import json
 # from esptool import NotImplementedInROMError
 from argparse import Namespace
 import garo.stm32loader as STM
+from strips_tester.DeviceImpl import Flasher
 import strips_tester
 
 
-logger = logging.getLogger("strips_tester.garo.flash")
+module_logger = logging.getLogger("strips_tester.garo.flash")
 
 chip_ids = {
     0x412: "STM32 Low-density",
@@ -28,15 +29,6 @@ chip_ids = {
     0x413: "STM32F4xx",
     0x440: "STM32F030C8T6"
 }
-
-
-
-
-def gpioInit(config):
-    # GPIO.setmode(GPIO.BCM)  # TODO disabled, because we use same mode everywhere else (board)
-    GPIO.setup(config.resetPin,GPIO.OUT)
-    GPIO.setup(config.bootPin, GPIO.OUT)
-
 
 # ---------------------------------------------------------------------------
 class WifiFlashConfig:
@@ -125,8 +117,10 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='wifi.bin'):
     '''
 
     config = WifiFlashConfig.load(os.path.dirname(__file__) + configFile)
-    logger.debug("config: %s, port: %s: ", config, config.port)
-    gpioInit(config)
+    module_logger.debug("config: %s, port: %s: ", config, config.port)
+
+    GPIO.setup(config.resetPin,GPIO.OUT)
+    GPIO.setup(config.bootPin, GPIO.OUT)
 
     initial_baud = min(esptool.ESPLoader.ESP_ROM_BAUD, config.baud)
     esp = esptool.ESPLoader.detect_chip(config, initial_baud)
@@ -135,7 +129,7 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='wifi.bin'):
         try:
             esp.change_baud(config.baud)
         except esptool.NotImplementedInROMError:
-            logger.warning("WARNING: ROM doesn't support changing baud rate. Keeping initial baud rate %s" , initial_baud)
+            module_logger.warning("WARNING: ROM doesn't support changing baud rate. Keeping initial baud rate %s" , initial_baud)
 
     dir1 = os.path.join(os.path.dirname(__file__), wifibinFile)
     args = Namespace()
@@ -152,80 +146,53 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='wifi.bin'):
         esptool.erase_flash(esp, args)
     esptool.write_flash(esp, args)
 
-    logger.debug("Hard reseting")
+    module_logger.debug("Hard reseting")
     esp.hard_reset()
-    logger.debug("Wifi upload done ")
+    module_logger.debug("Wifi upload done ")
     return True
 
 
-def flashUC(configFile='/stmConfig.json', UCbinFile='mcu0'):
+class STM32M0Flasher(Flasher):
     '''
     :param configFile: configuration file for stm flash
     :param UCbinFile:  binary file for stm
     :return:
     '''
-    config = UCFlashConfig.load(os.path.dirname(__file__) + configFile)
-    gpioInit(config)
+    def __init__(self, retries, configFile='/stmConfig.json', UCbinFile='mcu0'):
+        super().__init__(retries)
+        self.cmd = None
+        self.UCbinFile = UCbinFile
+        self.configFile = configFile
+        self.config = UCFlashConfig.load(os.path.dirname(__file__) + configFile)
 
-    cmd = STM.CommandInterface(config)
-    cmd.open(config.port, config.baud)
-    logger.debug( "Open port %s, baud %s" , config.port, config.baud)
-    logger.debug( "Open port %s" ,  cmd.sp.get_settings())
+    def flash(self):
+        self.cmd = STM.CommandInterface( self.config)
+        self.cmd.open( self.config.port,  self.config.baud)
+        module_logger.debug("Open port %s, baud %s",  self.config.port,  self.config.baud)
+        module_logger.debug("Open port %s", self.cmd.sp.get_settings())
 
-    # count = 0
-    # for i in range(3):
-    #     try:
-    #         cmd.initChip()
-    #         logger.debug("Init done")
-    #     except Exception as ex:
-    #         count = count + 1
-    #         logger.debug("Failed to init. Ensure that BOOT0 is enabled and reset device, exception: %s. Tried %s time", ex, count)
-    #     else:
-    #         break
-    #
-    # if count == 3:
-    #     raise strips_tester.CriticalEventException("Filed to init Flash")
+        try:
+            self.cmd.initChip()
+            module_logger.debug("Init done")
+        except Exception as ex:
+            module_logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
 
-    try:
-        cmd.initChip()
-        logger.debug("Init done")
-    except Exception as ex:
-        logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
+        bootversion = self.cmd.cmdGet()
+        module_logger.debug("Bootloader version %s", bootversion)
+        id = self.cmd.cmdGetID()
+        module_logger.debug("Chip id: 0x%s (%s)", id, chip_ids.get(id, "Unknown"))
+        dir = os.path.dirname(__file__) + '/' + self.UCbinFile
+        # data = map(lambda c: ord(c), file(dir, 'relay_board').read())
+        data = open(dir, 'rb').read()
 
+        self.cmd.cmdEraseMemory()
+        self.cmd.writeMemory(0x08000000, data)
 
-    bootversion = cmd.cmdGet()
-    logger.debug("Bootloader version %s" , bootversion)
-    id = cmd.cmdGetID()
-    logger.debug("Chip id: 0x%s (%s)", id, chip_ids.get(id, "Unknown"))
-    dir = os.path.dirname(__file__) + '/' + UCbinFile
-    # data = map(lambda c: ord(c), file(dir, 'relay_board').read())
-    data = open(dir, 'rb').read()
+        self.cmd.unreset()
 
-    cmd.cmdEraseMemory()
-    cmd.writeMemory(0x08000000, data)
+    def setup(self):
+        GPIO.setup(self.config.resetPin, GPIO.OUT)
+        GPIO.setup(self.config.bootPin, GPIO.OUT)
 
-    cmd.unreset()
-    cmd.close()
-
-'''
-    verify = cmd.readMemory(0x08000000, len(data))
-    if(data == verify):
-        print "Verification OK"
-    else:
-        print "Verification FAILED"
-        print str(len(data)) + ' vs ' + str(len(verify))
-        for i in xrange(0, len(data)):
-            if data[i] != verify[i]:
-                print hex(i) + ': ' + hex(data[i]) + ' vs ' + hex(verify[i])
-
-
-        if not conf['write'] and conf['read']:
-            rdata = cmd.readMemory(conf['address'], conf['len'])
-            file(args[0], 'wb').write(''.join(map(chr,rdata)))
-
-        if conf['go_addr'] != -1:
-            cmd.cmdGo(conf['go_addr'])
-
-    finally:
-        cmd.releaseChip()
-'''
+    def close(self):
+        self.cmd.close()
