@@ -104,9 +104,7 @@ class CommandInterface:
         GPIO.output(self.resetPin, GPIO.LOW)
         time.sleep(0.2)
         GPIO.output(self.resetPin, GPIO.HIGH)
-        time.sleep(0.5)
-        # GPIO.output(self.bootPin, GPIO.LOW)
-        time.sleep(0.5)
+        time.sleep(1)
 
     def unreset(self):
         GPIO.output(self.bootPin, GPIO.LOW)

@@ -109,7 +109,7 @@ class UCFlashConfig:
 
 
 
-def flash_wifi(configFile='/wifiConfig.json', wifibinFile='wifi.bin'):
+def flash_wifi(configFile='/wifiConfig.json', wifibinFile='bin/wifi.bin'):
     '''
     :param configFile: configuration file for wifi flash
     :param wifibinFile: binary file for wifi
@@ -158,14 +158,14 @@ class STM32M0Flasher(Flasher):
     :param UCbinFile:  binary file for stm
     :return:
     '''
-    def __init__(self, retries, configFile='/stmConfig.json', UCbinFile='mcu0'):
-        super().__init__(retries)
+    def __init__(self,reset, dtr, retries, configFile='/stmConfig.json', UCbinFile='bin/mcu0'):
+        super().__init__(reset, dtr, retries)
         self.cmd = None
         self.UCbinFile = UCbinFile
         self.configFile = configFile
         self.config = UCFlashConfig.load(os.path.dirname(__file__) + configFile)
 
-    def flash(self):
+    def run_flashing(self):
         self.cmd = STM.CommandInterface( self.config)
         self.cmd.open( self.config.port,  self.config.baud)
         module_logger.debug("Open port %s, baud %s",  self.config.port,  self.config.baud)
@@ -176,6 +176,7 @@ class STM32M0Flasher(Flasher):
             module_logger.debug("Init done")
         except Exception as ex:
             module_logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
+            return False
 
         bootversion = self.cmd.cmdGet()
         module_logger.debug("Bootloader version %s", bootversion)
@@ -189,10 +190,11 @@ class STM32M0Flasher(Flasher):
         self.cmd.writeMemory(0x08000000, data)
 
         self.cmd.unreset()
+        return True
 
-    def setup(self):
-        GPIO.setup(self.config.resetPin, GPIO.OUT)
-        GPIO.setup(self.config.bootPin, GPIO.OUT)
+    def setup(self, reset, dtr):
+        GPIO.setup(reset, GPIO.OUT)
+        GPIO.setup(dtr, GPIO.OUT)
 
     def close(self):
         self.cmd.close()

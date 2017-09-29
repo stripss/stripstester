@@ -1,5 +1,4 @@
 import psycopg2
-#import strips_tester
 import logging
 from datetime import datetime
 
@@ -9,6 +8,7 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 sql_product_type_table = """ CREATE TABLE IF NOT EXISTS prod_type(
             id serial primary key,
             p_name varchar(32),
+            variant varchar(32),
             description varchar(32),
             saop integer );"""
 
@@ -28,6 +28,7 @@ sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
             val float,
             datetime timestamp,
             testna varchar(32),
+            employee varchar(32),
             foreign key (product_id) references product(id),
             foreign key (test_type_id) references test_type(id) );"""
 
@@ -46,9 +47,9 @@ sql_prop_table = """CREATE TABLE IF NOT EXISTS property(
                     );"""
 
 sql_garo_insert_product = "INSERT INTO product (p_serial, production_datetime, product_type_id, hw_release, notes)VALUES (%s, %s, %s, %s, %s) RETURNING id;"
-sql_garo_insert_type = "INSERT INTO prod_type (p_name, description, saop) VALUES (%s, %s, %s);"
+sql_garo_insert_type = "INSERT INTO prod_type (p_name, variant, description, saop) VALUES (%s, %s, %s, %s);"
 
-sql_garo_insert_test = "INSERT INTO test(product_id, test_type_id, val, datetime, testna) VALUES (%s, %s, %s, %s, %s);"
+sql_garo_insert_test = "INSERT INTO test(product_id, test_type_id, val, datetime, testna, employee) VALUES (%s, %s, %s, %s, %s, %s);"
 sql_garo_insert_test_type = "INSERT INTO test_type(test_name, description, units) VALUES (%s, %s, %s) RETURNING id;"
 sql_garo_insert_prop = "INSERT INTO property (product_id, prop, val) VALUES (%s, %s, %s);"
 
@@ -108,17 +109,18 @@ class TestnaDB:
     :return:
     '''
     ## add aditional and execute only once
-    p_name = kwargs.get('p_name', 'product_type_name')
+    p_name = kwargs.get('p_name', 'product_type')
+    variant = kwargs.get('variant', 'product_variant')
     desc = kwargs.get('description', 'product_type_desc')
     saop = kwargs.get('saop', 000000)
 
-    self.cur.execute("SELECT * FROM prod_type WHERE p_name='{}'".format(p_name))
+    self.cur.execute("SELECT * FROM prod_type WHERE p_name='{}' AND variant='{}'".format(p_name, variant))
     self.conn.commit()
     prod_type = self.cur.fetchone()
     if prod_type is not None:
       return True, "Already exists"
     else:
-      self.cur.execute(sql_garo_insert_type,(p_name, desc, saop))
+      self.cur.execute(sql_garo_insert_type,(p_name, variant, desc, saop))
       self.conn.commit()
 
   def insert_test_type(self, **kwargs):
@@ -148,6 +150,8 @@ class TestnaDB:
     '''
 
     testna_name = kwargs.get('testna', 'Unknown')
+    employee = kwargs.get('employee','Strips')
+    p_name = kwargs.get('p_name', 'product_type')
     variant = kwargs.get('variant', '00000')
     serial = kwargs.get('serial', '00000')
     hw_release = kwargs.get('hw_release', '0.00')
@@ -155,7 +159,7 @@ class TestnaDB:
 
     try:
       # get type id
-      self.cur.execute("SELECT * FROM prod_type WHERE p_name='{}'".format(variant))
+      self.cur.execute("SELECT * FROM prod_type WHERE p_name='{}' AND variant='{}'".format(p_name, variant))
       last_type = self.cur.fetchone()
       #self.conn.commit()
       if last_type is not None:
@@ -178,12 +182,11 @@ class TestnaDB:
         self.conn.commit()
 
 
-      for test in dict_d:
-        self.cur.execute("SELECT * FROM test_type WHERE test_name ='{}'".format(dict_d[test][0]))
+      for keys, values in dict_d.items():
+        self.cur.execute("SELECT * FROM test_type WHERE test_name ='{}'".format(keys))
         id_of_test_type = self.cur.fetchone()[0]
 
-        self.cur.execute(sql_garo_insert_test, (id_of_new_product, id_of_test_type, dict_d[test][1], time, testna_name))
-        #self.cur.execute(sql_garo_insert_prop, (id_of_new_product, "wifi", "ok"))
+        self.cur.execute(sql_garo_insert_test, (id_of_new_product, id_of_test_type, values[0], time, testna_name, employee))
         self.conn.commit()
     except:
       raise ("Failed to write to DB")
@@ -231,13 +234,13 @@ if __name__ == "__main__":
 
   #module_logger.info("Starting postgresql ...")
   print("Start")
-  db = TestnaDB('10.48.253.129')
-  db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
+  db = TestnaDB('192.168.11.15')
+  #db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
   for test in dict_db:
     db.insert_test_type(test_name = dict_db[test][0], description = dict_db[test][0], units = dict_db[test][4])
 
   #db.insert(dict_db, testna = "TESTNA2", variant = "MVC", serial = 232352)
-  db.insert(dict_db_one, testna = "TESTNA2", variant = "MVC basic", serial = 242352)
+  #db.insert(dict_db_one, testna = "TESTNA2", variant = "MVC basic", serial = 242352)
 
   print("end")
   # db.delete_tables()s()

@@ -61,6 +61,7 @@ class Product:
         self.product_type = product_type  # SAOP code
         self.hw_release = hw_release
         self.production_datetime = production_datetime
+        self.task_results = []
         self.tests = {}
 
 
@@ -81,7 +82,7 @@ class Product:
             self.production_datetime = datetime.datetime.now()
             self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
             self.serial = int(ss[7:11])
-            self.product_type = ss[-7:]
+            self.saop = ss[-7:]
             # print(self.product_type, self.serial, self.production_datetime)
 
 class Task:
@@ -121,23 +122,22 @@ class Task:
         for keys, values in ret.items():
             if keys == "signal":
                 if values[1] == "fail" and self.prior <= values[2]:
-                    self.tear_down()  # normal tear down
-                    self.passed.append(False)
                     self.end.append(True)
-                else:
+                    self.passed.append(False)
+                elif values[1] == "ok":
                     self.passed.append(True)
+                else:
+                    self.passed.append(False)
 ###########################################################################
             else:
                 strips_tester.current_product.tests[keys] = values # insert test to be written to DB
                 if values[1] == "fail" and self.prior <= values[2]:
-                    self.tear_down()
-                    module_logger.debug("Task: %s tearDown", type(self).__name__)
                     self.end.append(True)
-                if values[1] == 'ok':
+                    self.passed.append(False)
+                elif values[1] == 'ok':
                     self.passed.append(True)
                 else:
                     self.passed.append(False)
-                    self.end.append(False)
 ##########################################################################
         # normal flow when task is not critical
         result = all(self.passed)
@@ -146,6 +146,8 @@ class Task:
             module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, result)
         else:
             module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, result)
+
+        module_logger.debug("Task: %s tearDown", type(self).__name__)
         self.tear_down() # normal tear down
         return result, end # to indicate further testing
 
@@ -173,7 +175,7 @@ def initialize_gpios():
     GPIO.setmode(GPIO.BOARD)
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    for gpio in config.gpios_config.values():
+    for gpio in config.hw_config.gpios.values():
         if gpio.get("function") == config.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))
         elif gpio.get("function") == config.G_OUTPUT:
@@ -186,28 +188,35 @@ def initialize_gpios():
 
 
 def run_custom_tasks():
-    strips_tester.current_product = Product()
+    strips_tester.current_product = Product(product_type=strips_tester.testna_desc.product, hw_release=strips_tester.testna_desc.hw_release, variant=strips_tester.testna_desc.variant)
     tasks = config.Tasks()
-    task_results = []
     for CustomTask in tasks.execution_order:
         try:
             module_logger.debug("Executing: %s ...", CustomTask)
             custom_task = CustomTask()
             result, end = custom_task._execute(config.TEST_LEVEL)
-            task_results.append(result)
+            strips_tester.current_product.task_results.append(result)
             if end == True:
                 config.on_critical_event() # release all hardware, print sticker, etc...
+                break
         # catch code exception and bugs. It shouldn't be for functional use
         except Exception as e:
             module_logger.error(str(e))
             raise "Code error -> REMOVE THE BUG"
     ## insert into DB
-    if all(task_results) == True:
+    if all(strips_tester.current_product.task_results) == True:
         module_logger.info("TEST USPEL :)")
     else:
         module_logger.warning("TEST NI USPEL !!! ")
 
-    strips_tester.db.insert(strips_tester.current_product.tests, testna=strips_tester.testna_desc.name, variant=strips_tester.current_product.variant, serial=random.randint(10000, 100000), hw_release = strips_tester.testna_desc.hw_release)  #hw_release=strips_tester.current_product
+    # linked to product in db with variant
+    strips_tester.db.insert(strips_tester.current_product.tests,
+                            testna=strips_tester.testna_desc.name,
+                            employee=strips_tester.testna_desc.employee,
+                            p_name=strips_tester.current_product.product_type,
+                            variant=strips_tester.current_product.variant,
+                            serial=strips_tester.current_product.serial,
+                            hw_release=strips_tester.current_product.hw_release)
 
 
 if __name__ == "__main__":

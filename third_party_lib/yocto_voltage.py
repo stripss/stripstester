@@ -40,7 +40,7 @@
 
 
 __docformat__ = 'restructuredtext en'
-from yocto_api import *
+from third_party_lib.yocto_api import *
 
 
 #--- (YVoltage class start)

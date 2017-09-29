@@ -18,40 +18,35 @@ class Voltmeter:
         time.sleep(self.delay)
         return self.get_voltage()
 
-    def voltage_in_range(self, min, max):
+    def in_range(self, min, max):
         self.voltage = self.read()
         if min < self.voltage and self.voltage < max:
-            module_logger.info("Vc looks normal, measured: %sV", self.voltage)
+            module_logger.info("Voltage looks normal, measured: %sV", self.voltage)
             return True
         else:
-            module_logger.error("Vc is out of bounds: %sV", self.voltage)
+            module_logger.error("Voltage is out of bounds: %sV", self.voltage)
             return False
 
 
 class Flasher:
-    def __init__(self, retries: int = 5 ):
+    def __init__(self, reset, dtr, retries: int = 5, ):
         self.retries = retries
+        self.reset = reset
+        self.dtr = dtr
 
-    def run_flashing(self):
-        self.setup()
+    def flash(self):
+        self.setup(self.reset, self.dtr)
         success = False
         module_logger.info("Flashing")
         for retry_number in range(5):
-            try:
-                self.flash()
-                success = True
-                break
-            except Exception as e:
-                module_logger.warning("Flash try failed %s", (self.retries-retry_number))
-        self.close()
-        if not success:
-            return False
-        module_logger.info("Flash successful")
-        return True
+            if self.run_flashing():
+                module_logger.info("Flash successful")
+                return True
+        return False
 
     def setup(self):
         pass
-    def flash(self):
+    def run_flashing(self):
         pass
     def close(self):
         pass
@@ -59,3 +54,30 @@ class Flasher:
         pass
     def verify(self):
         pass
+
+
+class Sensor:
+    def __init__(self, delay: float, property: str, unit: str ):
+        self.delay = delay
+        self.value = None
+        self.property = property
+        self.unit = unit
+
+    def close(self):
+        pass
+
+    def get_value(self):
+        pass
+
+    def read(self):
+        time.sleep(self.delay)
+        return self.get_value()
+
+    def in_range(self, min, max):
+        self.value = self.read()
+        if min < self.value and self.value < max:
+            module_logger.info("%s looks normal, measured: %s%s", self.property, self.value, self.unit)
+            return True
+        else:
+            module_logger.error("%s is out of bounds: %s%s", self.property, self.value, self.unit)
+            return False

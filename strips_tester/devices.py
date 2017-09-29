@@ -16,10 +16,9 @@ import picamera
 from picamera import PiCamera
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
-#from PIL import Image
-from yocto_api import *
-from yocto_voltage import *
-from DeviceImpl import Voltmeter, Flasher
+from third_party_lib.yocto_api import *
+from third_party_lib.yocto_voltage import *
+from DeviceImpl import Voltmeter, Flasher, Sensor
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -587,9 +586,9 @@ class SainBoard16:
         #         new = original | mask  # If value was True, set the bit indicated by the mask.
         #     return new
 
-class YoctoVolt(Voltmeter):
-    def __init__(self, delay: int = 1.4):
-        super().__init__(delay)
+class YoctoVolt(Sensor):
+    def __init__(self, delay: int = 1):
+        super().__init__(delay,"Voltage", "V")
         self.sensor = None
 
         errmsg = None
@@ -607,7 +606,7 @@ class YoctoVolt(Voltmeter):
             raise ('yocto volt is not on')
         module_logger.debug("Yocto-volt init done")
 
-    def get_voltage(self):
+    def get_value(self):
         if (self.sensor.isOnline()):
             return self.sensor.get_currentValue()
         raise ("Yocto volt is not active")
