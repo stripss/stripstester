@@ -18,7 +18,7 @@ sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 from third_party_lib.yocto_api import *
 from third_party_lib.yocto_voltage import *
-from DeviceImpl import Voltmeter, Flasher, Sensor
+from abstract_devices import VoltMeter, Flasher, Sensor
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 

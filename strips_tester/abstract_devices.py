@@ -1,18 +1,20 @@
-
 import time
 import logging
+
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
+
 # Abstract class for voltmeter
-class Voltmeter:
+class VoltMeter:
     def __init__(self, delay: float = 0):
         self.delay = delay
         self.voltage = None
 
     def close(self):
-        pass
+        raise NotImplementedError
+
     def get_voltage(self):
-        pass
+        raise NotImplementedError
 
     def read(self):
         time.sleep(self.delay)
@@ -45,29 +47,33 @@ class Flasher:
         return False
 
     def setup(self):
-        pass
+        raise NotImplementedError
+
     def run_flashing(self):
-        pass
+        raise NotImplementedError
+
     def close(self):
-        pass
+        raise NotImplementedError
+
     def erase(self):
-        pass
+        raise NotImplementedError
+
     def verify(self):
-        pass
+        raise NotImplementedError
 
 
 class Sensor:
-    def __init__(self, delay: float, property: str, unit: str ):
+    def __init__(self, delay: float, property: str, unit: str):
         self.delay = delay
         self.value = None
         self.property = property
         self.unit = unit
 
     def close(self):
-        pass
+        raise NotImplementedError
 
     def get_value(self):
-        pass
+        raise NotImplementedError
 
     def read(self):
         time.sleep(self.delay)
@@ -75,7 +81,7 @@ class Sensor:
 
     def in_range(self, min, max):
         self.value = self.read()
-        if min < self.value and self.value < max:
+        if min < self.value < max:
             module_logger.info("%s looks normal, measured: %s%s", self.property, self.value, self.unit)
             return True
         else:

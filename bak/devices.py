@@ -18,7 +18,7 @@ sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 from yocto_api import *
 from yocto_voltage import *
-from DeviceImpl import Voltmeter, Flasher, Sensor
+from abstract_devices import VoltMeter, Flasher, Sensor
 
 from smbus2 import SMBus, i2c_msg
 from smbus2 import SMBusWrapper

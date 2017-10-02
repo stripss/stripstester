@@ -11,7 +11,7 @@ import json
 # from esptool import NotImplementedInROMError
 from argparse import Namespace
 import garo.stm32loader as STM
-from strips_tester.DeviceImpl import Flasher
+from strips_tester.abstract_devices import Flasher
 import strips_tester
 
 
