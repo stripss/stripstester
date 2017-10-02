@@ -3,8 +3,8 @@
   "product": "MVC",
   "variant": "MVC basic",
   "hw_release":"v1.3",
+
   "desc": "MVC module for GARO",
-  "saop": 2432,
   "employee": "Jure",
   "host": "192.168.11.15"
 }

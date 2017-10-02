@@ -5,21 +5,21 @@ from datetime import datetime
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 
-sql_product_type_table = """ CREATE TABLE IF NOT EXISTS prod_type(
+sql_product_type_table = """ CREATE TABLE IF NOT EXISTS product_type(
             id serial primary key,
-            p_name varchar(32),
+            type smallint,
+            name varchar(32),
             variant varchar(32),
-            description varchar(32),
-            saop integer );"""
+            description varchar(32) );"""
 
 sql_product_table = """ CREATE TABLE IF NOT EXISTS product( 
             id serial primary key,
-            p_serial integer,
+            serial bigint,
             production_datetime timestamp,
             product_type_id integer,
             hw_release varchar(32),
             notes varchar(32),
-            foreign key (product_type_id) references prod_type(id));"""
+            foreign key (product_type_id) references product_type(id));"""
 
 sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
             id serial primary key,
@@ -27,27 +27,27 @@ sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
             test_type_id integer,
             val float,
             datetime timestamp,
-            testna varchar(32),
+            test_device_name varchar(32),
             employee varchar(32),
             foreign key (product_id) references product(id),
             foreign key (test_type_id) references test_type(id) );"""
 
 sql_test_type_table = """CREATE TABLE IF NOT EXISTS test_type(
             id serial primary key,
-            test_name varchar(32),
+            name varchar(32),
             description varchar(200),
             units varchar(32) );"""
 
 sql_prop_table = """CREATE TABLE IF NOT EXISTS property(
                     id serial primary key,
                     product_id integer,
-                    prop varchar(32),
+                    name varchar(32),
                     val varchar(32),
                     foreign key (product_id) references product(id)
                     );"""
 
 sql_garo_insert_product = "INSERT INTO product (p_serial, production_datetime, product_type_id, hw_release, notes)VALUES (%s, %s, %s, %s, %s) RETURNING id;"
-sql_garo_insert_type = "INSERT INTO prod_type (p_name, variant, description, saop) VALUES (%s, %s, %s, %s);"
+sql_garo_insert_type = "INSERT INTO prod_type (p_name, variant, description) VALUES (%s, %s, %s);"
 
 sql_garo_insert_test = "INSERT INTO test(product_id, test_type_id, val, datetime, testna, employee) VALUES (%s, %s, %s, %s, %s, %s);"
 sql_garo_insert_test_type = "INSERT INTO test_type(test_name, description, units) VALUES (%s, %s, %s) RETURNING id;"
@@ -235,7 +235,7 @@ if __name__ == "__main__":
   #module_logger.info("Starting postgresql ...")
   print("Start")
   db = TestnaDB('192.168.11.15')
-  #db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
+  db.insert_product_type(p_name="MVC basic", description="for garo", saop=2353)
   for test in dict_db:
     db.insert_test_type(test_name = dict_db[test][0], description = dict_db[test][0], units = dict_db[test][4])
 

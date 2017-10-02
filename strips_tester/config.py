@@ -111,7 +111,7 @@ class Tasks:
             # custom_tasks.ManualLCDTest,
             # custom_tasks.CameraTest,
             custom_tasks.FinishProcedureTask,
-            #custom_tasks.PrintSticker,
+            custom_tasks.PrintSticker,
         )
 
 ######## DEFINE KEY FUNCTIONS ########

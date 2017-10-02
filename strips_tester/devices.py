@@ -438,31 +438,58 @@ class GoDEXG300:
         self.logger = logging.getLogger(__name__)
 
     @staticmethod
-    def generate(article_type: str, release: str, wifi: str, mac_address: str, test_result: str):
-        label_str = ('^Q9,3\n'
-                     '^W20\n'
-                     '^H13\n'
-                     '^P1\n'
-                     '^S2\n'
-                     '^AD\n'
-                     '^C1\n'
-                     '^R0\n'
-                     '~Q+0\n'
-                     '^O0\n'
-                     '^D0\n'
-                     '^E15\n'
-                     '~R200\n'
-                     '^XSET,ROTATION,0\n'
-                     '^L\n'
-                     'Dy2-me-dd\n'
-                     'Th:m:s\n'
-                     'XRB158,10,4,0,10\n'
-                     '0123456789\n'
-                     'AB,4,10,1,1,0,0E,{}, {}\n'
-                     'AB,4,36,1,1,0,0E,{}\n'
-                     'AB,4,62,1,1,0,0E,{}\n'
-                     'AD,148,60,1,1,0,0E,{}\n'
-                     'E\n'.format(article_type, release, wifi, mac_address, test_result).encode(encoding="ascii"))
+    def generate(product_type: str, hw_release: str, variant: str, serial: str, test_result: str):
+        # label_str = ('^Q9,3\n'
+        #              '^W20\n'
+        #              '^H13\n'
+        #              '^P1\n'
+        #              '^S2\n'
+        #              '^AD\n'
+        #              '^C1\n'
+        #              '^R0\n'
+        #              '~Q+0\n'
+        #              '^O0\n'
+        #              '^D0\n'
+        #              '^E15\n'
+        #              '~R200\n'
+        #              '^XSET,ROTATION,0\n'
+        #              '^L\n'
+        #              'Dy2-me-dd\n'
+        #              'Th:m:s\n'
+        #              'XRB158,10,4,0,10\n'
+        #              '0123456789\n'
+        #              'AB,4,10,1,1,0,0E,{}, {}\n'
+        #              'AB,4,36,1,1,0,0E,{}\n'
+        #              'AB,4,62,1,1,0,0E,{}\n'
+        #              'AD,148,60,1,1,0,0E,{}\n'
+        #              'E\n'.format(product_type, hw_release, variant, serial, test_result).encode(encoding="ascii"))
+        label_str = '''
+            ^Q10,3
+            ^W21
+            ^H5
+            ^P1
+            ^S2
+            ^AD
+            ^C1
+            ^R8
+            ~Q+8
+            ^O0
+            ^D0
+            ^E12
+            ~R200
+            ^XSET,ROTATION,0
+            ^L
+            Dy2-me-dd
+            Th:m:s
+            XRB90,6,4,0,9
+            123456789
+            AA,98,58,1,1,0,0E,FAIL
+            AA,0,2,1,1,0,0E,ABCDE, 0.0
+            AA,0,20,1,1,0,0E,123456789
+            AA,0,38,1,1,0,0E,FA-B5-65
+            AA,62,186,1,1,0,0E,CA-7D-3A
+            E
+            '''
         return label_str
 
     def send_to_printer(self, label_str: str):
