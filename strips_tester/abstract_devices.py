@@ -5,7 +5,7 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 
 # Abstract class for voltmeter
-class VoltMeter:
+class AbstractVoltMeter:
     def __init__(self, delay: float = 0):
         self.delay = delay
         self.voltage = None
@@ -30,7 +30,7 @@ class VoltMeter:
             return False
 
 
-class Flasher:
+class AbstractFlasher:
     def __init__(self, reset, dtr, retries: int = 5, ):
         self.retries = retries
         self.reset = reset
@@ -62,7 +62,7 @@ class Flasher:
         raise NotImplementedError
 
 
-class Sensor:
+class AbstractSensor:
     def __init__(self, delay: float, property: str, unit: str):
         self.delay = delay
         self.value = None

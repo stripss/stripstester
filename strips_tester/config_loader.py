@@ -29,7 +29,7 @@ class Settings:
         self.cpu_serial = self.get_cpu_serial()
         self.gpios = None
         self.relays = None
-        self.config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", self.cpu_serial, "config.json")
+        self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.cpu_serial, "config.json")
         self.load(self.config_file)
 
     def load(self, file_path):

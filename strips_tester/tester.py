@@ -202,27 +202,25 @@ def run_custom_tasks():
                                             hw_release=settings.product_hw_release,
                                             variant=settings.product_variant)
 
-    tasks_module_name =  settings.cpu_serial + ".custom_tasks"
-    from config.abstract_devices import Flasher
-    print(2,[os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ])
-    importlib.import_module("config.abstract_devices")
-    print(4)
-    importlib.import_module("custom_tasks", "..config.000000005e16aa11")
+    custom_tasks = importlib.import_module("configs."+settings.cpu_serial+".custom_tasks")
 
     for task_name in settings.task_execution_order:
-        CustomTask = getattr(tasks_module_name, task_name)
-        try:
-            module_logger.debug("Executing: %s ...", CustomTask)
-            custom_task = CustomTask()
-            result, end = custom_task._execute(config_loader.TEST_LEVEL)
-            current_product.task_results.append(result)
-            if end == True:
-                settings.on_critical_event()  # release all hardware, print sticker, etc...
-                break
-        # catch code exception and bugs. It shouldn't be for functional use
-        except Exception as e:
-            module_logger.error(str(e))
-            raise "Code error -> REMOVE THE BUG"
+        if settings.task_execution_order[task_name]:
+            CustomTask = getattr(custom_tasks, task_name)
+            try:
+                module_logger.debug("Executing: %s ...", CustomTask)
+                custom_task = CustomTask()
+                result, end = custom_task._execute(config_loader.TEST_LEVEL)
+                current_product.task_results.append(result)
+                if end == True:
+                    settings.on_critical_event()  # release all hardware, print sticker, etc...
+                    break
+            # catch code exception and bugs. It shouldn't be for functional use
+            except Exception as e:
+                module_logger.error(str(e))
+                module_logger.exception("Code error -> REMOVE THE BUG")
+        else:
+            module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
     if all(current_product.task_results) == True:
         module_logger.info("TEST USPEL :)")

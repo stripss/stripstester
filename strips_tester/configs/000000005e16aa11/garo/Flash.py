@@ -4,14 +4,14 @@ import sys, os
 
 import logging
 
-from garo import esptool
+from . import esptool
 #import stmtool as STM
 import json
 # from esptool import ESPLoader
 # from esptool import NotImplementedInROMError
 from argparse import Namespace
-import garo.stm32loader as STM
-from strips_tester.abstract_devices import Flasher
+from . import stm32loader as STM
+from strips_tester.abstract_devices import AbstractFlasher
 import strips_tester
 
 
@@ -152,7 +152,7 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='bin/wifi.bin'):
     return True
 
 
-class STM32M0Flasher(Flasher):
+class STM32M0Flasher(AbstractFlasher):
     '''
     :param configFile: configuration file for stm flash
     :param UCbinFile:  binary file for stm

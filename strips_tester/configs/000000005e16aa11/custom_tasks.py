@@ -1,3 +1,4 @@
+import importlib
 import logging
 import sys
 import time
@@ -10,19 +11,22 @@ import RPi.GPIO as GPIO
 import devices
 from config_loader import *
 # sys.path.append("/strips_tester_project/garo/")
-from garo.stm32loader import CmdException
+from .garo.stm32loader import CmdException
 # from strips_tester import *
 import strips_tester
+from strips_tester import settings
 from tester import Task #, connect_to_wifi
-from garo import Flash
+from .garo import Flash
 from datetime import datetime
 import numpy as np
 import strips_tester.postgr
 
+
+
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
-gpios = settings.gpios
-relays = settings.relays
+gpios = strips_tester.settings.gpios
+relays = strips_tester.settings.relays
 
 
 # You may set global test level and logging level in config_loader.py file
@@ -107,7 +111,7 @@ class VoltageTest(Task):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         self.mesurement_delay = 0.14
         self.measurement_results = {}
-        self.voltmeter = devices.YoctoVolt(self.mesurement_delay)
+        self.voltmeter = devices.YoctoVoltageMeter(self.mesurement_delay)
 
     def run(self) -> (bool, str):
         #Vc
@@ -289,7 +293,7 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        self.camera_device = devices.CameraDevice("/strips_tester_project/garo/cameraConfig.json")
+        self.camera_device = devices.CameraDevice()
         self.start_t = None
 
     @staticmethod
@@ -312,7 +316,7 @@ class InternalTest(Task):
         relay_tests = []
         self.relay_board.open()
         self.mesurement_delay = 0.14
-        self.voltmeter = devices.YoctoVolt(self.mesurement_delay)
+        self.voltmeter = devices.YoctoVoltageMeter(self.mesurement_delay)
 
         self.relay_board.close_relay(relays["RE1"])
         self.relay_board.close_relay(relays["RE2"])
@@ -554,13 +558,3 @@ class TestTask(Task):
         pass
 
 
-######## DEFINE KEY FUNCTIONS ########
-# called on critical event during testing
-def on_critical_event(event: str):
-    # insert custom code to prevent possible damage like:
-    # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
-    module_logger.exception("On critical Event!")
-    finish = Tasks().execution_o1rder[-2]()
-    finish._execute(logging.NOTSET)  # NOTSET executes it no matter what
-    p = Tasks().execution_order[-]()
-    p._execute(logging.NOTSET)

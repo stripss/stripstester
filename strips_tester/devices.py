@@ -16,9 +16,9 @@ import picamera
 from picamera import PiCamera
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
-from third_party_lib.yocto_api import *
-from third_party_lib.yocto_voltage import *
-from strips_tester.abstract_devices import VoltMeter, Flasher, Sensor
+from yoctopuce.yocto_api import *
+from yoctopuce.yocto_voltage import *
+from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -613,7 +613,7 @@ class SainBoard16:
         #         new = original | mask  # If value was True, set the bit indicated by the mask.
         #     return new
 
-class YoctoVolt(Sensor):
+class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, delay: int = 1):
         super().__init__(delay,"Voltage", "V")
         self.sensor = None
@@ -655,12 +655,12 @@ class CameraDevice:
         self.dy = None
         self.imgCount = 0
 
-        self.load(config_path)
+        # self.load(config_path)
         self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
         self.Mesh = np.empty((128,240,14),dtype=np.uint8)
         self.mesh_all = np.empty((128, 240, 1), dtype=np.uint8)
         self.dil_mesh = np.empty((128, 240, 1), dtype=np.uint8)
-        self.loadMeshImages('/strips_tester_project/garo/mesh', 14)
+        self.loadMeshImages('garo/mesh', 14)
         self.camera = picamera.PiCamera()
         self.set_camera_parameters(flag=False)
         try:
