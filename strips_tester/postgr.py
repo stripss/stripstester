@@ -16,26 +16,26 @@ sql_product_table = """ CREATE TABLE IF NOT EXISTS product(
             id serial primary key,
             serial bigint,
             production_datetime timestamp,
-            product_type_id integer,
             hw_release varchar(32),
             notes varchar(32),
+            product_type_id integer,
             foreign key (product_type_id) references product_type(id));"""
 
 sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
             id serial primary key,
-            product_id integer,
-            test_type_id integer,
-            val float,
+            value float,
             datetime timestamp,
             test_device_name varchar(32),
             employee varchar(32),
+            product_id integer,
+            test_type_id integer,
             foreign key (product_id) references product(id),
             foreign key (test_type_id) references test_type(id) );"""
 
 sql_test_type_table = """CREATE TABLE IF NOT EXISTS test_type(
             id serial primary key,
             name varchar(32),
-            description varchar(200),
+            description varchar(128),
             units varchar(32) );"""
 
 sql_prop_table = """CREATE TABLE IF NOT EXISTS property(
@@ -46,7 +46,7 @@ sql_prop_table = """CREATE TABLE IF NOT EXISTS property(
                     foreign key (product_id) references product(id)
                     );"""
 
-sql_garo_insert_product = "INSERT INTO product (p_serial, production_datetime, product_type_id, hw_release, notes)VALUES (%s, %s, %s, %s, %s) RETURNING id;"
+sql_garo_insert_product = "INSERT INTO product (serial, production_datetime, hw_release, notes, product_type_id)VALUES (%s, %s, %s, %s, %s) RETURNING id;"
 sql_garo_insert_type = "INSERT INTO prod_type (p_name, variant, description) VALUES (%s, %s, %s);"
 
 sql_garo_insert_test = "INSERT INTO test(product_id, test_type_id, val, datetime, testna, employee) VALUES (%s, %s, %s, %s, %s, %s);"
