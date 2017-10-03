@@ -64,11 +64,6 @@ class Product:
         self.task_results = []
         self.tests = {}
 
-    def concat(self, *args):
-        string = ''
-        for each in args:
-            string += str(each)
-        return int(string)
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
         """ example:
@@ -80,16 +75,23 @@ class Product:
         04 = število tiskanin v enem panelu – podatek potrebuje iWare
         S = oznako potrebuje iWare za označevanje SAOP kode
         2401877 =  SAOP koda tiskanine"""
+
+        def create_4B_serial(year, month, day, five_digit_serial):
+            day_number = day-1 + (month-1)*31 + year*366
+            day_number %= 2**14  # wrap around every 44 years
+            part_1 = day_number << 18
+            part_2 = five_digit_serial
+            serial = part_1 | part_2
+            return serial
+
         if not raw_scanned_string:
             logging.error("Not scanned yet!")
         else:
             ss = raw_scanned_string
             self.production_datetime = datetime.datetime.now()
             self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
-            day = int(ss[1:3]) * 365 + int(ss[3:5]) * 31 + int(ss[5:7])
-            self.serial = self.concat(day,ss[7:12])
-            self.saop = ss[-7:]
-            # print(self.product_type, self.serial, self.production_datetime)
+            self.serial = create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
+
 
 class Task:
     """
