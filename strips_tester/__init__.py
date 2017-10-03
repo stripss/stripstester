@@ -51,13 +51,14 @@ def initialize_logging(level: int = logging.INFO):
 
 class TestnaConfig:
     def __init__(self):
-        self.name = '000000'
+        self.testna_name = '000000'
         self.product = 'NA'
+        self.type = 0000
         self.variant = 'NA'
         self.hw_release = 'v0.0'
         self.desc = 'NA'
         self.hw_release = "v0.0"
-        self.saop = 0000
+        self.product_notes = "NA"
         self.employee = 'Strips'
         self.host = '10.48.253.129'
     @classmethod
@@ -66,24 +67,26 @@ class TestnaConfig:
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 data = json.load(f)
-            conf.name = data['testna name']
             conf.product = data['product']
+            conf.type = data['type']
             conf.variant = data['variant']
             conf.hw_release = data['hw_release']
             conf.desc = data['desc']
-            conf.saop = data['saop']
+            conf.product_notes = data['product_notes']
+            conf.testna_name = data['testna_name']
             conf.employee = data['employee']
             conf.host = data['host']
         return conf
 
     def save(self, file_path):
         data = {
-            'testna name': self.name,
+            'testna_name': self.testna_name,
             'product': self.product,
+            'type': self.type,
             'variant': self.variant,
             'hw_release': self.hw_release,
             'desc': self.desc,
-            'saop': self.saop,
+            'product_notes': self.product_notes,
             'employee': self.worker,
             'host': self.host
         }

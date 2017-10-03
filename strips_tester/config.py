@@ -101,13 +101,13 @@ class Tasks:
     def __init__(self):
         import custom_tasks
         self.execution_order = (
-            custom_tasks.BarCodeReadTask,
+            #custom_tasks.BarCodeReadTask,
             custom_tasks.StartProcedureTask,
             custom_tasks.VoltageTest,
             # custom_tasks.FlashWifiModuleTask,
-            custom_tasks.FlashMCUTask,
+            #custom_tasks.FlashMCUTask,
             # custom_tasks.UartPingTest,
-            custom_tasks.InternalTest,
+            #custom_tasks.InternalTest,
             # custom_tasks.ManualLCDTest,
             # custom_tasks.CameraTest,
             custom_tasks.FinishProcedureTask,

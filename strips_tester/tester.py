@@ -64,6 +64,11 @@ class Product:
         self.task_results = []
         self.tests = {}
 
+    def concat(self, *args):
+        string = ''
+        for each in args:
+            string += str(each)
+        return int(string)
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
         """ example:
@@ -81,7 +86,8 @@ class Product:
             ss = raw_scanned_string
             self.production_datetime = datetime.datetime.now()
             self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
-            self.serial = int(ss[1:12])
+            day = int(ss[1:3]) * 365 + int(ss[3:5]) * 31 + int(ss[5:7])
+            self.serial = self.concat(day,ss[7:12])
             self.saop = ss[-7:]
             # print(self.product_type, self.serial, self.production_datetime)
 
@@ -211,13 +217,15 @@ def run_custom_tasks():
 
     # linked to product in db with variant
     strips_tester.db.insert(strips_tester.current_product.tests,
-                            testna=strips_tester.testna_desc.name,
-                            employee=strips_tester.testna_desc.employee,
-                            p_name=strips_tester.current_product.product_type,
+                            #serial=strips_tester.current_product.serial,
+                            serial=0x02134,
+                            name=strips_tester.current_product.product_type,
                             variant=strips_tester.current_product.variant,
-                            serial=strips_tester.current_product.serial,
-                            hw_release=strips_tester.current_product.hw_release)
-
+                            hw_release=strips_tester.current_product.hw_release,
+                            notes="nothing special",
+                            #production_datetime=,
+                            testna=strips_tester.testna_desc.testna_name,
+                            employee=strips_tester.testna_desc.employee)
 
 if __name__ == "__main__":
     #parameter = str(sys.argv[1])

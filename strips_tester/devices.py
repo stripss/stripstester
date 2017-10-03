@@ -18,7 +18,7 @@ sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 from third_party_lib.yocto_api import *
 from third_party_lib.yocto_voltage import *
-from abstract_devices import VoltMeter, Flasher, Sensor
+from strips_tester.abstract_devices import VoltMeter, Flasher, Sensor
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -493,7 +493,7 @@ class GoDEXG300:
         return label_str
 
     def send_to_printer(self, label_str: str):
-        w = self.ser.write(label_str)
+        w = self.ser.write(label_str.encode(encoding="ascii"))
 
     def close(self):
         """Close the serial port connection."""

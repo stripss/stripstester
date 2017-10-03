@@ -1,10 +1,12 @@
 {
-  "testna name": "Testna2",
-  "product": "MVC",
-  "variant": "MVC basic",
+  "product": "MVC basic",
+  "type": 2342,
+  "variant": "2M RAM",
   "hw_release":"v1.3",
-
   "desc": "MVC module for GARO",
+  "product_notes":"nothing so say",
+
+  "testna_name": "Testna2",
   "employee": "Jure",
   "host": "192.168.11.15"
 }

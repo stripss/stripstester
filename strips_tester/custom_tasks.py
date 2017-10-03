@@ -62,10 +62,10 @@ class BarCodeReadTask(Task):
         strips_tester.current_product.parse_2017_raw_scanned_string(raw_scanned_string)
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        strips_tester.db.insert_product_type(p_name=strips_tester.testna_desc.product,
+        strips_tester.db.insert_product_type(name=strips_tester.testna_desc.product,
                                              variant=strips_tester.testna_desc.variant,
                                              description=strips_tester.testna_desc.desc,
-                                             saop=strips_tester.testna_desc.saop)
+                                             type=strips_tester.testna_desc.type)
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
