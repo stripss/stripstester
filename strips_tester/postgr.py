@@ -7,14 +7,14 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 sql_product_type_table = """ CREATE TABLE IF NOT EXISTS product_type(
             id serial primary key,
-            type smallint,
-            name varchar(32),
+            type int UNIQUE,
+            name varchar(32) UNIQUE,
             variant varchar(32),
             description varchar(32) );"""
 
 sql_product_table = """ CREATE TABLE IF NOT EXISTS product( 
             id serial primary key,
-            serial bigint,
+            serial bigint UNIQUE,
             production_datetime timestamp,
             hw_release varchar(32),
             notes varchar(32),
@@ -35,7 +35,7 @@ sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
 
 sql_test_type_table = """CREATE TABLE IF NOT EXISTS test_type(
             id serial primary key,
-            name varchar(32),
+            name varchar(32) UNIQUE,
             description varchar(128),
             units varchar(32) );"""
 

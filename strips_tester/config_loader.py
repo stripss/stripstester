@@ -1,0 +1,83 @@
+import logging
+import RPi.GPIO as GPIO
+import json
+import os
+import ast
+
+
+import strips_tester
+
+module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
+
+######## DEFAULT CONSTANTS ########
+TEST_LEVEL = logging.NOTSET  # test everything above this level. NOTSET (0) is default and covers all levels
+LOGGING_LEVEL = logging.INFO  # log everything above this level. NOTSET (0) is default and covers all levels
+
+G_INPUT = GPIO.IN  #1
+G_OUTPUT = GPIO.OUT  #0
+G_HIGH = R_CLOSED = 1
+G_LOW = R_OPEN = 0
+G_PUD_DOWN = GPIO.PUD_DOWN  #21
+G_PUD_UP = GPIO.PUD_UP  #22
+G_PUD_OFF = GPIO.PUD_OFF  #20
+# set desired default pull up/down:
+DEFAULT_PULL = G_PUD_UP
+
+
+class Settings:
+    def __init__(self):
+        self.cpu_serial = self.get_cpu_serial()
+        self.gpios = None
+        self.relays = None
+        self.config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", self.cpu_serial, "config.json")
+        self.load(self.config_file)
+
+    def load(self, file_path):
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                self.gpios_settings = data['gpio_settings']
+                self.relays_settings = data['relay_settings']
+                self.product_name = data['product_name']
+                self.product_type = data['product_type']
+                self.product_variant = data['product_variant']
+                self.product_hw_release = data['product_hw_release']
+                self.product_description = data['product_description']
+                self.product_notes = data['product_notes']
+                self.test_device_name = data['test_device_name']
+                self.test_device_employee = data['test_device_employee']
+                self.central_db_host = data['central_db_host']
+                self.task_execution_order = data['task_execution_order']
+                self.critical_event_tasks = data['critical_event_tasks']
+                # GPIO pin finder helper. Example: gpios["START_SWITCH"] -> pin_number:int
+                self.gpios = {gpio: self.gpios_settings.get(gpio).get("pin") for gpio in self.gpios_settings}
+
+                # Relay pin finder helper. Example: relays["12V"] -> pin_number:int
+                self.relays = {relay: self.relays_settings.get(relay).get("pin") for relay in self.relays_settings}
+
+    def save(self, file_path):
+       #  TODO just do it
+        with open(file_path, 'w') as f:
+            json.dump({}, f, sort_keys=True, indent=4)
+
+    @staticmethod
+    def get_cpu_serial() -> str:
+        # Extract serial from cpuinfo file
+        cpuserial = "0000000000000000"
+        try:
+            f = open('/proc/cpuinfo', 'r')
+            for line in f:
+                if line[0:6] == 'Serial':
+                    cpuserial = line[10:26]
+            f.close()
+        except:
+            cpuserial = "ERROR000000000"
+        return cpuserial
+
+
+
+
+
+
+
+

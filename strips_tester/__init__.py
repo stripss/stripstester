@@ -6,7 +6,7 @@ import sqlite3
 import json
 import postgr
 
-import config
+import config_loader
 
 VERSION = '0.0.1'
 
@@ -49,61 +49,9 @@ def initialize_logging(level: int = logging.INFO):
     return lgr
 
 
-class TestnaConfig:
-    def __init__(self):
-        self.testna_name = '000000'
-        self.product = 'NA'
-        self.type = 0000
-        self.variant = 'NA'
-        self.hw_release = 'v0.0'
-        self.desc = 'NA'
-        self.hw_release = "v0.0"
-        self.product_notes = "NA"
-        self.employee = 'Strips'
-        self.host = '10.48.253.129'
-    @classmethod
-    def load(cls, file_path):
-        conf = cls()
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-            conf.product = data['product']
-            conf.type = data['type']
-            conf.variant = data['variant']
-            conf.hw_release = data['hw_release']
-            conf.desc = data['desc']
-            conf.product_notes = data['product_notes']
-            conf.testna_name = data['testna_name']
-            conf.employee = data['employee']
-            conf.host = data['host']
-        return conf
-
-    def save(self, file_path):
-        data = {
-            'testna_name': self.testna_name,
-            'product': self.product,
-            'type': self.type,
-            'variant': self.variant,
-            'hw_release': self.hw_release,
-            'desc': self.desc,
-            'product_notes': self.product_notes,
-            'employee': self.worker,
-            'host': self.host
-        }
-        with open(file_path, 'w') as f:
-            json.dump(data, f)
-
-    def is_complete(self):
-        return self.name is not None and self.product is not None
-
-
 logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
-CPU_SERIAL = config.getserial()
-
-config_file = os.path.split(os.path.dirname(__file__))[0] + "/config/sw_" + str(CPU_SERIAL) + ".json"
-testna_desc = TestnaConfig.load(config_file)
-
-db = postgr.TestnaDB(testna_desc.host)
+settings = config_loader.Settings()
+db = postgr.TestnaDB(settings.central_db_host)
 

@@ -1,12 +1,15 @@
+import importlib
 import logging
 import os
 import datetime
 import sys
-#import wifi
+# import wifi
 import RPi.GPIO as GPIO
-sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
+
+sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
-import config
+from strips_tester import settings, current_product
+import config_loader
 import postgr
 import random
 
@@ -43,27 +46,29 @@ module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 #     else:
 #         module_logger.error("Wlan network unreachable!")
 
+# settings = strips_tester.settings
 
 class Product:
-    def __init__(self, raw_scanned_string: str=None,
-                 serial: int=None,
-                 product_type: str=None,
-                 hw_release: str=None,
-                 variant: str=None,
-                 test_status: bool=None,
-                 mac_address: int=None,
+    def __init__(self, raw_scanned_string: str = None,
+                 serial: int = None,
+                 product_name: str = None,
+                 product_type: int = None,
+                 hw_release: str = None,
+                 variant: str = None,
+                 test_status: bool = None,
+                 mac_address: int = None,
                  production_datetime=datetime):
+        self.product_name = product_name
+        self.product_type = product_type
         self.raw_scanned_string = raw_scanned_string
         self.mac_address = mac_address
         self.test_status = test_status
         self.variant = variant  # "wifi"/"basic"
         self.serial = serial
-        self.product_type = product_type  # SAOP code
         self.hw_release = hw_release
         self.production_datetime = production_datetime
         self.task_results = []
         self.tests = {}
-
 
     def parse_2017_raw_scanned_string(self, raw_scanned_string):
         """ example:
@@ -77,8 +82,8 @@ class Product:
         2401877 =  SAOP koda tiskanine"""
 
         def create_4B_serial(year, month, day, five_digit_serial):
-            day_number = day-1 + (month-1)*31 + year*366
-            day_number %= 2**14  # wrap around every 44 years
+            day_number = day - 1 + (month - 1) * 31 + year * 366
+            day_number %= 2 ** 14  # wrap around every 44 years
             part_1 = day_number << 18
             part_2 = five_digit_serial
             serial = part_1 | part_2
@@ -89,8 +94,8 @@ class Product:
         else:
             ss = raw_scanned_string
             self.production_datetime = datetime.datetime.now()
-            self.production_datetime = self.production_datetime.replace(year=2000+int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
-            self.serial = create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
+            self.production_datetime = self.production_datetime.replace(year=2000 + int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
+            self.serial = self.product_type << 16 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
 
 
 class Task:
@@ -98,16 +103,16 @@ class Task:
     Inherit from this class when creating custom tasks
     accepts levelr
     """
-    def __init__(self, level: int=logging.CRITICAL):
+
+    def __init__(self, level: int = logging.CRITICAL):
         self.test_level = level
-        self.prior = 4
         self.end = []
         self.passed = []
         self.result = None
         # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
 
     def set_up(self):
-        """Used for environment setup"""
+        """Used for environment initial_setup"""
         pass
 
     def run(self) -> (bool, str):
@@ -129,24 +134,24 @@ class Task:
         #     raise "Wrong argument length"
         for keys, values in ret.items():
             if keys == "signal":
-                if values[1] == "fail" and self.prior <= values[2]:
+                if values[1] == "fail" and self.test_level > strips_tester.ERROR:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == "ok":
                     self.passed.append(True)
                 else:
                     self.passed.append(False)
-###########################################################################
+                ###########################################################################
             else:
-                strips_tester.current_product.tests[keys] = values # insert test to be written to DB
-                if values[1] == "fail" and self.prior <= values[2]:
+                strips_tester.current_product.tests[keys] = values  # insert test to be written to DB
+                if values[1] == "fail" and self.test_level > strips_tester.ERROR:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == 'ok':
                     self.passed.append(True)
                 else:
                     self.passed.append(False)
-##########################################################################
+                ##########################################################################
         # normal flow when task is not critical
         result = all(self.passed)
         end = any(self.end)
@@ -156,14 +161,11 @@ class Task:
             module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, result)
 
         module_logger.debug("Task: %s tearDown", type(self).__name__)
-        self.tear_down() # normal tear down
-        return result, end # to indicate further testing
-
+        self.tear_down()  # normal tear down
+        return result, end  # to indicate further testing
 
     def set_level(self, level: int):
         self.test_level = level
-
-
 
 
 def start_test_device():
@@ -171,7 +173,7 @@ def start_test_device():
     while True:
         try:
             global task_results
-            #strips_tester.current_product.task_results = run_custom_tasks()
+            # strips_tester.current_product.task_results = run_custom_tasks()
             run_custom_tasks()
         except Exception as e:
             module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
@@ -183,53 +185,64 @@ def initialize_gpios():
     GPIO.setmode(GPIO.BOARD)
     # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    for gpio in config.hw_config.gpios.values():
-        if gpio.get("function") == config.G_INPUT:
+    for gpio in settings.gpios_settings.values():
+        if gpio.get("function") == config_loader.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))
-        elif gpio.get("function") == config.G_OUTPUT:
-            GPIO.setup(gpio.get("pin"), gpio.get("function"), initial=gpio.get("initial", config.DEFAULT_PULL))
+        elif gpio.get("function") == config_loader.G_OUTPUT:
+            GPIO.setup(gpio.get("pin"), gpio.get("function"), initial=gpio.get("initial", config_loader.DEFAULT_PULL))
         else:
             module_logger.critical("Not implemented gpio function")
 
-    st_state = GPIO.input(config.gpios.get("START_SWITCH"))
+    st_state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
     module_logger.debug("GPIOs initialized")
 
 
 def run_custom_tasks():
-    strips_tester.current_product = Product(product_type=strips_tester.testna_desc.product, hw_release=strips_tester.testna_desc.hw_release, variant=strips_tester.testna_desc.variant)
-    tasks = config.Tasks()
-    for CustomTask in tasks.execution_order:
+    strips_tester.current_product = Product(product_type=settings.product_type,
+                                            hw_release=settings.product_hw_release,
+                                            variant=settings.product_variant)
+
+    tasks_module_name =  settings.cpu_serial + ".custom_tasks"
+    from config.abstract_devices import Flasher
+    print(2,[os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ])
+    importlib.import_module("config.abstract_devices")
+    print(4)
+    importlib.import_module("custom_tasks", "..config.000000005e16aa11")
+
+    for task_name in settings.task_execution_order:
+        CustomTask = getattr(tasks_module_name, task_name)
         try:
             module_logger.debug("Executing: %s ...", CustomTask)
             custom_task = CustomTask()
-            result, end = custom_task._execute(config.TEST_LEVEL)
-            strips_tester.current_product.task_results.append(result)
+            result, end = custom_task._execute(config_loader.TEST_LEVEL)
+            current_product.task_results.append(result)
             if end == True:
-                config.on_critical_event() # release all hardware, print sticker, etc...
+                settings.on_critical_event()  # release all hardware, print sticker, etc...
                 break
         # catch code exception and bugs. It shouldn't be for functional use
         except Exception as e:
             module_logger.error(str(e))
             raise "Code error -> REMOVE THE BUG"
     ## insert into DB
-    if all(strips_tester.current_product.task_results) == True:
+    if all(current_product.task_results) == True:
         module_logger.info("TEST USPEL :)")
     else:
         module_logger.warning("TEST NI USPEL !!! ")
 
     # linked to product in db with variant
     strips_tester.db.insert(strips_tester.current_product.tests,
-                            #serial=strips_tester.current_product.serial,
+                            # serial=strips_tester.current_product.serial,
                             serial=0x02134,
-                            name=strips_tester.current_product.product_type,
-                            variant=strips_tester.current_product.variant,
-                            hw_release=strips_tester.current_product.hw_release,
+                            name=current_product.product_type,
+                            variant=current_product.variant,
+                            hw_release=current_product.hw_release,
                             notes="nothing special",
-                            #production_datetime=,
-                            testna=strips_tester.testna_desc.testna_name,
+                            # production_datetime=,
+                            testna=testna_desc.testna_name,
                             employee=strips_tester.testna_desc.employee)
 
+
 if __name__ == "__main__":
-    #parameter = str(sys.argv[1])
+    # parameter = str(sys.argv[1])
     module_logger.info("Starting tester ...")
     start_test_device()

@@ -2149,7 +2149,7 @@ class YAPI:
         while trying to access the USB modules. In particular, this means
         that you must stop the VirtualHub software before starting
         an application that uses direct USB access. The workaround
-        for this limitation is to setup the library to use the VirtualHub
+        for this limitation is to initial_setup the library to use the VirtualHub
         rather than direct USB access.
 
         If access control has been activated on the hub, virtual or not, you want to

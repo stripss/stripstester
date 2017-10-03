@@ -8,7 +8,7 @@ import struct
 #import wifi
 import RPi.GPIO as GPIO
 import devices
-from config import *
+from config_loader import *
 # sys.path.append("/strips_tester_project/garo/")
 from garo.stm32loader import CmdException
 # from strips_tester import *
@@ -21,7 +21,11 @@ import strips_tester.postgr
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
-# You may set global test level and logging level in config.py file
+gpios = settings.gpios
+relays = settings.relays
+
+
+# You may set global test level and logging level in config_loader.py file
 # Tests severity levels matches python's logging levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
 # Failing "CRITICAL" test will immediately block execution of further tests! (and call "on_critical_event()")
 
@@ -78,7 +82,7 @@ class StartProcedureTask(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def run(self) -> (bool, str):
-        if "START_SWITCH" in hw_config.gpios:
+        if "START_SWITCH" in settings.gpios:
             module_logger.info("Waiting for START_SWITCH...")
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
@@ -88,7 +92,7 @@ class StartProcedureTask(Task):
                     break
                 time.sleep(0.1)
         else:
-            module_logger.info("START_SWITCH not defined in config.py!")
+            module_logger.info("START_SWITCH not defined in config_loader.py!")
         return {"signal": [1, "ok", 5, "NA"]}
 
     def tear_down(self):
@@ -549,3 +553,14 @@ class TestTask(Task):
     def tear_down(self):
         pass
 
+
+######## DEFINE KEY FUNCTIONS ########
+# called on critical event during testing
+def on_critical_event(event: str):
+    # insert custom code to prevent possible damage like:
+    # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.RISING)
+    module_logger.exception("On critical Event!")
+    finish = Tasks().execution_o1rder[-2]()
+    finish._execute(logging.NOTSET)  # NOTSET executes it no matter what
+    p = Tasks().execution_order[-]()
+    p._execute(logging.NOTSET)
