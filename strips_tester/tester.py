@@ -9,6 +9,7 @@ import RPi.GPIO as GPIO
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
 from strips_tester import settings, current_product
+import datetime
 import config_loader
 import postgr
 import random
@@ -69,33 +70,6 @@ class Product:
         self.production_datetime = production_datetime
         self.task_results = []
         self.tests = {}
-
-    def parse_2017_raw_scanned_string(self, raw_scanned_string):
-        """ example:
-        M 170607 00875 000 04 S 2401877
-        M = oznaka za material
-        170607 = datum: leto, mesec, dan
-        00875 = pet mestna serijska številka – števec, ki se za vsako tiskanino povečuje za 1
-        000 = trimestna oznaka, ki se bo v prihodnosti uporabljala za nastavljanje stroja za valno spajkanje, po potrebi pa tudi kaj drugega
-        04 = število tiskanin v enem panelu – podatek potrebuje iWare
-        S = oznako potrebuje iWare za označevanje SAOP kode
-        2401877 =  SAOP koda tiskanine"""
-
-        def create_4B_serial(year, month, day, five_digit_serial):
-            day_number = day - 1 + (month - 1) * 31 + year * 366
-            day_number %= 2 ** 14  # wrap around every 44 years
-            part_1 = day_number << 18
-            part_2 = five_digit_serial
-            serial = part_1 | part_2
-            return serial
-
-        if not raw_scanned_string:
-            logging.error("Not scanned yet!")
-        else:
-            ss = raw_scanned_string
-            self.production_datetime = datetime.datetime.now()
-            self.production_datetime = self.production_datetime.replace(year=2000 + int(ss[1:3]), month=int(ss[3:5]), day=int(ss[5:7]))
-            self.serial = self.product_type << 16 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
 
 
 class Task:
@@ -198,7 +172,8 @@ def initialize_gpios():
 
 
 def run_custom_tasks():
-    strips_tester.current_product = Product(product_type=settings.product_type,
+    strips_tester.current_product = Product(product_name=settings.product_name, # inserted in db according to product_name and variant
+                                            product_type=settings.product_type, # used to compose product serial number(prefix)
                                             hw_release=settings.product_hw_release,
                                             variant=settings.product_variant)
 
@@ -211,7 +186,7 @@ def run_custom_tasks():
                 module_logger.debug("Executing: %s ...", CustomTask)
                 custom_task = CustomTask()
                 result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                current_product.task_results.append(result)
+                strips_tester.current_product.task_results.append(result)
                 if end == True:
                     settings.on_critical_event()  # release all hardware, print sticker, etc...
                     break
@@ -222,23 +197,20 @@ def run_custom_tasks():
         else:
             module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
-    if all(current_product.task_results) == True:
+    if all(strips_tester.current_product.task_results) == True:
         module_logger.info("TEST USPEL :)")
     else:
         module_logger.warning("TEST NI USPEL !!! ")
-
     # linked to product in db with variant
     strips_tester.db.insert(strips_tester.current_product.tests,
-                            # serial=strips_tester.current_product.serial,
-                            serial=0x02134,
-                            name=current_product.product_type,
-                            variant=current_product.variant,
-                            hw_release=current_product.hw_release,
+                            serial=strips_tester.current_product.serial,
+                            name=strips_tester.current_product.product_name,
+                            variant=strips_tester.current_product.variant,
+                            hw_release=strips_tester.current_product.hw_release,
                             notes="nothing special",
-                            # production_datetime=,
-                            testna=testna_desc.testna_name,
-                            employee=strips_tester.testna_desc.employee)
-
+                            production_datetime=strips_tester.current_product.production_datetime,
+                            testna=settings.test_device_name,
+                            employee=settings.test_device_employee)
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])

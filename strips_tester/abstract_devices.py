@@ -87,3 +87,11 @@ class AbstractSensor:
         else:
             module_logger.error("%s is out of bounds: %s%s", self.property, self.value, self.unit)
             return False
+
+
+class AbstractCameraAlgorithm:
+    def __init__(self):
+        pass
+
+    def run(self):
+        pass

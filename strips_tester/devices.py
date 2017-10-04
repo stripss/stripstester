@@ -463,34 +463,7 @@ class GoDEXG300:
         #              'AB,4,62,1,1,0,0E,{}\n'
         #              'AD,148,60,1,1,0,0E,{}\n'
         #              'E\n'.format(product_type, hw_release, variant, serial, test_result).encode(encoding="ascii"))
-        label_str = '''
-            ^Q10,3
-            ^W21
-            ^H5
-            ^P1
-            ^S2
-            ^AD
-            ^C1
-            ^R8
-            ~Q+8
-            ^O0
-            ^D0
-            ^E12
-            ~R200
-            ^XSET,ROTATION,0
-            ^L
-            Dy2-me-dd
-            Th:m:s
-            XRB90,6,4,0,9
-            123456789
-            AA,98,58,1,1,0,0E,FAIL
-            AA,0,2,1,1,0,0E,ABCDE, 0.0
-            AA,0,20,1,1,0,0E,123456789
-            AA,0,38,1,1,0,0E,FA-B5-65
-            AA,62,186,1,1,0,0E,CA-7D-3A
-            E
-            '''
-        return label_str
+        pass
 
     def send_to_printer(self, label_str: str):
         w = self.ser.write(label_str.encode(encoding="ascii"))
@@ -642,8 +615,7 @@ class YoctoVoltageMeter(AbstractSensor):
         YAPI.FreeAPI()
 
 class CameraDevice:
-
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str=None):
         self.Xres = 128
         self.Yres = 80
         self.thr = 0.8
@@ -656,13 +628,15 @@ class CameraDevice:
         self.imgCount = 0
 
         # self.load(config_path)
+
         self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
+        self.camera = picamera.PiCamera()
+        self.set_camera_parameters(flag=False)
+
         self.Mesh = np.empty((128,240,14),dtype=np.uint8)
         self.mesh_all = np.empty((128, 240, 1), dtype=np.uint8)
         self.dil_mesh = np.empty((128, 240, 1), dtype=np.uint8)
         self.loadMeshImages('garo/mesh', 14)
-        self.camera = picamera.PiCamera()
-        self.set_camera_parameters(flag=False)
         try:
             # logger.debug("Starting self test")
             # self.self_test()

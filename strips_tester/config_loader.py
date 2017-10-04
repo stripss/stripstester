@@ -2,6 +2,7 @@ import logging
 import RPi.GPIO as GPIO
 import json
 import os
+from collections import OrderedDict
 import ast
 
 
@@ -35,7 +36,7 @@ class Settings:
     def load(self, file_path):
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
-                data = json.load(f)
+                data = json.load(f,object_pairs_hook=OrderedDict)
                 self.gpios_settings = data['gpio_settings']
                 self.relays_settings = data['relay_settings']
                 self.product_name = data['product_name']

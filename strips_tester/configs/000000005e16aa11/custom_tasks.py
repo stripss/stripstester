@@ -67,18 +67,68 @@ class BarCodeReadTask(Task):
         raw_scanned_string = self.reader.wait_for_read()
         module_logger.info("Code read successful")
         strips_tester.current_product.raw_scanned_string = raw_scanned_string
-        strips_tester.current_product.parse_2017_raw_scanned_string(raw_scanned_string)
+        #strips_tester.current_product.parse_2017_raw_scanned_string(raw_scanned_string)
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        strips_tester.db.insert_product_type(name=strips_tester.testna_desc.product,
-                                             variant=strips_tester.testna_desc.variant,
-                                             description=strips_tester.testna_desc.desc,
-                                             type=strips_tester.testna_desc.type)
+        strips_tester.db.insert_product_type(name=settings.product_name,
+                                             variant=settings.product_variant,
+                                             description=settings.product_description,
+                                             type=settings.product_type)
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
         #self.relay_board.close()
         pass
+
+class ProductConfigTask(Task):
+    def __init__(self):
+        super().__init__(strips_tester.CRITICAL)
+        # global produt data structure defined in tester. Configure the product here for later use and write do DB
+        self.product = strips_tester.current_product
+
+    def run(self) -> (bool, str):
+        if self.parse_2017_raw_scanned_string():
+            return {"signal": [1, "ok", 5, "NA"]}
+        else:
+            return {"signal": [0, "fail", 5, "NA"]}
+
+    def to_product_production_datetime(self, year: int = 2017, month: int = 1, day: int = 1):
+        self.product.production_datetime = datetime.now()
+        self.product.production_datetime.replace(year=(2000+year), month=month, day=day)
+
+
+    def parse_2017_raw_scanned_string(self):
+        """ example:
+        M 170607 00875 000 04 S 2401877
+        M = oznaka za material
+        170607 = datum: leto, mesec, dan
+        00875 = pet mestna serijska številka – števec, ki se za vsako tiskanino povečuje za 1
+        000 = trimestna oznaka, ki se bo v prihodnosti uporabljala za nastavljanje stroja za valno spajkanje, po potrebi pa tudi kaj drugega
+        04 = število tiskanin v enem panelu – podatek potrebuje iWare
+        S = oznako potrebuje iWare za označevanje SAOP kode
+        2401877 =  SAOP koda tiskanine"""
+
+        def create_4B_serial(year, month, day, five_digit_serial):
+            day_number = day - 1 + (month - 1) * 31 + year * 366
+            day_number %= 2 ** 14  # wrap around every 44 years
+            part_1 = day_number << 18
+            part_2 = five_digit_serial
+            serial = part_1 | part_2
+            return serial
+
+        if not self.product.raw_scanned_string:
+            logging.error("Not scanned yet!")
+            return False
+        else:
+            ss = self.product.raw_scanned_string
+            self.to_product_production_datetime(year=int(ss[1:3]), month=int(ss[3:5]),day=int(ss[5:7]))
+            self.product.serial = self.product.product_type << 32 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
+            return True
+
+    def tear_down(self):
+        pass
+
+
 
 
 class StartProcedureTask(Task):
@@ -293,7 +343,7 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        self.camera_device = devices.CameraDevice()
+        #self.camera_device = devices.CameraDevice()
         self.start_t = None
 
     @staticmethod
@@ -358,17 +408,17 @@ class InternalTest(Task):
             module_logger.info("Testing segment display...")
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
-            for i in range(14):
-                dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
-                while 0.0 < dt:
-                    time.sleep(0.5 * dt)
-                    dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
-                pic_start_time = time.time()
-                self.camera_device.take_picture()
-                module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
-            module_logger.info("Input button sequence...")
-            self.camera_device.save_img()
-            #camera_result = self.camera_device.compare_bin_shift(14)
+            # for i in range(14):
+            #     dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+            #     while 0.0 < dt:
+            #         time.sleep(0.5 * dt)
+            #         dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+            #     pic_start_time = time.time()
+            #     self.camera_device.take_picture()
+            #     module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
+            # module_logger.info("Input button sequence...")
+            # self.camera_device.save_img()
+            # #camera_result = self.camera_device.compare_bin_shift(14)
             camera_result = True
             if camera_result == True:
                 self.measurement_results["display"] = [1, "ok", 0, "bool"]
@@ -454,7 +504,7 @@ class InternalTest(Task):
         return self.measurement_results
 
     def tear_down(self):
-        self.camera_device.close()
+        #self.camera_device.close()
         self.serial_port.close()
         self.relay_board.open()
         self.relay_board.open_all_relays()
@@ -530,16 +580,35 @@ class PrintSticker(Task):
         self.g = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
 
     def run(self):
-        label_params = (strips_tester.current_product.product_type,
-                        strips_tester.current_product.hw_release,
-                        strips_tester.current_product.variant,
-                        strips_tester.current_product.serial,
-                        "PASS" if strips_tester.current_product.test_status else "FAIL")
-        module_logger.debug("label_params: %s: ", label_params)
-        label = self.g.generate(*label_params)
-        module_logger.info("Printed sticker with label : article_type:%s, hw_release:%s, wifi:%s, mac_address:%s, test_result:%s", *label_params)
+        label=('^Q10,3\r'
+                '^W21\r'
+                '^H5\r'
+                '^P1\r'
+                '^S2\r'
+               '^AD\r'
+               '^C1\r'
+               '^R0\r'
+               '~Q+0\r'
+               '^O0\r'
+               '^D0\r'
+               '^E12\r'
+               '~R200\r'
+               '^XSET,ROTATION,0\r'
+               '^L\r'
+               'Dy2-me-dd\r'
+               'Th:m:s\r'
+               'XRB115,14,3,0,{}\r'
+               '{}\r'
+               'ATC,13,43,14,14,0,0E,C,0,{}, fw{}\r'
+               'ATA,17,13,25,25,0,0E,A,0,{}\r'
+               'ATC,12,63,14,14,0,0E,C,0,SN {}\r'
+               'E\r').format(len(str(strips_tester.current_product.serial)),
+                            strips_tester.current_product.serial,
+                            strips_tester.current_product.product_name,
+                            strips_tester.current_product.hw_release,
+                            "PASS" if strips_tester.current_product.test_status else "FAIL",
+                            hex(strips_tester.current_product.serial))
         self.g.send_to_printer(label)
-
         return {"signal": [1, 'ok', 0, 'NA']}
 
     def tear_down(self):

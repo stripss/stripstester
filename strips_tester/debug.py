@@ -1,25 +1,25 @@
 
 
-def getserial():
-  # Extract serial from cpuinfo file
-  cpuserial = "0000000000000000"
-  try:
-    f = open('/proc/cpuinfo','r')
-    for line in f:
-      if line[0:6]=='Serial':
-        cpuserial = line[10:26]
-    f.close()
-  except:
-    cpuserial = "ERROR000000000"
+# def getserial():
+#   # Extract serial from cpuinfo file
+#   cpuserial = "0000000000000000"
+#   try:
+#     f = open('/proc/cpuinfo','r')
+#     for line in f:
+#       if line[0:6]=='Serial':
+#         cpuserial = line[10:26]
+#     f.close()
+#   except:
+#     cpuserial = "ERROR000000000"
+#
+#   return cpuserial
 
-  return cpuserial
 
-
-from __future__ import print_function
-
-import hid
-import time
-
+# from __future__ import print_function
+#
+# import hid
+# import time
+#
 
 '''
 # enumerate USB devices
@@ -75,7 +75,7 @@ print("Done")
 '''
 
 import picamera
-from time import sleep
+import time
 
 class Camera:
     def __init__(self):
@@ -92,14 +92,18 @@ class Camera:
 
         self.camera = picamera.PiCamera()
 
-    def start_p(self):
+    def start_preview(self):
         self.camera.start_preview()
 
-    def stop_p(self):
+    def stop_preview(self):
         self.camera.stop_preview()
 
     def change_brightness(self, br):
         self.camera.brightness = br
+
+    def take_img_to_file(self, file_path):
+        time.sleep(1)
+        self.camera.capture(file_path)
 
     def set_camera_parameters(self, flag=False):
         if flag:
@@ -125,56 +129,69 @@ class Camera:
 
 # my_camera = Camera()
 #
-# my_camera.set_camera_parameters(True)
-# my_camera.start_p()
+# #my_camera.set_camera_parameters(True)
+# my_camera.start_preview()
+# my_camera.camera.resolution = (128, 80)
+# i=0
+# for filename in my_camera.camera.capture_continuous('/home/pi/Desktop/img{counter:03d}.jpg', use_video_port=True):
+#     print('Captured %s at %s', filename, time.time())
+#     if i==10:
+#         break;
+#     i = i + 1;
+#     #time.sleep(0) # wait 5 minutes
+# #my_camera.take_img_to_file("/home/pi/Desktop/pic1.jpg")
+# #my_camera.change_brightness(30)
+# time.sleep(1000)
+# my_camera.stop_preview()
+
+# import picamera
 #
+# camera = picamera.PiCamera()
+# camera.resolution = (640, 480)
+# camera.start_recording('/home/pi/Desktop/my_video.h264')
+# camera.wait_recording(15)
+# camera.stop_recording()
+
+
+# try:
+#     print("Opening the device")
 #
-# my_camera.change_brightness(30)
-# sleep(1000)
-# my_camera.stop_p()
-
-
-
-
-try:
-    print("Opening the device")
-
-    h = hid.device()
-    vid = 0x05f9
-    pid = 0x2216
-    h.open(vid, pid) # TREZOR VendorID/ProductID
-
-    print("Manufacturer: %s" % h.get_manufacturer_string())
-    print("Product: %s" % h.get_product_string())
-    print("Serial No: %s" % h.get_serial_number_string())
-
-    # enable non-blocking mode
-    h.set_nonblocking(1)
-
-    # write some data to the device
-    print("Write the data")
-    h.write([0, 63, 35, 35] + [0] * 61)
-
-    # wait
-    time.sleep(0.05)
-
-    # read back the answer
-    print("Read the data")
-    while True:
-        d = h.read(64)
-        if d:
-            print(d)
-        else:
-            print("No data")
-
-        sleep(0.2)
-
-    print("Closing the device")
-    h.close()
-
-except IOError as ex:
-    print(ex)
-    print("You probably don't have the hard coded device. Update the hid.device line")
-    print("in this script with one from the enumeration list output above and try again.")
-
-print("Done")
+#     h = hid.device()
+#     vid = 0x05f9
+#     pid = 0x2216
+#     h.open(vid, pid) # TREZOR VendorID/ProductID
+#
+#     print("Manufacturer: %s" % h.get_manufacturer_string())
+#     print("Product: %s" % h.get_product_string())
+#     print("Serial No: %s" % h.get_serial_number_string())
+#
+#     # enable non-blocking mode
+#     h.set_nonblocking(1)
+#
+#     # write some data to the device
+#     print("Write the data")
+#     h.write([0, 63, 35, 35] + [0] * 61)
+#
+#     # wait
+#     time.sleep(0.05)
+#
+#     # read back the answer
+#     print("Read the data")
+#     while True:
+#         d = h.read(64)
+#         if d:
+#             print(d)
+#         else:
+#             print("No data")
+#
+#         sleep(0.2)
+#
+#     print("Closing the device")
+#     h.close()
+#
+# except IOError as ex:
+#     print(ex)
+#     print("You probably don't have the hard coded device. Update the hid.device line")
+#     print("in this script with one from the enumeration list output above and try again.")
+#
+# print("Done")
