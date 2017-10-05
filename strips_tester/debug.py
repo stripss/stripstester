@@ -76,6 +76,7 @@ print("Done")
 
 import picamera
 import time
+from fractions import Fraction
 
 class Camera:
     def __init__(self):
@@ -101,9 +102,9 @@ class Camera:
     def change_brightness(self, br):
         self.camera.brightness = br
 
-    def take_img_to_file(self, file_path):
+    def take_img_to_file(self, file_path, video_port):
         time.sleep(1)
-        self.camera.capture(file_path)
+        self.camera.capture(file_path, use_video_port=video_port)
 
     def set_camera_parameters(self, flag=False):
         if flag:
@@ -127,11 +128,36 @@ class Camera:
 
 
 
-# my_camera = Camera()
-#
-# #my_camera.set_camera_parameters(True)
-# my_camera.start_preview()
-# my_camera.camera.resolution = (128, 80)
+my_camera = Camera()
+
+#my_camera.set_camera_parameters(True)
+my_camera.start_preview()
+my_camera.camera.resolution = (640, 480)
+my_camera.camera.exposure_mode = 'off'
+my_camera.camera.framerate = 15
+i = 0
+pic = 0
+time.sleep(2)
+#my_camera.change_brightness(30)
+# my_camera.awb_mode = 'off'
+#my_camera.camera.awb_gains = (Fraction(50, 50), Fraction(50, 50))
+# my_camera.camera.iso = 100
+my_camera.camera.shutter_speed = 60000
+my_camera.camera.exposure_mode = 'off'
+#time.sleep(2)
+
+while True:
+    if i==1:
+        print("exposure speed :", my_camera.camera.exposure_speed)
+        #print("abw_gains ", my_camera.camera.awb_gains)
+        print("iso ", my_camera.camera.iso)
+        print("analog gain",float(my_camera.camera.analog_gain))
+        print("digital gain",float(my_camera.camera.digital_gain))
+        i = 0
+    time.sleep(1)
+    #my_camera.take_img_to_file("/home/pi/Desktop/pic{}.jpg".format(pic), True)
+    i = i + 1
+    pic = pic + 1
 # i=0
 # for filename in my_camera.camera.capture_continuous('/home/pi/Desktop/img{counter:03d}.jpg', use_video_port=True):
 #     print('Captured %s at %s', filename, time.time())
