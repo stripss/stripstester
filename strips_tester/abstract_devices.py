@@ -89,9 +89,3 @@ class AbstractSensor:
             return False
 
 
-class AbstractCameraAlgorithm:
-    def __init__(self):
-        pass
-
-    def run(self):
-        pass

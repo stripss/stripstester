@@ -331,7 +331,8 @@ class InternalTest(Task):
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["COMMON"])
         self.measurement_results = {}
-
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11/Mask.json')
+        self.camera_algorithm = devices.CompareAlgorithm(span=3)
         self.serial_port = serial.Serial(
             port="/dev/ttyAMA0",
             baudrate=115200,
@@ -343,7 +344,7 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        #self.camera_device = devices.CameraDevice()
+        self.camera_device = devices.CameraDevice()
         self.start_t = None
 
     @staticmethod
@@ -395,7 +396,7 @@ class InternalTest(Task):
             queue = multiprocessing.Queue()
             relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
-            relay_process.start()
+            #relay_process.start()
 
             module_logger.info("STM32M0 boot time %s", 5)
             time.sleep(5) # process sync and UC boot time
@@ -408,18 +409,18 @@ class InternalTest(Task):
             module_logger.info("Testing segment display...")
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
-            # for i in range(14):
-            #     dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
-            #     while 0.0 < dt:
-            #         time.sleep(0.5 * dt)
-            #         dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
-            #     pic_start_time = time.time()
-            #     self.camera_device.take_picture()
-            #     module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
-            # module_logger.info("Input button sequence...")
-            # self.camera_device.save_img()
-            # #camera_result = self.camera_device.compare_bin_shift(14)
-            camera_result = True
+            for i in range(14):
+                dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+                while 0.0 < dt:
+                    time.sleep(0.5 * dt)
+                    dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
+                pic_start_time = time.time()
+                self.camera_device.take_picture()
+                module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
+            module_logger.info("Input button sequence...")
+            self.camera_device.save_all_imgs_to_file()
+
+            camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
             if camera_result == True:
                 self.measurement_results["display"] = [1, "ok", 0, "bool"]
             else:
@@ -504,7 +505,7 @@ class InternalTest(Task):
         return self.measurement_results
 
     def tear_down(self):
-        #self.camera_device.close()
+        self.camera_device.close()
         self.serial_port.close()
         self.relay_board.open()
         self.relay_board.open_all_relays()

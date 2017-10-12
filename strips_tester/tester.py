@@ -201,8 +201,10 @@ def run_custom_tasks():
         module_logger.info("TEST USPEL :)")
     else:
         module_logger.warning("TEST NI USPEL !!! ")
+
     # linked to product in db with variant
-    strips_tester.db.insert(strips_tester.current_product.tests,
+    if settings.task_execution_order["WriteToDB"]:
+        strips_tester.db.insert(strips_tester.current_product.tests,
                             serial=strips_tester.current_product.serial,
                             name=strips_tester.current_product.product_name,
                             variant=strips_tester.current_product.variant,
@@ -211,6 +213,8 @@ def run_custom_tasks():
                             production_datetime=strips_tester.current_product.production_datetime,
                             testna=settings.test_device_name,
                             employee=settings.test_device_employee)
+
+
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])

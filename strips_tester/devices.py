@@ -19,6 +19,8 @@ from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
 from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor
+from matplotlib import pyplot as pp
+from collections import OrderedDict
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -614,29 +616,17 @@ class YoctoVoltageMeter(AbstractSensor):
     def close(self):
         YAPI.FreeAPI()
 
+
 class CameraDevice:
-    def __init__(self, config_path: str=None):
-        self.Xres = 128
-        self.Yres = 80
-        self.thr = 0.8
-        self.Idx = None
-        self.interval = 80
-        self.imgNum = 20
+    def __init__(self, Xres: int=640, Yres: int=480):
+        self.Xres = Xres
+        self.Yres = Yres
+        self.img_count = 0
+        #max 20 pictures
+        self.img = np.empty((20, self.Yres, self.Xres, 3), dtype=np.uint8)
 
-        self.dx = None
-        self.dy = None
-        self.imgCount = 0
-
-        # self.load(config_path)
-
-        self.img = np.empty((self.imgNum, self.Yres, self.Xres, 3),dtype=np.uint8)
         self.camera = picamera.PiCamera()
         self.set_camera_parameters(flag=False)
-
-        self.Mesh = np.empty((128,240,14),dtype=np.uint8)
-        self.mesh_all = np.empty((128, 240, 1), dtype=np.uint8)
-        self.dil_mesh = np.empty((128, 240, 1), dtype=np.uint8)
-        self.loadMeshImages('garo/mesh', 14)
         try:
             # logger.debug("Starting self test")
             # self.self_test()
@@ -646,190 +636,6 @@ class CameraDevice:
 
     def close(self):
         self.camera.close()
-
-    @staticmethod
-    def nom(index):
-        if index < 0:
-            return index
-        else:
-            return None
-
-    @staticmethod
-    def mom(index):
-        return max(0, index)
-
-    def load(self, file_path):
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-            self.Xres = data['Xres']
-            self.Yres = data['Yres']
-            self.thr = data['threshold']
-            self.Idx = data['Idx']
-            self.interval = data['interval']
-            self.imgNum = data['image number']
-
-    def save(self, file_path):
-        data = {
-            'Xres': self.Xres,
-            'Yres': self.Yres,
-            'threshold': self.thr,
-            'Idx': self.Idx,
-            'interval': self.interval,
-            'image number': self.imgNum
-        }
-        with open(file_path, 'w') as f:
-            json.dump(data, f)
-
-    def is_complete(self):
-        return self.images is not None and self.t1 is not None and self.t2 is not None
-
-    #@staticmethod
-    def shift_picture(self, img, dx, dy):
-        non = lambda s: s if s < 0 else None
-        mom = lambda s: max(0, s)
-        newImg = np.zeros_like(img)
-        newImg[mom(dy):non(dy), mom(dx):non(dx)] = img[mom(-dy):non(-dy), mom(-dx):non(-dx)]
-        return newImg
-
-    @staticmethod
-    def compare_img(img1, img2, perc=0.8):
-        sumImg1 = np.sum(img1)
-        sumImg2 = np.sum(np.logical_and(img1, img2))
-        return (sumImg2 / sumImg1)
-
-    def loadMeshImages(self, path, imgnum=14):
-        '''
-        :param path: path to save mesh on rpi
-        :param imgnum: number of mesh loaded
-        :return:
-        '''
-        tmp_path = path
-        for i in range(imgnum):
-            path = os.path.join(tmp_path, 'PictureMask{}.jpg'.format(i))
-            img = self.imLoadRaw2d(path, 240, 128, order='xy')
-            self.Mesh[:, :, i] = img // 255 # load every seperate mesh
-        self.mesh_all = self.imLoadRaw2d('/strips_tester_project/garo/mesh/Mesh.jpg', 240, 128, order='xy')
-        self.mesh_all = self.mesh_all // 255 # to get 0s and 1s
-        #imgcalib =  self.imLoadRaw3d('/strips_tester_project/garo/mesh/cal_dil_mesh.jpg', 240, 128, 3, order = 'yxz')
-        self.dil_mesh = self.imLoadRaw2d('/strips_tester_project/garo/mesh/cal_dil_mesh.jpg', 240, 128, order='xy')
-        self.dil_mesh = self.dil_mesh * 255
-
-    def imLoadRaw2d(self, fid, width, height, dtype=np.uint8, order='xy'):
-        """
-
-        Funkcija nalozi 2d sliko v surovem formatu
-
-        Parametri
-        -------
-            fid:
-                Ime datoteke
-
-            width:
-                Sirina slike
-            height:
-                Visina slike
-            dtype:
-                Podatkovni tip slikovnega elementa
-            order:
-                Vrstni red zapisa surove slike:
-                    'xy' - slika zapisana po vrsticah
-                    'yx' - slika zapisana po stolpcih
-
-            Vrne:
-            -------
-            Podatkovno polje numpy. Oblika podatkovnega polja je [height,width]
-
-        """
-
-        slika = np.fromfile(fid, dtype=dtype)
-
-        if order == 'xy':
-            slika.shape = [height, width]
-        elif order == 'yx':
-            slika.shape = [width, height]
-            slika = slika.transpose()
-        else:
-            raise ValueError('Vrstni red ima napačno vrednost.' \
-                             'Dopustne vrednosti so \'xy\' ali \'yx\'.')
-        return slika
-
-    def compare_bin(self, imgnum=14):
-        image = np.zeros((128, 240), dtype=np.uint8)
-        for i in range(imgnum):
-            image = self.img_thr(self.img[i,:,:,0],50)
-            sumMesh = np.sum(np.logical_and(image,self.mesh_all))
-            sumImg = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-            if sumImg != sumMesh:
-                module_logger.warning("Screen test failed at picture %s", i)
-                return False
-        module_logger.debug("Screen test succesfull")
-        return True
-
-    def compare_bin_shift(self, imgnum=14, shift=6):
-        x, y, matrix = self.calibrate(self.dil_mesh, self.img[4, :, :, 0])
-        module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', x, y, 0)
-
-        tx = ty = np.arange(-shift, shift + 1)
-        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        tx = np.asarray(Tx).flatten()
-        ty = np.asarray(Ty).flatten()
-        img_sum = np.empty((imgnum, tx.size),dtype=np.uint8)
-        img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
-        image_i = None
-        for i in range(imgnum):
-            image_i = self.img[i, :, :, 0] #np.copy(self.shift_picture(self.img[4, :, :, 0], x, y))
-            xx, yy, matrix = self.calibrate(self.dil_mesh, image_i)
-            image_i = self.img_thr(image_i, 128)
-            module_logger.info('Max separate match at, dx :%s, dy : %s, dfi : %s', xx, yy, 0)
-            for j in range(tx.size):
-                image = self.shift_picture(image_i, tx[j], ty[j])
-                sumMesh = np.sum(np.logical_and(image, self.mesh_all))
-                isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-                img_sum[i,j] = isum
-                img_sum1[i,j] = sumMesh
-            Idx_num =  np.sum(self.Mesh[:, :, i])
-            ind = img_sum[i,:] == Idx_num
-            if not np.equal(img_sum[i, :], img_sum1[i, :]).all() or not ind.any():
-                module_logger.warning("Screen test failed at picture %s", i)
-                #return False
-        module_logger.debug("Screen test succesfull")
-        return True
-
-    def compare_bin_shift2(self, imgnum=14, shift=4):
-        fail_flag = 0
-        x, y, matrix = self.calibrate(self.dil_mesh, self.img[4, :, :, 0], shift=7)
-        module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', x, y, 0)
-        tx = ty = np.arange(-shift, shift + 1)
-        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        tx = np.asarray(Tx).flatten()
-        ty = np.asarray(Ty).flatten()
-
-        img_sum = np.empty((imgnum, tx.size), dtype=np.uint8)
-        img_sum1 = np.empty((imgnum, tx.size), dtype=np.uint8)
-        for i in range(imgnum):
-            image_i = self.shift_picture(self.img[i, :, :, 0], x, y)
-            # if i==3:
-            #     image_i = shift_picture(images[:, :, 8], x, y)
-            image_i = self.img_thr(image_i, 128)
-            xx, yy, matrix = self.calibrate(self.dil_mesh, image_i, shift=7)
-            module_logger.info('Max separate match at, dx :%s, dy : %s, dfi : %s', xx, yy, 0)
-            for j in range(tx.size):
-                image = self.shift_picture(image_i, tx[j], ty[j])
-                sumMesh = np.sum(np.logical_and(image, self.mesh_all))
-                isum = np.sum(np.logical_and(image, self.Mesh[:, :, i]))
-                img_sum[i, j] = isum
-                img_sum1[i, j] = sumMesh
-            Idx_num = np.sum(self.Mesh[:, :, i])
-            ind = img_sum[i, :] == Idx_num
-            if not np.equal(img_sum[i, :],img_sum1[i, :]).all() or not ind.any():
-                module_logger.warning("Screen test failed at picture %s", i)
-                fail_flag = 1
-        if fail_flag ==1:
-            return False
-        else:
-            return True
-
 
     def set_camera_parameters(self, flag=False):
         if flag:
@@ -848,129 +654,17 @@ class CameraDevice:
             time.sleep(0.5)
         else:
             self.camera.resolution = (self.Xres, self.Yres)
-            self.camera.framerate = 80
-            time.sleep(3)
-
-    def img_thr(self, img, thr = 128):
-        oimg = np.zeros_like(img)
-        ind1 = img >= thr
-        oimg[ind1] = 1
-        return oimg
-
-    def im_window(self, img, center, width, ls=1):
-        oimg = np.zeros_like(img)
-        ind1 = img < center - (width * 0.5)
-        ind3 = img > center + (width * 0.5)
-        ind2 = np.logical_and(img >= center - width * 0.5, img <= center + width * 0.5)
-        oimg[ind1] = False
-        oimg[ind3] = False
-        oimg[ind2] = ls
-        return oimg
-
-    def im_step(self, img, thr=0.6, ls=1):
-        oimg = np.zeros_like(img)
-        ind1 = img > np.max(img) * thr
-        ind2 = img <= np.max(img) * thr
-        oimg[ind1] = ls
-        oimg[ind2] = 0
-        return oimg
-
-    def compare_step_sum(self, img1, img2):
-        # img1 = self.im_window(img1,230, 40)
-        # img2 = self.im_window(img2, 230, 40)
-        img1 = self.im_step(img1, 0.6)
-        img2 = self.im_step(img2, 0.6)
-        sumImg1 = np.sum(img1)
-        sumImg2 = np.sum(np.logical_and(img1, img2))
-        if sumImg2 > self.thr * sumImg1:
-            return sumImg2 / sumImg1, True
-        else:
-            return sumImg2 / sumImg1, False
-
-    def rigid_sm(self, imgA, imgB, tx, ty):
-        txshape = tx.shape
-        tx = np.asarray(tx).flatten()
-        ty = np.asarray(ty).flatten()
-        txxshape = tx.shape
-        MSE = np.zeros(txxshape, dtype=np.float64)
-        for i in range(tx.size):
-            shiftImg = self.shift_picture(imgB, tx[i], ty[i])
-            MSE[i] = self.compare_img(imgA, shiftImg, 0.6)
-        MSE.shape = txshape
-        return MSE
-
-    def imSM(self, imA, imB, sm='CC', nb=16, span=(0, 255)):
-        imA = np.asarray(imA, dtype=np.float64)
-        imB = np.asarray(imB, dtype=np.float64)
-
-        if sm == 'MSE':
-            f = ((imA - imB) ** 2).mean()
-            return f
-
-    def rigid_sm_MSE(self, imgA, imgB, tx, ty, ):
-        txshape = tx.shape
-        tx = np.asarray(tx).flatten()
-        ty = np.asarray(ty).flatten()
-        txxshape = tx.shape
-
-        MSE = np.zeros(txxshape[0], dtype=np.float64)
-        for i in range(tx.size):
-            imgBT = self.shift_picture(imgB, tx[i], ty[i])
-            MSE[i] = self.imSM(imgA, imgBT, 'MSE')
-
-        MSE.shape = (txshape[0], txshape[1])
-        return MSE
-
-    def compare_idx(self):
-        x = 1
-
-    def self_test(self):
-        time.sleep(1)
-        slika1 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
-        slika2 = np.zeros((self.Xres, self.Yres, 3), dtype=np.uint8)
-        self.camera.capture(slika1, 'rgb', use_video_port=True)
-        module_logger.debug("first pic")
-        time.sleep(1)
-        self.camera.capture(slika2, 'rgb', use_video_port=True)
-        module_logger.debug("second pic")
-        perc, result = self.compare_step_sum(slika1[:, :, 0], slika2[:, :, 0])
-        if result:
-            module_logger.debug('Self test done. Pictures match by : %s percent', perc)
-            return True
-        else:
-            module_logger.debug('Self test failed !!!. Pictures match by %s percent', perc)
-            return False
-
-    def calibrate(self, dilmesh, imgB, shift=6):
-        # rgbPath = '/strips_tester_project/garo/mesh'
-        # path = os.path.join(rgbPath, 'cal_dil_mesh.jpg')
-        tx = ty = np.arange(-8, 8 + 1)
-        Tx, Ty = np.meshgrid(tx, ty, indexing='xy')
-        matrix = self.rigid_sm_MSE(dilmesh, imgB, Tx, Ty)
-        txshape = tx.size
-
-        m = np.argmin(matrix)
-        x = np.mod(m, np.size(tx))
-        y = int(np.floor(m / np.size(tx)))
-        ndx = int(Tx[0, x])
-        ndy = int(Ty[y, 0])
-        #module_logger.info('Max match at, dx :%s, dy : %s, dfi : %s', ndx, ndy, 0)  ## Todo modeule_logger.info
-        return ndx, ndy, matrix
-
+            self.camera.framerate = 20
+            self.camera.exposure_mode = 'off'
+            self.camera.shutter_speed = 50000
+            time.sleep(1)
 
     def take_picture(self):
-        if self.imgCount >= 0 and  self.imgCount < self.imgNum:
-            self.camera.capture(self.img[self.imgCount,:,:,:], 'rgb', use_video_port=True)
-            self.imgCount = self.imgCount + 1
-        else:
-            module_logger.error("Out of memory for picture capture")
+        self.camera.capture(self.img[self.img_count,::,::,::], 'rgb', use_video_port=True)
+        self.img_count += 1
 
     def get_picture(self, Idx=0):
-        if Idx < 0 or Idx > self.imgCount:
-            module_logger.error("Idx out of bounds for picture access")
-            return False
-        else:
-            return self.img[Idx,:,:,:]
+        return self.img[Idx,::,::,::]
 
     def take_img_to_array_RGB(self, xres=128, yres=80, RGB=0):
         slika = np.empty([xres, yres, 3], dtype=np.uint8)
@@ -981,49 +675,83 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(file_path)
 
-    def save_img(self, num=None):
-        '''
-        Save taken picture in raw format to specified path
-        :param num: picture number
-        :return:
-        '''
-        if num == None:
-            for i in range(self.imgCount):
-                self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,:,:,:])
-        else:
-            self.imSaveRaw('/home/pi/Desktop/Picture{}.jpg'.format(num), self.img[num,:,:,:])
+    def save_all_imgs_to_file(self):
+        for i in range(self.img_count):
+            self.imSaveRaw3d('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,::,::,::])
 
-    def imSaveRaw(self, fid, data):
-        """
-        Funkcija shrani 2d sliko v surovem formatu.
-
-        Parametri
-        -------
-            fid:
-                Ime datoteke
-
-            data:
-                Podatki - slika
-        """
+    def imSaveRaw3d(self, fid, data):
         data.tofile(fid)
 
-    def imLoadRaw3d(fid, width, height, depth, dtype=np.uint8, order='xyz'):
 
-        slika = np.fromfile(fid, dtype=dtype)
 
-        if order == 'xyz':
-            slika.shape = [depth, height, width]
+# Algorithms
+##################################################################################################################
+class CompareAlgorithm:
+    def __init__(self, span: int=2):
+        '''
+        :param span: area on each size of index to check
+        '''
+        self.span = np.arange(-span, span)
+        self.color_edge = 0.2*3*255
 
-        # ...
-        elif order == 'yxz':
-            slika.shape = [height, width, depth]
-            # slika = slika.transpose([1, 2, 0])
+    def run(self, images, masks, mask_indices_len, masks_length):
+        for j in range(masks_length):
+            for i in range(mask_indices_len[j]): # indices_length[j] number of indices to check
+                #mask_num x 50 x 5(x,y,R,G,B)
+                x = masks[j,i,0]
+                y = masks[j,i,1]
+                RGB = masks[j,i,2:]
+                if not self.compare(x, y, images[j,::,::], RGB):
+                    module_logger.error("Failed at picture {} and index  {} with image RGB {} and mesh RGB {}".format(j,i,images[j,y,x], RGB))
+                    return False
+                break
+        return True
 
-        elif order == 'zyx':
-            # Indeksi osi: [ 0  1  2]
-            slika.shape = [width, height, depth]
-            slika = slika.transpose([2, 1, 0])
+    def compare(self, x, y, img1, img2):
+        for j in self.span:
+            for i in self.span:
+                if self.colors_in_range(img1[y-j,x-i,:], img2):
+                    return True
+        return False
+
+    def colors_in_range(self, RGB1, RGB2):
+        #if np.sum(RGB1 - RGB2) < 75:
+        if np.abs(RGB1[0]-100)>0:
+            return True
+        return False
+
+class MeshLoaderToList:
+    def __init__(self, config_file: str):
+        self.config_file = config_file
+        self.indices_length=[]
+        self.mesh_count = None
+        self.load()
+
+    def load(self):
+        if os.path.exists(self.config_file):
+            with open(self.config_file, 'r') as f:
+                data = json.load(f,object_pairs_hook=OrderedDict)
+                self.meshes_dict = data['Meshes']
+                self.span = data['span']
+                self.Xres = data['Xres']
+                self.Yres = data['Yres']
+                self.construct_mask_array()
         else:
-            raise ValueError('Vrstni red ima napačno vrednost.' \
-                             'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
-        return slika
+            module_logger.error("Mesh file does not exist")
+
+    def construct_mask_array(self):
+        mask_num = len(self.meshes_dict)
+        # max 50 x 5(x,y,R,G,B) x mask_num
+        self.indices = np.zeros((mask_num, 50, 5), dtype=np.uint8)
+        for j in range(mask_num):
+            mesh_name = str(j)
+            temp_mesh = self.meshes_dict[mesh_name]
+            for i in range(len(temp_mesh)):
+                x = temp_mesh[i]['x']
+                y = temp_mesh[i]['y']
+                R = temp_mesh[i]['R']
+                G = temp_mesh[i]['G']
+                B = temp_mesh[i]['B']
+                self.indices[j,i,:] = [x,y,R,G,B]
+            self.indices_length.append(len(temp_mesh))
+

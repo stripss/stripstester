@@ -132,9 +132,9 @@ my_camera = Camera()
 
 #my_camera.set_camera_parameters(True)
 my_camera.start_preview()
-my_camera.camera.resolution = (640, 480)
+#my_camera.camera.resolution = (640, 480)
 my_camera.camera.exposure_mode = 'off'
-my_camera.camera.framerate = 15
+my_camera.camera.framerate = 16
 i = 0
 pic = 0
 time.sleep(2)
@@ -142,7 +142,7 @@ time.sleep(2)
 # my_camera.awb_mode = 'off'
 #my_camera.camera.awb_gains = (Fraction(50, 50), Fraction(50, 50))
 # my_camera.camera.iso = 100
-my_camera.camera.shutter_speed = 60000
+my_camera.camera.shutter_speed = 50000
 my_camera.camera.exposure_mode = 'off'
 #time.sleep(2)
 
