@@ -20,7 +20,7 @@ from .garo import Flash
 from datetime import datetime
 import numpy as np
 import strips_tester.postgr
-
+from pylibdmtx.pylibdmtx import decode
 
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
@@ -59,14 +59,18 @@ class BarCodeReadTask(Task):
 
     def set_up(self):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        self.reader = devices.Honeywell1400(path="/dev/hidraw2", max_code_length=50)
+        #self.reader = devices.Honeywell1400(path="/dev/hidraw2", max_code_length=50)
+        self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
 
     def run(self) -> (bool, str):
         module_logger.info("Prepared for reading matrix code:")
         # global current_product
-        raw_scanned_string = self.reader.wait_for_read()
+        #raw_scanned_string = self.reader.wait_for_read()
         module_logger.info("Code read successful")
-        strips_tester.current_product.raw_scanned_string = raw_scanned_string
+        self.camera_device.take_picture()
+        decoded_matrix = decode(self.camera_device.img[0,356:415,290:350,::]) # hard coded, add feature to mesh generator
+        self.camera_device.save_all_imgs_to_file()
+        #strips_tester.current_product.raw_scanned_string = raw_scanned_string
         #strips_tester.current_product.parse_2017_raw_scanned_string(raw_scanned_string)
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
@@ -77,6 +81,7 @@ class BarCodeReadTask(Task):
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
+        self.camera_device.close()
         #self.relay_board.close()
         pass
 
@@ -331,8 +336,6 @@ class InternalTest(Task):
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["COMMON"])
         self.measurement_results = {}
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11/Mask.json')
-        self.camera_algorithm = devices.CompareAlgorithm(span=3)
         self.serial_port = serial.Serial(
             port="/dev/ttyAMA0",
             baudrate=115200,
@@ -344,7 +347,9 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        self.camera_device = devices.CameraDevice()
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11/Mask.json')
+        self.camera_algorithm = devices.CompareAlgorithm(span=3)
+        self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
         self.start_t = None
 
     @staticmethod

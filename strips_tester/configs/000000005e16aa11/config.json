@@ -10,7 +10,7 @@
   "central_db_host": "192.168.11.15",
 
   "task_execution_order": {
-    "BarCodeReadTask": 0,
+    "BarCodeReadTask": 1,
     "ProductConfigTask": 0,
     "StartProcedureTask": 0,
     "VoltageTest": 0,
