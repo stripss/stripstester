@@ -663,6 +663,10 @@ class CameraDevice:
         self.camera.capture(self.img[self.img_count,::,::,::], 'rgb', use_video_port=True)
         self.img_count += 1
 
+    def take_one_picture(self):
+        self.take_picture()
+        return self.img[self.img_count-1,::,::,::]
+
     def get_picture(self, Idx=0):
         return self.img[Idx,::,::,::]
 
@@ -725,6 +729,7 @@ class MeshLoaderToList:
         self.config_file = config_file
         self.indices_length=[]
         self.mesh_count = None
+        self.matrix_code_locaton = None
         self.load()
 
     def load(self):
@@ -735,6 +740,8 @@ class MeshLoaderToList:
                 self.span = data['span']
                 self.Xres = data['Xres']
                 self.Yres = data['Yres']
+                self.matrix_code_locaton = data['Data matrix']
+                #self.data_matrix_location = data["Data matrix"]
                 self.construct_mask_array()
         else:
             module_logger.error("Mesh file does not exist")

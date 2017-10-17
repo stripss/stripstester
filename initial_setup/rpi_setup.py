@@ -32,9 +32,9 @@ os.system("/venv_strips_tester/bin/python -m pip install numpy")
 
 
 ###hidapi dependencies
-os.system("sudo apt-get install -y libusb-1.0-0-dev")
-os.system("sudo apt-get install -y python-dev")
-os.system("sudo apt-get install -y libudev-dev")
+#os.system("sudo apt-get install -y libusb-1.0-0-dev")
+#os.system("sudo apt-get install -y python-dev")
+#os.system("sudo apt-get install -y libudev-dev")
 
 ### build shared library
 # os.system("sudo apt-get install -y autoconf")
