@@ -11,8 +11,15 @@ import strips_tester
 from strips_tester import settings, current_product
 import datetime
 import config_loader
-import postgr
-import random
+# ORM import
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
+django.setup()
+# first time check & create admin user
+from django.contrib.auth.models import User, Group
+if not User.objects.filter(username="admin").exists():
+    admin = User.objects.create_superuser('admin', 'admin@admin.com', 'admin')
+
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -177,7 +184,7 @@ def run_custom_tasks():
                                             hw_release=settings.product_hw_release,
                                             variant=settings.product_variant)
 
-    custom_tasks = importlib.import_module("configs."+settings.cpu_serial+".custom_tasks")
+    custom_tasks = importlib.import_module("configs. "+settings.cpu_serial+".custom_tasks")
 
     for task_name in settings.task_execution_order:
         if settings.task_execution_order[task_name]:

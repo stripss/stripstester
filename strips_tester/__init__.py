@@ -4,7 +4,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
-import postgr
+import db
 
 import config_loader
 
@@ -53,5 +53,5 @@ logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
 settings = config_loader.Settings()
-db = postgr.TestnaDB(settings.central_db_host)
+db = db.TestnaDB(settings.central_db_host)
 
