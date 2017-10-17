@@ -13,6 +13,6 @@ git clone -b develop http://10.48.253.126:8888/peterp/strips_tester.git /strips_
 #sudo cp -a /home/pi/Desktop/strips_tester /strips_tester_project
 sudo chmod -R 777 /strips_tester_project/
 
-pyton3 /strips_tester_project/initial_setup/rpi_setup.py
+python3 /strips_tester_project/initial_setup/rpi_setup.py
 
 echo "Setup finished successfully :)"
