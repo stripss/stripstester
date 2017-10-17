@@ -202,7 +202,7 @@ def run_custom_tasks():
     else:
         module_logger.warning("TEST NI USPEL !!! ")
 
-    # linked to product in db with variant
+    # check if WriteToDB task is enabled
     if settings.task_execution_order["WriteToDB"]:
         strips_tester.db.insert(strips_tester.current_product.tests,
                             serial=strips_tester.current_product.serial,

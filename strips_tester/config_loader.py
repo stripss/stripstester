@@ -4,7 +4,7 @@ import json
 import os
 from collections import OrderedDict
 import ast
-
+import utils
 
 import strips_tester
 
@@ -27,7 +27,7 @@ DEFAULT_PULL = G_PUD_UP
 
 class Settings:
     def __init__(self):
-        self.cpu_serial = self.get_cpu_serial()
+        self.cpu_serial = utils.get_cpu_serial()
         self.gpios = None
         self.relays = None
         self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.cpu_serial, "config.json")
@@ -60,20 +60,6 @@ class Settings:
        #  TODO just do it
         with open(file_path, 'w') as f:
             json.dump({}, f, sort_keys=True, indent=4)
-
-    @staticmethod
-    def get_cpu_serial() -> str:
-        # Extract serial from cpuinfo file
-        cpuserial = "0000000000000000"
-        try:
-            f = open('/proc/cpuinfo', 'r')
-            for line in f:
-                if line[0:6] == 'Serial':
-                    cpuserial = line[10:26]
-            f.close()
-        except:
-            cpuserial = "ERROR000000000"
-        return cpuserial
 
 
 
