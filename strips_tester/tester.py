@@ -6,6 +6,8 @@ import sys
 # import wifi
 import RPi.GPIO as GPIO
 
+
+
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
 from strips_tester import settings, current_product
@@ -17,9 +19,12 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
 django.setup()
 # first time check & create admin user
 from django.contrib.auth.models import User, Group
+from web_project.web_app.models import *
 if not User.objects.filter(username="admin").exists():
     admin = User.objects.create_superuser('admin', 'admin@admin.com', 'admin')
 
+
+ProductType.objects.all()
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
