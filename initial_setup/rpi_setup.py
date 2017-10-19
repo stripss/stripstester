@@ -21,10 +21,9 @@ os.system("sudo apt-get install -y autoconf")
 os.system("sudo apt-get install -y build-essential")
 os.system("sudo apt-get install -y libpq-dev")
 os.system("git clone https://github.com/signal11/hidapi.git /home/pi/Desktop/hidapi")
+os.chdir("/home/pi/Desktop/hidapi")
 os.system("/bin/bash /home/pi/Desktop/hidapi/bootstrap")
 os.system("/bin/bash /home/pi/Desktop/hidapi/configure")
-os.system("cd /home/pi/Desktop/hidapi")
-os.system("ls")
 os.system("sudo make")
 os.system("sudo make install")
 
@@ -62,3 +61,6 @@ os.system("sudo cp /strips_tester_project/initial_setup/pg_hba.conf /etc/postgre
 os.system("sudo rm /etc/postgresql/9.4/main/postgresql.conf")
 os.system("sudo cp /strips_tester_project/initial_setup/postgresql.conf /etc/postgresql/9.4/main/postgresql.conf")
 os.system("sudo iw wlan0 set power_save off")
+
+# check if survived :)
+os.system("sudo reboot")
