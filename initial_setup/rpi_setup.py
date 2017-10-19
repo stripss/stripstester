@@ -2,8 +2,8 @@ import os
 
 
 # update all
-os.system("sudo apt-get update")
-os.system("sudo apt-get upgrade -y")
+#os.system("sudo apt-get update")
+#os.system("sudo apt-get upgrade -y")
 
 # install python virtual venv
 os.system("sudo apt-get -y install python3-venv")
