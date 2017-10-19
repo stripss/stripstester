@@ -1,8 +1,8 @@
 import os
 
 # update all
-#os.system("sudo apt-get update")
-#os.system("sudo apt-get upgrade -y")
+os.system("sudo apt-get update")
+os.system("sudo apt-get upgrade -y")
 
 # install python virtual venv
 os.system("sudo apt-get -y install python3-venv")
@@ -35,16 +35,17 @@ os.system("sudo apt-get install -y libdmtx0a")
 
 ## I2C
 os.system("sudo apt-get install -y i2c-tools")
+#os.system("sudo cp /strips_tester_project/initial_setup/modules /etc/modules")
 #os.system("/venv_strips_tester/bin/python -m pip install smbus2") # to requirements
 
 ### postgresql
 os.system("sudo apt-get install -y libpq-dev")
-os.system("sudo apt-get install postgresql-9.4")
+os.system("sudo apt-get install -y postgresql-9.4")
 
 # python
 os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
 os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
-os.system("/venv_strips_tester/bin/python -m pip install -r requirements.txt")
+os.system("/venv_strips_tester/bin/python -m pip install -r /strips_tester_project/initial_setup/requirements.txt")
 os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_strips_tester/bin/")
 
 # rpi files config
