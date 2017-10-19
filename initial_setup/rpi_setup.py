@@ -1,6 +1,5 @@
 import os
 
-
 # update all
 #os.system("sudo apt-get update")
 #os.system("sudo apt-get upgrade -y")
@@ -15,15 +14,17 @@ os.system("sudo chown -R pi /venv_strips_tester/")
 os.system("sudo apt-get install -y libusb-1.0-0-dev")
 os.system("sudo apt-get install -y python-dev")
 os.system("sudo apt-get install -y libudev-dev")
+os.system("sudo apt-get install -y libtool")
+
 ### build shared library
 os.system("sudo apt-get install -y autoconf")
 os.system("sudo apt-get install -y build-essential")
 os.system("sudo apt-get install -y libpq-dev")
-os.system("git clone https://github.com/signal11/hidapi.git")
-os.system("sudo su")
-os.system("cd hidapi")
-os.system("sh /bootstrap")
-os.system("sh /configure")
+os.system("git clone https://github.com/signal11/hidapi.git /home/pi/Desktop/hidapi")
+os.system("/bin/bash /home/pi/Desktop/hidapi/bootstrap")
+os.system("/bin/bash /home/pi/Desktop/hidapi/configure")
+os.system("cd /home/pi/Desktop/hidapi")
+os.system("ls")
 os.system("sudo make")
 os.system("sudo make install")
 #os.system("/venv_strips_tester/bin/python -m pip install hidapi")
@@ -49,19 +50,16 @@ os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_str
 # rpi files config
 #os.system("sudo systemctl stop serial-getty@ttyS0.service")
 #os.system("sudo systemctl disable serial-getty@ttyS0.service")
-os.system("sudo rm /boot/cmdline.txt")
-os.system("sudo cp /strips_tester_project/initial_setup/cmdline.txt /boot/cmdline.txt")
-os.system("sudo rm /boot/config.txt")
-os.system("sudo cp /strips_tester_project/initial_setup/config.txt /boot/config.txt")
+#os.system("sudo rm /boot/cmdline.txt")
+#os.system("sudo cp /strips_tester_project/initial_setup/cmdline.txt /boot/cmdline.txt")
+#os.system("sudo rm /boot/config.txt")
+#os.system("sudo cp /strips_tester_project/initial_setup/config.txt /boot/config.txt")
 
 
 # postgresql
 # allow postgres access from outside
-os.system("sudo rm /etc/postgresql/9.4/main/pg_hba.conf")
-os.system("sudo cp /strips_tester_project/initial_setup/pg_hba.conf /etc/postgresql/9.4/main/pg_hba.conf")
-os.system("sudo rm /etc/postgresql/9.4/main/postgresql.conf")
-os.system("sudo cp /strips_tester_project/initial_setup/postgresql.conf /etc/postgresql/9.4/main/postgresql.conf")
+#os.system("sudo rm /etc/postgresql/9.4/main/pg_hba.conf")
+#os.system("sudo cp /strips_tester_project/initial_setup/pg_hba.conf /etc/postgresql/9.4/main/pg_hba.conf")
+#os.system("sudo rm /etc/postgresql/9.4/main/postgresql.conf")
+#os.system("sudo cp /strips_tester_project/initial_setup/postgresql.conf /etc/postgresql/9.4/main/postgresql.conf")
 os.system("sudo iw wlan0 set power_save off")
-
-
-

@@ -21,6 +21,8 @@ from yoctopuce.yocto_voltage import *
 from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor
 from matplotlib import pyplot as pp
 from collections import OrderedDict
+#from smbus2 import SMBus, i2c_msg
+
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -615,6 +617,28 @@ class YoctoVoltageMeter(AbstractSensor):
 
     def close(self):
         YAPI.FreeAPI()
+
+
+class IRTemperatureSensor(AbstractSensor):
+    MLX90615_I2C_ADDR = 0x5B
+    MLX90615_REG_TEMP_AMBIENT = 0x26
+    MLX90615_REG_TEMP_OBJECT = 0x27
+
+    def __init__(self, delay: int = 1):
+        super().__init__(delay,"Temperature", "°C")
+        self.sensor = None
+        self.bus = SMBus(1)
+
+    def get_value(self):
+        block = self.bus.read_i2c_block_data(IRTemperatureSensor.MLX90615_I2C_ADDR,
+                                        IRTemperatureSensor.MLX90615_REG_TEMP_OBJECT,
+                                        2)
+        temperature = (block[0] | block[1]<<8) * 0.02 - 273.15
+        return temperature
+
+    def close(self):
+        self.bus.close()
+
 
 
 class CameraDevice:

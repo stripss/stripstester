@@ -12,3 +12,5 @@ pytz==2017.2
 RPi.GPIO==0.6.3
 six==1.11.0
 yoctopuce==1.10.28707
+cycler==0.10.0
+

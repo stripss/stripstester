@@ -177,7 +177,7 @@ def run_custom_tasks():
                                             hw_release=settings.product_hw_release,
                                             variant=settings.product_variant)
 
-    custom_tasks = importlib.import_module("configs."+settings.cpu_serial+".custom_tasks")
+    custom_tasks = importlib.import_module("configs."+settings.get_setting_file_name()+".custom_tasks")
 
     for task_name in settings.task_execution_order:
         if settings.task_execution_order[task_name]:
@@ -203,16 +203,16 @@ def run_custom_tasks():
         module_logger.warning("TEST NI USPEL !!! ")
 
     # check if WriteToDB task is enabled
-    if settings.task_execution_order["WriteToDB"]:
-        strips_tester.db.insert(strips_tester.current_product.tests,
-                            serial=strips_tester.current_product.serial,
-                            name=strips_tester.current_product.product_name,
-                            variant=strips_tester.current_product.variant,
-                            hw_release=strips_tester.current_product.hw_release,
-                            notes="nothing special",
-                            production_datetime=strips_tester.current_product.production_datetime,
-                            testna=settings.test_device_name,
-                            employee=settings.test_device_employee)
+    #if settings.task_execution_order["WriteToDB"]:
+    strips_tester.db.insert(strips_tester.current_product.tests,
+                        serial=strips_tester.current_product.serial,
+                        name=strips_tester.current_product.product_name,
+                        variant=strips_tester.current_product.variant,
+                        hw_release=strips_tester.current_product.hw_release,
+                        notes="nothing special",
+                        production_datetime=strips_tester.current_product.production_datetime,
+                        testna=settings.test_device_name,
+                        employee=settings.test_device_employee)
 
 
 

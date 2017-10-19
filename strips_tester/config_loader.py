@@ -30,7 +30,7 @@ class Settings:
         self.cpu_serial = utils.get_cpu_serial()
         self.gpios = None
         self.relays = None
-        self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.cpu_serial, "config.json")
+        self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "config.json")
         self.load(self.config_file)
 
     def load(self, file_path):
@@ -61,6 +61,12 @@ class Settings:
         with open(file_path, 'w') as f:
             json.dump({}, f, sort_keys=True, indent=4)
 
+    def get_setting_file_name(self):
+        configs_dir = os.path.join(os.path.dirname(__file__), "configs")
+        files = os.listdir(configs_dir)
+        for i, file in enumerate(files):
+            if file.startswith(self.cpu_serial):
+                return file
 
 
 
