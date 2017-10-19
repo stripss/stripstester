@@ -1,5 +1,4 @@
 hidapi==0.7.99.post20
-matplotlib==2.1.0
 numpy==1.13.1
 olefile==0.44
 picamera==1.13
