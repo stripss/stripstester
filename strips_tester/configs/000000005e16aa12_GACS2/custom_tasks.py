@@ -75,14 +75,11 @@ class BarCodeReadTask(Task):
         strips_tester.current_product.raw_scanned_string = raw_scanned_string
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        strips_tester.db.insert_product_type(name=settings.product_name,
-                                             variant=settings.product_variant,
-                                             description=settings.product_description,
-                                             type=settings.product_type)
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
         self.camera_device.close()
+
 
 class ProductConfigTask(Task):
     def __init__(self):
@@ -91,7 +88,10 @@ class ProductConfigTask(Task):
         self.product = strips_tester.current_product
 
     def run(self) -> (bool, str):
-        if self.parse_2017_raw_scanned_string():
+        serial = self.parse_2017_raw_scanned_string()
+        if serial:
+            self.product.serial = serial
+            self.product.save()
             return {"signal": [1, "ok", 5, "NA"]}
         else:
             return {"signal": [0, "fail", 5, "NA"]}
@@ -99,7 +99,7 @@ class ProductConfigTask(Task):
     def to_product_production_datetime(self, year: int = 2017, month: int = 1, day: int = 1):
         self.product.production_datetime = datetime.now()
         self.product.production_datetime.replace(year=(2000+year), month=month, day=day)
-
+        self.product.save()
 
     def parse_2017_raw_scanned_string(self):
         """ example:
@@ -126,13 +126,11 @@ class ProductConfigTask(Task):
         else:
             ss = self.product.raw_scanned_string
             self.to_product_production_datetime(year=int(ss[1:3]), month=int(ss[3:5])+1,day=int(ss[5:7]))
-            self.product.serial = self.product.product_type << 32 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
-            return True
+            serial = self.product.type << 32 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
+            return serial
 
     def tear_down(self):
         pass
-
-
 
 
 class StartProcedureTask(Task):
@@ -215,7 +213,7 @@ class FlashWifiModuleTask(Task):
         self.relay_board.close_relay(relays["UART_WIFI_TX"])
 
     def run(self):
-        if strips_tester.current_product.variant.lower().startswith("wifi"):
+        if strips_tester.current_product.type.variant.lower().startswith("wifi"):
             success = Flash.flash_wifi()
             if success:
                 LidOpenCheck()
@@ -232,7 +230,6 @@ class FlashWifiModuleTask(Task):
         self.relay_board.open_relay(relays["UART_WIFI_RX"])
         self.relay_board.open_relay(relays["UART_WIFI_TX"])
         self.relay_board.hid_device.close()
-
 
 
 class FlashMCUTask(Task):

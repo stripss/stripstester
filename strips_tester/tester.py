@@ -13,14 +13,15 @@ import datetime
 import config_loader
 # ORM import
 import django
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
 django.setup()
 # first time check & create admin user
 from django.contrib.auth.models import User, Group
 from web_project.web_app.models import *
+
 if not User.objects.filter(username="admin").exists():
     admin = User.objects.create_superuser('admin', 'admin@admin.com', 'admin')
-
 
 ProductType.objects.all()
 
@@ -125,7 +126,7 @@ class Task:
                     self.passed.append(True)
                 else:
                     self.passed.append(False)
-                ###########################################################################
+                    ###########################################################################
             else:
                 strips_tester.current_product.tests[keys] = values  # insert test to be written to DB
                 if values[1] == "fail" and self.test_level > strips_tester.ERROR:
@@ -135,7 +136,7 @@ class Task:
                     self.passed.append(True)
                 else:
                     self.passed.append(False)
-                ##########################################################################
+                    ##########################################################################
         # normal flow when task is not critical
         result = all(self.passed)
         end = any(self.end)
@@ -182,12 +183,18 @@ def initialize_gpios():
 
 
 def run_custom_tasks():
-    strips_tester.current_product = Product(product_name=settings.product_name, # inserted in db according to product_name and variant
-                                            product_type=settings.product_type, # used to compose product serial number(prefix)
-                                            hw_release=settings.product_hw_release,
-                                            variant=settings.product_variant)
+    product_type = ProductType.objects.get_or_create(name=settings.product_name,
+                                                     type=settings.product_type,
+                                                     variant=settings.product_variant,
+                                                     description=settings.product_description)
 
-    custom_tasks = importlib.import_module("configs."+settings.get_setting_file_name()+".custom_tasks")
+    strips_tester.current_product = Product.get_or_create(serial=None,
+                                                          production_datetime=None,
+                                                          hw_release=settings.product_hw_release,
+                                                          notes=None,
+                                                          type=product_type)
+
+    custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
     for task_name in settings.task_execution_order:
         if settings.task_execution_order[task_name]:
             CustomTask = getattr(custom_tasks, task_name)
@@ -212,17 +219,19 @@ def run_custom_tasks():
         module_logger.warning("TEST NI USPEL !!! ")
 
     # check if WriteToDB task is enabled
-    #if settings.task_execution_order["WriteToDB"]:
-    strips_tester.db.insert(strips_tester.current_product.tests,
-                        serial=strips_tester.current_product.serial,
-                        name=strips_tester.current_product.product_name,
-                        variant=strips_tester.current_product.variant,
-                        hw_release=strips_tester.current_product.hw_release,
-                        notes="nothing special",
-                        production_datetime=strips_tester.current_product.production_datetime,
-                        testna=settings.test_device_name,
-                        employee=settings.test_device_employee)
-
+    # if settings.task_execution_order["WriteToDB"]:
+    tests = []
+    for test_name, data in strips_tester.current_product.tests.items():
+        test_type = TestType.objects.get(name=test_name)
+        tests.append(Test(product=current_product,
+                          type=test_type,
+                          value=data[0],
+                          result=data[1],
+                          test_device_name=settings.test_device_name,
+                          employee=settings.test_device_employee
+                          )
+                     )
+    Test.objects.batch_create(tests)
 
 
 if __name__ == "__main__":
