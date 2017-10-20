@@ -34,7 +34,7 @@ sql_test_table = """ CREATE TABLE IF NOT EXISTS test(
             foreign key (test_type_id) references test_type(id) );"""
 
 class Test(models.Model):
-    value = models.DecimalField(max_digits=11, decimal_places=3)
-    result = models.
+    value = models.DecimalField(max_digits=10, decimal_places=3)
+    result = models.CharField(max_length=16, null=False)
 
 

@@ -48,11 +48,11 @@ os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_str
 # rpi files config
 #os.system("sudo systemctl stop serial-getty@ttyS0.service")
 #os.system("sudo systemctl disable serial-getty@ttyS0.service")
-os.system("sudo rm /boot/cmdline.txt")
-os.system("sudo cp /strips_tester_project/initial_setup/cmdline.txt /boot/cmdline.txt")
-os.system("sudo rm /boot/config.txt")
-os.system("sudo cp /strips_tester_project/initial_setup/config.txt /boot/config.txt")
-os.system("sudo systemctl disable hciuart")
+#os.system("sudo rm /boot/cmdline.txt")
+#os.system("sudo cp /strips_tester_project/initial_setup/cmdline.txt /boot/cmdline.txt")
+#os.system("sudo rm /boot/config.txt")
+#os.system("sudo cp /strips_tester_project/initial_setup/config.txt /boot/config.txt")
+#os.system("sudo systemctl disable hciuart")
 
 # postgresql
 # allow postgres access from outside
