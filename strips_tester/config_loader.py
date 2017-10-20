@@ -48,6 +48,7 @@ class Settings:
                 self.test_device_name = data['test_device_name']
                 self.test_device_employee = data['test_device_employee']
                 self.central_db_host = data['central_db_host']
+                self.local_db_host = data['local_db_host']
                 self.task_execution_order = data['task_execution_order']
                 self.critical_event_tasks = data['critical_event_tasks']
                 # GPIO pin finder helper. Example: gpios["START_SWITCH"] -> pin_number:int

@@ -1,3 +1,5 @@
+hidapi==0.7.99.post20
+numpy==1.13.1
 olefile==0.44
 picamera==1.13
 psycopg2==2.7.3

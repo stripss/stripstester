@@ -1,1 +1,1 @@
-dwc_otg.lpm_enable=0 console=tty1 root=PARTUUID=1282909e-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet splash plymouth.ignore-serial-consoles
+dwc_otg.lpm_enable=0 console=tty1 root=PARTUUID=104e50a3-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet splash plymouth.ignore-serial-consoles

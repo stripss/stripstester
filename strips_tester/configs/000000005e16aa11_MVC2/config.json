@@ -8,6 +8,7 @@
   "test_device_name": "Testna2",
   "test_device_employee": "Jure",
   "central_db_host": "192.168.11.15",
+  "local_db_host": "192.168.11.15",
 
   "task_execution_order": {
     "BarCodeReadTask": 1,
