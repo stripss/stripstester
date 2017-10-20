@@ -52,7 +52,7 @@ os.system("sudo rm /boot/cmdline.txt")
 os.system("sudo cp /strips_tester_project/initial_setup/cmdline.txt /boot/cmdline.txt")
 os.system("sudo rm /boot/config.txt")
 os.system("sudo cp /strips_tester_project/initial_setup/config.txt /boot/config.txt")
-
+os.system("sudo systemctl disable hciuart")
 
 # postgresql
 # allow postgres access from outside
