@@ -1,7 +1,10 @@
+cycler==0.10.0
+Django==1.11.6
 hidapi==0.7.99.post20
 numpy==1.13.1
 olefile==0.44
 picamera==1.13
+pkg-resources==0.0.0
 psycopg2==2.7.3
 pylibdmtx==0.1.7
 pyparsing==2.2.0
@@ -10,6 +13,5 @@ python-dateutil==2.6.1
 pytz==2017.2
 RPi.GPIO==0.6.3
 six==1.11.0
+smbus2==0.2.0
 yoctopuce==1.10.28707
-cycler==0.10.0
-

@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from django.db import connections
 import smtplib
 import datetime
 import pylibdmtx.pylibdmtx as qrlib
@@ -8,39 +9,39 @@ import hid
 
 
 def send_email(subject: str='subject', emailText: str='content of email'):
-
-    SMTP_SERVER = 'smtp.gmail.com'
-    SMTP_PORT = 587
-    GMAIL_USERNAME = 'stripsdomzale.notification@gmail.com'
-    GMAIL_PASSWORD = 'testdevice07' #CAUTION: This is stored in plain text!
-
-    recipients = []
-    recipients.append('jure.macerll@gmail.com')
-    recipients.append('peterlive@gmail.com')
-    subject = subject
-
-    emailText = emailText
-    emailText = "" + emailText + ""
-
-
-
-    session = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-    session.ehlo()
-    session.starttls()
-    session.ehlo
-    session.login(GMAIL_USERNAME, GMAIL_PASSWORD)
-
-    for recipient in recipients:
-        headers = ["From: " + GMAIL_USERNAME,
-                   "Subject: " + subject,
-                   "To: " + recipient,
-                   "MIME-Version: 1.0",
-                   "Content-Type: text/html"]
-        headers = "\r\n".join(headers)
-
-        session.sendmail(GMAIL_USERNAME, recipient, headers + "\r\n\r\n" + emailText)
-
-    session.quit()
+    print('mail sended')
+    # SMTP_SERVER = 'smtp.gmail.com'
+    # SMTP_PORT = 587
+    # GMAIL_USERNAME = 'stripsdomzale.notification@gmail.com'
+    # GMAIL_PASSWORD = 'testdevice07' #CAUTION: This is stored in plain text!
+    #
+    # recipients = []
+    # recipients.append('jure.macerll@gmail.com')
+    # recipients.append('peterlive@gmail.com')
+    # subject = subject
+    #
+    # emailText = emailText
+    # emailText = "" + emailText + ""
+    #
+    #
+    #
+    # session = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+    # session.ehlo()
+    # session.starttls()
+    # session.ehlo
+    # session.login(GMAIL_USERNAME, GMAIL_PASSWORD)
+    #
+    # for recipient in recipients:
+    #     headers = ["From: " + GMAIL_USERNAME,
+    #                "Subject: " + subject,
+    #                "To: " + recipient,
+    #                "MIME-Version: 1.0",
+    #                "Content-Type: text/html"]
+    #     headers = "\r\n".join(headers)
+    #
+    #     session.sendmail(GMAIL_USERNAME, recipient, headers + "\r\n\r\n" + emailText)
+    #
+    # session.quit()
 
 def get_cpu_serial() -> str:
     # Extract serial from cpuinfo file
@@ -115,3 +116,13 @@ def hid_enumerate(vid=None, pid=None):
         print("Serial No: %s", h.get_serial_number_string())
     except:
         print("Faild to open device")
+
+
+#databases = ['default', "local", ]
+def get_current_db():
+    conn = connections['default']
+    try:
+        c = conn.cursor()
+        return 'default'
+    except Exception:
+        return 'local'

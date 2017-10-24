@@ -33,12 +33,11 @@ os.system("sudo apt-get install -y libdmtx0a")
 
 # ## I2C
 os.system("sudo apt-get install -y i2c-tools")
-os.system("/venv_strips_tester/bin/python -m pip install smbus2") # todo to requirements
-#
+
 # ### postgresql
 os.system("sudo apt-get install -y libpq-dev")
-os.system("sudo apt-get install -y postgresql-9.4")
-#
+os.system("sudo apt-get install -y postgresql-9.6")
+
 # # python
 os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
 os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")

@@ -4,12 +4,12 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
-import db
-
-import config_loader
+import strips_tester.utils as utils
+from strips_tester import config_loader
+import strips_tester.db
 
 VERSION = '0.0.1'
-
+DB = "default"
 # test levels == logging levels (ints)
 CRITICAL = logging.CRITICAL
 ERROR = logging.CRITICAL
@@ -53,5 +53,5 @@ logger = initialize_logging(logging.DEBUG)
 LOGGER = logger
 current_product = None
 settings = config_loader.Settings()
-db = db.TestnaDB(settings.central_db_host)
+# db = db.TestnaDB(settings.central_db_host)
 

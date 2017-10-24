@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #Python Interpreter for running tests as root
 # user needs sudo NOPASSWD enabled
-sudo PYTHONPATH=$PYTHONPATH python "$@"
+sudo venv_strips_tester/bin/python $@

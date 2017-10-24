@@ -8,22 +8,14 @@ import RPi.GPIO as GPIO
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
-from strips_tester import settings, current_product
+from strips_tester import settings, current_product, DB
 import datetime
 import config_loader
-# ORM import
-import django
+from strips_tester import presets  # ORM preset
+from strips_tester import utils
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
-django.setup()
-# first time check & create admin user
-from django.contrib.auth.models import User, Group
+# from strips_tester import presets
 from web_project.web_app.models import *
-
-if not User.objects.filter(username="admin").exists():
-    admin = User.objects.create_superuser('admin', 'admin@admin.com', 'admin')
-
-ProductType.objects.all()
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -60,27 +52,27 @@ module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 
 # settings = strips_tester.settings
 
-class Product:
-    def __init__(self, raw_scanned_string: str = None,
-                 serial: int = None,
-                 product_name: str = None,
-                 product_type: int = None,
-                 hw_release: str = None,
-                 variant: str = None,
-                 test_status: bool = None,
-                 mac_address: int = None,
-                 production_datetime=datetime):
-        self.product_name = product_name
-        self.product_type = product_type
-        self.raw_scanned_string = raw_scanned_string
-        self.mac_address = mac_address
-        self.test_status = test_status
-        self.variant = variant  # "wifi"/"basic"
-        self.serial = serial
-        self.hw_release = hw_release
-        self.production_datetime = production_datetime
-        self.task_results = []
-        self.tests = {}
+# class Product:
+#     def __init__(self, raw_scanned_string: str = None,
+#                  serial: int = None,
+#                  product_name: str = None,
+#                  product_type: int = None,
+#                  hw_release: str = None,
+#                  variant: str = None,
+#                  test_status: bool = None,
+#                  mac_address: int = None,
+#                  production_datetime=datetime):
+#         self.product_name = product_name
+#         self.product_type = product_type
+#         self.raw_scanned_string = raw_scanned_string
+#         self.mac_address = mac_address
+#         self.test_status = test_status
+#         self.variant = variant  # "wifi"/"basic"
+#         self.serial = serial
+#         self.hw_release = hw_release
+#         self.production_datetime = production_datetime
+#         self.task_results = []
+#         self.tests = {}
 
 
 class Task:
@@ -160,6 +152,7 @@ def start_test_device():
             global task_results
             # strips_tester.current_product.task_results = run_custom_tasks()
             run_custom_tasks()
+
         except Exception as e:
             module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
             raise e
@@ -183,16 +176,13 @@ def initialize_gpios():
 
 
 def run_custom_tasks():
-    product_type = ProductType.objects.get_or_create(name=settings.product_name,
-                                                     type=settings.product_type,
-                                                     variant=settings.product_variant,
-                                                     description=settings.product_description)
-
-    strips_tester.current_product = Product.get_or_create(serial=None,
-                                                          production_datetime=None,
-                                                          hw_release=settings.product_hw_release,
-                                                          notes=None,
-                                                          type=product_type)
+    global DB
+    strips_tester.current_product = Product(serial=None,
+                                            production_datetime=None,
+                                            hw_release=settings.product_hw_release,
+                                            notes=None,
+                                            type=ProductType.objects.get(name=settings.product_name,
+                                                                         type=settings.product_type))
 
     custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
     for task_name in settings.task_execution_order:
@@ -213,17 +203,19 @@ def run_custom_tasks():
         else:
             module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
-    if all(strips_tester.current_product.task_results) == True:
+    if all(strips_tester.current_product.task_results):
         module_logger.info("TEST USPEL :)")
     else:
-        module_logger.warning("TEST NI USPEL !!! ")
+        module_logger.warning("TEST NI USPEL !!!")
 
     # check if WriteToDB task is enabled
     # if settings.task_execution_order["WriteToDB"]:
+    if Product.objects.get(serial=strips_tester.current_product.serial) is None:
+        strips_tester.current_product.save(using=DB)
     tests = []
     for test_name, data in strips_tester.current_product.tests.items():
         test_type = TestType.objects.get(name=test_name)
-        tests.append(Test(product=current_product,
+        tests.append(Test(product=strips_tester.current_product,
                           type=test_type,
                           value=data[0],
                           result=data[1],
@@ -231,7 +223,22 @@ def run_custom_tasks():
                           employee=settings.test_device_employee
                           )
                      )
-    Test.objects.batch_create(tests)
+    try:
+        Test.objects.bulk_create(tests).save(using=DB)
+        # connection to central established again
+        if DB is not "default":
+            # logic for merging local db to central one
+            local_products = Product.objects.using("local").all()  # get all local products
+            local_product_ids = local_products.values_list("serial", flat=True)  #
+            existing = Product.objects.filter(serial__in=local_product_ids).using("default")
+            local_products.exclude(existing).save(using="default")
+
+            Test.objects.using("local").all().save(using="default")
+        # use central database normally
+        DB = "default"
+    except Exception as ee:
+        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
+        DB = "local"
 
 
 if __name__ == "__main__":

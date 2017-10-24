@@ -20,7 +20,7 @@ from .garo import Flash
 from datetime import datetime
 import numpy as np
 import strips_tester.db
-
+from strips_tester import utils
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -67,18 +67,16 @@ class BarCodeReadTask(Task):
         # global current_product
         #raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
         module_logger.info("Code read successful")
-        img = self.camera_device.take_one_picture()
-        center = self.meshloader.matrix_code_locaton["center"]
-        width = self.meshloader.matrix_code_locaton["width"]
-        height = self.meshloader.matrix_code_locaton["height"]
-        raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
-        strips_tester.current_product.raw_scanned_string = raw_scanned_string
+        #img = self.camera_device.take_one_picture()
+        #center = self.meshloader.matrix_code_location["center"]
+        #width = self.meshloader.matrix_code_location["width"]
+        #height = self.meshloader.matrix_code_location["height"]
+        #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
+        #strips_tester.current_product.raw_scanned_string = raw_scanned_string
+        strips_tester.current_product.raw_scanned_string = 'M1706080087500004S2401877'
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
-        strips_tester.db.insert_product_type(name=settings.product_name,
-                                             variant=settings.product_variant,
-                                             description=settings.product_description,
-                                             type=settings.product_type)
+
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
@@ -126,7 +124,7 @@ class ProductConfigTask(Task):
         else:
             ss = self.product.raw_scanned_string
             self.to_product_production_datetime(year=int(ss[1:3]), month=int(ss[3:5])+1,day=int(ss[5:7]))
-            self.product.serial = self.product.product_type << 32 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
+            self.product.serial = self.product.type.type << 32 | create_4B_serial(int(ss[1:3]), int(ss[3:5]), int(ss[5:7]), int(ss[7:12]))
             return True
 
     def tear_down(self):
@@ -609,7 +607,7 @@ class PrintSticker(Task):
                'ATC,12,63,14,14,0,0E,C,0,SN {}\r'
                'E\r').format(len(str(strips_tester.current_product.serial)),
                             strips_tester.current_product.serial,
-                            strips_tester.current_product.product_name,
+                            strips_tester.current_product.type.name,
                             strips_tester.current_product.hw_release,
                             "PASS" if strips_tester.current_product.test_status else "FAIL",
                             hex(strips_tester.current_product.serial))

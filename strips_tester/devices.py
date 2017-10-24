@@ -19,7 +19,7 @@ from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
 from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor
-from matplotlib import pyplot as pp
+#from matplotlib import pyplot as pp
 from collections import OrderedDict
 #from smbus2 import SMBus, i2c_msg
 
@@ -753,7 +753,7 @@ class MeshLoaderToList:
         self.config_file = config_file
         self.indices_length=[]
         self.mesh_count = None
-        self.matrix_code_locaton = None
+        self.matrix_code_location = None
         self.load()
 
     def load(self):
@@ -764,7 +764,7 @@ class MeshLoaderToList:
                 self.span = data['span']
                 self.Xres = data['Xres']
                 self.Yres = data['Yres']
-                self.matrix_code_locaton = data['Data matrix']
+                self.matrix_code_location = data['Data matrix']
                 #self.data_matrix_location = data["Data matrix"]
                 self.construct_mask_array()
         else:

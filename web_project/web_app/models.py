@@ -12,10 +12,17 @@ class ProductType(models.Model):
 
 class Product(models.Model):
     serial = models.BigIntegerField(unique=True, null=True, blank=True)
-    production_datetime = models.DateTimeField()
+    production_datetime = models.DateTimeField(null=True)
     hw_release = models.CharField(max_length=32, null=True, blank=True)
     notes = models.CharField(max_length=32, null=True, blank=True)
     type = models.ForeignKey(ProductType, on_delete=models.PROTECT)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.task_results = []
+        self.tests = {}
+        self.raw_scanned_string = None
+        self.test_status = False
 
 
 class TestType(models.Model):

@@ -4,7 +4,7 @@ import json
 import os
 from collections import OrderedDict
 import ast
-import utils
+from strips_tester import utils
 
 import strips_tester
 
