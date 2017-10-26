@@ -20,11 +20,11 @@ databases = ['default', "local", ]
 def preset_tables(database, flag):
     if flag:
         #USERS
-        if not User.objects.filter(username="admin").exists():
-            admin = User.objects.create_superuser('admin', 'admin@admin.com', 'admin')
+        if not User.objects.using(database).filter(username="admin").exists():
+            admin = User.objects.db_manager(database).create_superuser('admin', 'admin@admin.com', 'admin')
         # PRODUCT TYPES
         ProductType.objects.using(database).get_or_create(name='MVC', type=1, variant='basic', description='mvc module for Garo')
-        for product_type in TestType.objects.all():
+        for product_type in ProductType.objects.using(database).all():
             print(product_type.type, product_type.name, product_type.variant, product_type.description)
         # TEST TYPES
         TestType.objects.using(database).get_or_create(name='Vc', description='15V', units='V')
@@ -39,9 +39,7 @@ def preset_tables(database, flag):
         TestType.objects.using(database).get_or_create(name='flash test', description='flash status', units='bool')
         TestType.objects.using(database).get_or_create(name='switches', description='switches status', units='bool')
         TestType.objects.using(database).get_or_create(name='board test', description='board type', units='uint8')
-        TestType.objects.using(database).get_or_create(name='relay', description='relay status', units='bool')
-        TestType.objects.using(database).get_or_create(name='keyboard', description='bushbutton status', units='bool')
-        for test in TestType.objects.all():
+        for test in TestType.objects.using(database).all():
             print(test.name, test.description, test.units)
     else:
         module_logger.info('NO table preset')

@@ -9,6 +9,7 @@
   "test_device_employee": "Jure",
   "central_db_host": "192.168.11.200",
   "local_db_host": "192.168.11.15",
+  "sync_db": 0,
 
   "task_execution_order": {
     "BarCodeReadTask": 1,

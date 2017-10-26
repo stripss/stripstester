@@ -16,6 +16,7 @@ from strips_tester import utils
 
 # from strips_tester import presets
 from web_project.web_app.models import *
+import subprocess
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -177,12 +178,21 @@ def initialize_gpios():
 
 def run_custom_tasks():
     global DB
+    # get database and sync if default and sync
+    database = check_db_connection()
+    #database='local'
+    if database=='default' and settings.sync_db==True:
+        sync_local_to_central()
+        settings.sync_db=False
+    #get type from local or central
+    product_type = ProductType.objects.using(database).get(name=settings.product_name, type=settings.product_type)
+
+    #########
     strips_tester.current_product = Product(serial=None,
                                             production_datetime=None,
                                             hw_release=settings.product_hw_release,
-                                            notes=None,
-                                            type=ProductType.objects.get(name=settings.product_name,
-                                                                         type=settings.product_type))
+                                            notes=settings.product_notes,
+                                            type=product_type)
 
     custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
     for task_name in settings.task_execution_order:
@@ -208,13 +218,22 @@ def run_custom_tasks():
     else:
         module_logger.warning("TEST NI USPEL !!!")
 
-    # check if WriteToDB task is enabled
-    # if settings.task_execution_order["WriteToDB"]:
-    if Product.objects.get(serial=strips_tester.current_product.serial) is None:
-        strips_tester.current_product.save(using=DB)
+
+
+    ### SAVE TEST AND PRODUCT IF IT DOES NOT EXIST
+    database = check_db_connection()
+    #database = 'local'
+    result = Product.objects.using(database).filter(serial=strips_tester.current_product.serial).exists()
+    # get or create product and create tests
+    product_to_save = strips_tester.current_product
+    if result:
+        strips_tester.current_product = Product.objects.using(database).get(serial=strips_tester.current_product.serial)
+    else:
+        strips_tester.current_product.save(using=database)
+
     tests = []
-    for test_name, data in strips_tester.current_product.tests.items():
-        test_type = TestType.objects.get(name=test_name)
+    for test_name, data in product_to_save.tests.items():
+        test_type = TestType.objects.using(database).get(name=test_name)
         tests.append(Test(product=strips_tester.current_product,
                           type=test_type,
                           value=data[0],
@@ -223,23 +242,79 @@ def run_custom_tasks():
                           employee=settings.test_device_employee
                           )
                      )
-    try:
-        Test.objects.bulk_create(tests).save(using=DB)
-        # connection to central established again
-        if DB is not "default":
-            # logic for merging local db to central one
-            local_products = Product.objects.using("local").all()  # get all local products
-            local_product_ids = local_products.values_list("serial", flat=True)  #
-            existing = Product.objects.filter(serial__in=local_product_ids).using("default")
-            local_products.exclude(existing).save(using="default")
+    Test.objects.using(database).bulk_create(tests)
 
-            Test.objects.using("local").all().save(using="default")
-        # use central database normally
-        DB = "default"
-    except Exception as ee:
-        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
-        DB = "local"
 
+
+
+def sync_local_to_central():
+    existing = Product.objects.using("default").all()  # .filter(serial__in=local_product_ids)
+    tests = Test.objects.using('local').all()
+    local = Product.objects.using("local").all()
+#     # only product that doesn match
+#     existing_product_ids = existing.values_list("serial", flat=True)
+#     local_products = local.exclude(serial__in=list(existing_product_ids))
+#
+#     for product in local_products:
+#         product_test = tests.objects.get(id= product.id)
+#         product.id = None
+#
+# while local.exists():
+#         # write products
+#         existing_product_ids = existing.values_list("serial", flat=True)
+#         local_products = local.exclude(serial__in=list(existing_product_ids))
+#         local_product_ram = list(local_product[0:1])
+#         product_test =
+#         # write products to central base
+#         local_products_ram = list(local_products[0:100])
+    while local.exists() or tests.exists():
+        # write products
+        existing_product_ids = existing.values_list("serial", flat=True)
+        local_products = local.exclude(serial__in=list(existing_product_ids))
+        # write products to central base
+        local_products_ram = list(local_products[0:100])
+        for product in local_products_ram:
+            product.id = None
+        Product.objects.using('default').bulk_create(local_products_ram)  # get all local products
+        # write tests
+        tests_ram = list(tests[:100])
+        for test in tests_ram:
+            test.id = None
+            print(test.type.name)
+            print(test.product.serial)
+            print(test.id)
+            test.type_id = TestType.objects.using("default").get(name=test.type.name).id
+            test.product.id = Product.objects.using("default").get(serial=test.product.serial).id
+            print(Product.objects.using("default").get(serial=test.product.serial))
+            print(Product.objects.using("default").get(serial=test.product.serial).id)
+            print(test.product.id)
+
+            test.save(using='default')
+        #Test.objects.using('default').bulk_create(tests_ram)
+        # delete all from local+
+        tests.using('local').delete()
+        local_products.using('local').delete()
+
+
+def check_db_connection():
+    # with open(os.devnull, 'wb') as devnull:
+    #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
+    #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
+    response_fl = os.system('fping -c1 -t100 192.168.11.15')
+    response_fc = os.system('fping -c1 -t100 192.168.11.200')
+    if response_fc == 0:
+        DB = 'default'
+    elif response_fc != 0:
+        settings.sync_db = True
+        DB = 'local'
+        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
+        if response_fl==0:
+            pass
+        else:
+            utils.send_email(subject='Error',
+                             emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
+            raise 'Could not connect to default of local database'
+    return DB
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])

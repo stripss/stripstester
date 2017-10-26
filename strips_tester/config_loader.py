@@ -31,6 +31,7 @@ class Settings:
         self.gpios = None
         self.relays = None
         self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "config.json")
+        self.sync_db = True
         self.load(self.config_file)
 
     def load(self, file_path):
