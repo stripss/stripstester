@@ -4,9 +4,9 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
-import strips_tester.utils as utils
 from strips_tester import config_loader
 import strips_tester.db
+import strips_tester.utils as utils
 
 VERSION = '0.0.1'
 DB = "default"

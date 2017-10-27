@@ -13,7 +13,7 @@
     "BarCodeReadTask": 1,
     "ProductConfigTask": 1,
     "StartProcedureTask": 0,
-    "VoltageTest": 1,
+    "VoltageTest": 0,
     "FlashWifiModuleTask": 0,
     "FlashMCUTask": 0,
     "UartPingTest": 0,
@@ -22,7 +22,8 @@
     "CameraTest": 0,
     "FinishProcedureTask": 0,
     "PrintSticker": 0,
-    "WriteToDB": 1
+    "GACSTestLed": 1,
+    "WriteToDB": 0
   },
 
   "critical_event_tasks": {

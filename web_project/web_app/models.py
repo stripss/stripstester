@@ -24,6 +24,10 @@ class Product(models.Model):
         self.raw_scanned_string = None
         self.test_status = False
 
+    def __str__(self):
+        return " ".join((str(i) for i in ("Product:", "serial:", self.serial, self.production_datetime, self.hw_release, self.notes, self.notes)))
+
+
 
 class TestType(models.Model):
     name = models.CharField(unique=True, max_length=32, null=False, blank=False)

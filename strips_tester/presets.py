@@ -13,11 +13,11 @@ from strips_tester import DB
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
-databases = ['default', "local", ]
+databases = ['default'] # WRITE ONLY TO CENTRAL DB, local data is than synced from there
 
 
 
-def preset_tables(database, flag):
+def preset_tables(database: str='central', flag: bool=False):
     if flag:
         #USERS
         if not User.objects.using(database).filter(username="admin").exists():
@@ -45,12 +45,71 @@ def preset_tables(database, flag):
         module_logger.info('NO table preset')
 
 
+def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool=False):
+    '''
+    Creates user admin and copies data from_db to_db ib bulk size defined by N
+    :param from_db: central
+    :param to_db: local
+    :param flag:
+    :return:
+    '''
+
+    bulk_size = 100
+    # create one user -> db_manager
+    if not User.objects.using(to_db).filter(username="admin").exists():
+        admin = User.objects.db_manager(to_db).create_superuser('admin', 'admin@admin.com', 'admin')
+
+    # get data from db
+    central_product_types = ProductType.objects.using(from_db).all()
+    central_test_types = TestType.objects.using(from_db).all()
+    local_product_types = ProductType.objects.using(to_db).all()
+    local_test_types = TestType.objects.using(to_db).all()
+
+    local_product_types_types = local_product_types.values_list("type", flat=True)
+    central_product_types = central_product_types.exclude(type__in=list(local_product_types_types))
+
+    local_test_types_names = local_test_types.values_list("name", flat=True)
+    central_test_types = central_test_types.exclude(name__in=list(local_test_types_names))
+
+    rows = central_product_types.count()
+    bulks = rows//bulk_size
+    last_bulk = rows-(rows-(bulks*bulk_size))
+    for i in range(bulks):
+        existing_product_types_ram = list(central_product_types[i*bulk_size:(i+1)*bulk_size])
+        ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
+    existing_product_types_ram = list(central_product_types[last_bulk:rows])
+    ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
+
+    rows = central_test_types.count()
+    bulks = rows // bulk_size
+    last_bulk = rows - (rows - (bulks * bulk_size))
+    for i in range(bulks):
+        existing_test_types_ram = list(central_test_types[i*bulk_size:(i+1)*bulk_size])
+        TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
+    existing_test_types_ram = list(central_test_types[last_bulk:rows])
+    TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
+    # while central_product_types.exists() or central_test_types.exists():
+    #     # write product_types to_db
+    #     existing_product_types_ram = list(central_product_types[0:1000])
+    #     ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
+    #     existing_test_types_ram = list(central_test_types[0:1000])
+    #     TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
+    #     central_product_types.using()
+    #     #central_test_types
+
+
 for db in databases:
     try:
-        preset_tables(db, False)
+        preset_tables(db, True)
     except Exception as ee:
         module_logger.info("Notification sended")
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
+    try:
+        preset_tables_from_db('default', 'local')
+    except:
+        module_logger.info("Central database not available, changes have not been made to local database")
+
+
 
 if __name__ == '__main__':
     preset_tables()

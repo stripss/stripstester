@@ -1,13 +1,12 @@
 #!/usr/bin/python
 import logging
-from django.db import connections
+import os
 import smtplib
 import datetime
 import pylibdmtx.pylibdmtx as qrlib
 import picamera
 import time
 import hid
-
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -119,13 +118,3 @@ def hid_enumerate(vid=None, pid=None):
         print("Serial No: %s", h.get_serial_number_string())
     except:
         print("Faild to open device")
-
-
-#databases = ['default', "local", ]
-def get_current_db():
-    conn = connections['default']
-    try:
-        c = conn.cursor()
-        return 'default'
-    except Exception:
-        return 'local'

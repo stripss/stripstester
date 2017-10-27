@@ -22,7 +22,7 @@ from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, A
 #from matplotlib import pyplot as pp
 from collections import OrderedDict
 #from smbus2 import SMBus, i2c_msg
-
+from smbus2 import SMBusWrapper
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -619,28 +619,6 @@ class YoctoVoltageMeter(AbstractSensor):
         YAPI.FreeAPI()
 
 
-class IRTemperatureSensor(AbstractSensor):
-    MLX90615_I2C_ADDR = 0x5B
-    MLX90615_REG_TEMP_AMBIENT = 0x26
-    MLX90615_REG_TEMP_OBJECT = 0x27
-
-    def __init__(self, delay: int = 1):
-        super().__init__(delay,"Temperature", "°C")
-        self.sensor = None
-        self.bus = SMBus(1)
-
-    def get_value(self):
-        block = self.bus.read_i2c_block_data(IRTemperatureSensor.MLX90615_I2C_ADDR,
-                                        IRTemperatureSensor.MLX90615_REG_TEMP_OBJECT,
-                                        2)
-        temperature = (block[0] | block[1]<<8) * 0.02 - 273.15
-        return temperature
-
-    def close(self):
-        self.bus.close()
-
-
-
 class CameraDevice:
     def __init__(self, Xres: int=640, Yres: int=480):
         self.Xres = Xres
@@ -786,3 +764,100 @@ class MeshLoaderToList:
                 self.indices[j,i,:] = [x,y,R,G,B]
             self.indices_length.append(len(temp_mesh))
 
+class MCP23017:
+    IODIRA = 0x00
+    IODIRB = 0x01
+    GPIOA = 0x12
+    GPIOB = 0x13
+    OLATA = 0x14
+    OLATB = 0x15
+
+    ADDR = 0x20
+    def __init__(self):
+        pass
+
+    def test_led(self):
+        module_logger.debug("Starting led test in %s",__name__)
+
+        with SMBusWrapper(1) as bus:
+            # set GPIOB to output
+            data = 0x00
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            time.sleep(0.05)
+
+            # turn on every GPIOA
+            for i in range(7):
+                data = 0x01 << i
+                bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+                time.sleep(1)
+            # turn off
+            data = 0x00
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+
+    def turn_heater_on(self):
+        with SMBusWrapper(1) as bus:
+        # set GPIOA 7 to output
+            data = 0x00
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            time.sleep(0.05)
+
+            data = 0x01 << 7
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+        module_logger.debug("Heater on")
+
+    def turn_heater_off(self):
+        with SMBusWrapper(1) as bus:
+            # set GPIOA 7 to output
+            data = 0x00
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            time.sleep(0.05)
+
+            data = 0x00 << 7
+            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+        module_logger.debug("Heater off")
+
+
+class LM75A(AbstractSensor):
+    TEMP_REG = 0x00
+    ID_REG = 0x07
+
+    ADDR = 0x4b
+    def __init__(self, delay: int = 1):
+        super().__init__(delay, "Temperature", "°C")
+        self.sensor = None
+
+    def get_value(self):
+        with SMBusWrapper(1) as bus:
+            # Read a block of 2 bytes from address ADDR, offset 0
+            block = bus.read_i2c_block_data(LM75A.ADDR, LM75A.TEMP_REG, 2)
+
+        nine_biter = (block[1] >> 7 | block[0] << 1) & 0xFF
+        temperatura = nine_biter / 2
+        if(block[0] & 0x80) == 0x01:
+            temperatura = -temperatura
+
+        return temperatura
+
+    def close(self):
+        pass
+
+class IRTemperatureSensor(AbstractSensor):
+    MLX90615_I2C_ADDR = 0x5B
+    MLX90615_REG_TEMP_AMBIENT = 0x26
+    MLX90615_REG_TEMP_OBJECT = 0x27
+
+    def __init__(self, delay: int = 1):
+        super().__init__(delay, "Temperature", "°C")
+        self.sensor = None
+
+    def get_value(self):
+        with SMBusWrapper(1) as bus:
+            block = bus.read_i2c_block_data(IRTemperatureSensor.MLX90615_I2C_ADDR,
+                                                 IRTemperatureSensor.MLX90615_REG_TEMP_OBJECT,
+                                                 2)
+        temperature = (block[0] | block[1] << 8) * 0.02 - 273.15
+        return temperature
+
+    def close(self):
+        #self.bus.close()
+        pass

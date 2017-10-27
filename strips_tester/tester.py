@@ -154,6 +154,7 @@ def start_test_device():
             # strips_tester.current_product.task_results = run_custom_tasks()
             run_custom_tasks()
 
+
         except Exception as e:
             module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
             raise e
@@ -178,16 +179,13 @@ def initialize_gpios():
 
 def run_custom_tasks():
     global DB
-    # get database and sync if default and sync
-    database = check_db_connection()
-    #database='local'
-    if database=='default' and settings.sync_db==True:
-        sync_local_to_central()
-        settings.sync_db=False
+    DB = check_db_connection()
+    if DB == 'default' and settings.sync_db == True:
+        sync_db(from_db='local', to_db='default')
     #get type from local or central
-    product_type = ProductType.objects.using(database).get(name=settings.product_name, type=settings.product_type)
-
-    #########
+    product_type = ProductType.objects.using(DB).get(name=settings.product_name, type=settings.product_type)
+    # TASKS
+    #################################################################################
     strips_tester.current_product = Product(serial=None,
                                             production_datetime=None,
                                             hw_release=settings.product_hw_release,
@@ -217,23 +215,22 @@ def run_custom_tasks():
         module_logger.info("TEST USPEL :)")
     else:
         module_logger.warning("TEST NI USPEL !!!")
-
-
+    #################################################################################
+    # TASKS ENDS
 
     ### SAVE TEST AND PRODUCT IF IT DOES NOT EXIST
-    database = check_db_connection()
+    DB = check_db_connection()
     #database = 'local'
-    result = Product.objects.using(database).filter(serial=strips_tester.current_product.serial).exists()
+    result = Product.objects.using(DB).filter(serial=strips_tester.current_product.serial).exists()
     # get or create product and create tests
     product_to_save = strips_tester.current_product
     if result:
-        strips_tester.current_product = Product.objects.using(database).get(serial=strips_tester.current_product.serial)
+        strips_tester.current_product = Product.objects.using(DB).get(serial=strips_tester.current_product.serial)
     else:
-        strips_tester.current_product.save(using=database)
-
+        strips_tester.current_product.save(using=DB)
     tests = []
     for test_name, data in product_to_save.tests.items():
-        test_type = TestType.objects.using(database).get(name=test_name)
+        test_type = TestType.objects.using(DB).get(name=test_name)
         tests.append(Test(product=strips_tester.current_product,
                           type=test_type,
                           value=data[0],
@@ -242,31 +239,16 @@ def run_custom_tasks():
                           employee=settings.test_device_employee
                           )
                      )
-    Test.objects.using(database).bulk_create(tests)
+    Test.objects.using(DB).bulk_create(tests)
 
 
 
 
-def sync_local_to_central():
-    existing = Product.objects.using("default").all()  # .filter(serial__in=local_product_ids)
-    tests = Test.objects.using('local').all()
-    local = Product.objects.using("local").all()
-#     # only product that doesn match
-#     existing_product_ids = existing.values_list("serial", flat=True)
-#     local_products = local.exclude(serial__in=list(existing_product_ids))
-#
-#     for product in local_products:
-#         product_test = tests.objects.get(id= product.id)
-#         product.id = None
-#
-# while local.exists():
-#         # write products
-#         existing_product_ids = existing.values_list("serial", flat=True)
-#         local_products = local.exclude(serial__in=list(existing_product_ids))
-#         local_product_ram = list(local_product[0:1])
-#         product_test =
-#         # write products to central base
-#         local_products_ram = list(local_products[0:100])
+def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
+    existing = Product.objects.using(to_db).all()  # .filter(serial__in=local_product_ids)
+    tests = Test.objects.using(from_db).all()
+    local = Product.objects.using(from_db).all()
+
     while local.exists() or tests.exists():
         # write products
         existing_product_ids = existing.values_list("serial", flat=True)
@@ -275,26 +257,25 @@ def sync_local_to_central():
         local_products_ram = list(local_products[0:100])
         for product in local_products_ram:
             product.id = None
-        Product.objects.using('default').bulk_create(local_products_ram)  # get all local products
+        Product.objects.using(to_db).bulk_create(local_products_ram)  # get all local products
         # write tests
         tests_ram = list(tests[:100])
         for test in tests_ram:
             test.id = None
-            print(test.type.name)
-            print(test.product.serial)
-            print(test.id)
-            test.type_id = TestType.objects.using("default").get(name=test.type.name).id
-            test.product.id = Product.objects.using("default").get(serial=test.product.serial).id
-            print(Product.objects.using("default").get(serial=test.product.serial))
-            print(Product.objects.using("default").get(serial=test.product.serial).id)
-            print(test.product.id)
+            # print(test.type.name)
+            # print(test.product.serial)
+            # print(test.id)
+            test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
+            test.product_id = Product.objects.using(to_db).get(serial=test.product.serial).id
+            # print(Product.objects.using(to_db).get(serial=test.product.serial))
+            # print(Product.objects.using(to_db).get(serial=test.product.serial).id)
+            # print(test.product.id)
 
-            test.save(using='default')
-        #Test.objects.using('default').bulk_create(tests_ram)
-        # delete all from local+
-        tests.using('local').delete()
-        local_products.using('local').delete()
+            test.save(using=to_db)
+        tests.using(from_db).delete()
+        local.using(from_db).delete()
 
+    settings.sync_db = False
 
 def check_db_connection():
     # with open(os.devnull, 'wb') as devnull:
@@ -306,15 +287,16 @@ def check_db_connection():
         DB = 'default'
     elif response_fc != 0:
         settings.sync_db = True
+        if DB=='default':
+            utils.send_email(subject='DB Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
         DB = 'local'
-        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
         if response_fl==0:
             pass
         else:
-            utils.send_email(subject='Error',
-                             emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
+            utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
             raise 'Could not connect to default of local database'
     return DB
+
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])

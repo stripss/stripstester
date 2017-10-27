@@ -1,5 +1,5 @@
 cycler==0.10.0
-Django==1.11.6
+Django==2.0b1
 hidapi==0.7.99.post20
 numpy==1.13.1
 olefile==0.44
