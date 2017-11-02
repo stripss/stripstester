@@ -1,0 +1,142 @@
+{
+  "product_name": "MVC",
+  "product_type": 1,
+  "product_variant": "basic",
+  "product_hw_release": "1.3",
+  "product_description": "MVC module for GARO",
+  "product_notes": "nothing so say",
+  "test_device_name": "Testna2",
+  "test_device_employee": "Jure",
+  "central_db_host": "192.168.11.200",
+  "local_db_host": "192.168.11.15",
+  "sync_db": 0,
+
+  "task_execution_order": {
+    "BarCodeReadTask": 0,
+    "ProductConfigTask": 0,
+    "StartProcedureTask": 0,
+    "VoltageTest": 0,
+    "FlashWifiModuleTask": 0,
+    "FlashMCUTask": 0,
+    "UartPingTest": 0,
+    "InternalTest": 1,
+    "ManualLCDTest": 0,
+    "CameraTest": 0,
+    "FinishProcedureTask": 0,
+    "PrintSticker": 0
+  },
+
+  "critical_event_tasks": {
+    "FinishProcedureTask": 1,
+    "PrintSticker": 1
+  },
+
+  "gpio_settings": {
+    "CONFIRM_BAD_SWITCH": {
+      "function": 1,
+      "pin": 32,
+      "pull": 22
+    },
+    "CONFIRM_GOOD_SWITCH": {
+      "function": 1,
+      "pin": 36,
+      "pull": 22
+    },
+    "DETECT_SWITCH": {
+      "function": 1,
+      "pin": 26,
+      "pull": 22
+    },
+    "DTR": {
+      "function": 0,
+      "initial": 0,
+      "pin": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "initial": 0,
+      "pin": 24
+    },
+    "RST": {
+      "function": 0,
+      "initial": 0,
+      "pin": 18
+    },
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 12,
+      "pull": 22
+    },
+    "WIFI_PRESENT_SWITCH": {
+      "function": 1,
+      "pin": 16,
+      "pull": 22
+    }
+  },
+  "relay_settings": {
+    "12V": {
+      "initial": 0,
+      "pin": 2
+    },
+    "3V3": {
+      "initial": 0,
+      "pin": 4
+    },
+    "5V": {
+      "initial": 0,
+      "pin": 3
+    },
+    "COMMON": {
+      "initial": 0,
+      "pin": 5
+    },
+    "DTR_MCU": {
+      "initial": 0,
+      "pin": 13
+    },
+    "DTR_WIFI": {
+      "initial": 0,
+      "pin": 15
+    },
+    "GND": {
+      "initial": 0,
+      "pin": 12
+    },
+    "LIGHT_RED": {
+      "initial": 0,
+      "pin": 16
+    },
+    "RE1": {
+      "initial": 0,
+      "pin": 7
+    },
+    "RE2": {
+      "initial": 0,
+      "pin": 6
+    },
+    "RST": {
+      "initial": 0,
+      "pin": 14
+    },
+    "UART_MCU_RX": {
+      "initial": 0,
+      "pin": 10
+    },
+    "UART_MCU_TX": {
+      "initial": 0,
+      "pin": 11
+    },
+    "UART_WIFI_RX": {
+      "initial": 0,
+      "pin": 8
+    },
+    "UART_WIFI_TX": {
+      "initial": 0,
+      "pin": 9
+    },
+    "Vc": {
+      "initial": 0,
+      "pin": 1
+    }
+  }
+}

@@ -701,6 +701,7 @@ class CompareAlgorithm:
         self.color_edge = 0.2*3*255
 
     def run(self, images, masks, mask_indices_len, masks_length):
+        images = images.astype(np.int16)
         for j in range(masks_length):
             for i in range(mask_indices_len[j]): # indices_length[j] number of indices to check
                 #mask_num x 50 x 5(x,y,R,G,B)
@@ -722,7 +723,7 @@ class CompareAlgorithm:
 
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
-        if np.abs(RGB1[0]-100)>0:
+        if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
             return True
         return False
 
@@ -751,17 +752,17 @@ class MeshLoaderToList:
     def construct_mask_array(self):
         mask_num = len(self.meshes_dict)
         # max 50 x 5(x,y,R,G,B) x mask_num
-        self.indices = np.zeros((mask_num, 50, 5), dtype=np.uint8)
+        self.indices = np.zeros((mask_num, 50, 5), dtype=np.int16)
         for j in range(mask_num):
             mesh_name = str(j)
             temp_mesh = self.meshes_dict[mesh_name]
             for i in range(len(temp_mesh)):
-                x = temp_mesh[i]['x']
-                y = temp_mesh[i]['y']
+                x_loc = temp_mesh[i]['x']
+                y_loc = temp_mesh[i]['y']
                 R = temp_mesh[i]['R']
                 G = temp_mesh[i]['G']
                 B = temp_mesh[i]['B']
-                self.indices[j,i,:] = [x,y,R,G,B]
+                self.indices[j,i,:] = [x_loc,y_loc,R,G,B]
             self.indices_length.append(len(temp_mesh))
 
 class MCP23017:

@@ -25,7 +25,7 @@ def preset_tables(database: str='central', flag: bool=False):
         # PRODUCT TYPES
         ProductType.objects.using(database).get_or_create(name='MVC', type=1, variant='basic', description='mvc module for Garo')
         for product_type in ProductType.objects.using(database).all():
-            print(product_type.type, product_type.name, product_type.variant, product_type.description)
+            module_logger.debug("%s, %s, %s, %s",product_type.type, product_type.name, product_type.variant, product_type.description)
         # TEST TYPES
         TestType.objects.using(database).get_or_create(name='Vc', description='15V', units='V')
         TestType.objects.using(database).get_or_create(name='12V', description='12V', units='V')
@@ -39,8 +39,9 @@ def preset_tables(database: str='central', flag: bool=False):
         TestType.objects.using(database).get_or_create(name='flash test', description='flash status', units='bool')
         TestType.objects.using(database).get_or_create(name='switches', description='switches status', units='bool')
         TestType.objects.using(database).get_or_create(name='board test', description='board type', units='uint8')
+        TestType.objects.using(database).get_or_create(name='display', description='display status', units='bool')
         for test in TestType.objects.using(database).all():
-            print(test.name, test.description, test.units)
+            module_logger.debug("%s, %s, %s", test.name, test.description, test.units)
     else:
         module_logger.info('NO table preset')
 
@@ -53,7 +54,7 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
     :param flag:
     :return:
     '''
-
+    module_logger.debug("Preseting test_db from db : %s to db: %s", from_db, to_db)
     bulk_size = 100
     # create one user -> db_manager
     if not User.objects.using(to_db).filter(username="admin").exists():
@@ -100,13 +101,14 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
 
 for db in databases:
     try:
-        preset_tables(db, True)
+        preset_tables(db, False)
     except Exception as ee:
         module_logger.info("Notification sended")
-        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
+        #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
     try:
         preset_tables_from_db('default', 'local')
     except:
+        utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
         module_logger.info("Central database not available, changes have not been made to local database")
 
 

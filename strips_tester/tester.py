@@ -147,7 +147,10 @@ class Task:
 
 
 def start_test_device():
+    ### one time tasks
     initialize_gpios()
+
+    ###
     while True:
         try:
             global task_results
