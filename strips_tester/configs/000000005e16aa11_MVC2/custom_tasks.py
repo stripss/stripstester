@@ -399,7 +399,7 @@ class InternalTest(Task):
             queue = multiprocessing.Queue()
             relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
-            #relay_process.start()
+            relay_process.start()
 
             module_logger.info("STM32M0 boot time %s", 5)
             time.sleep(5) # process sync and UC boot time
@@ -411,7 +411,7 @@ class InternalTest(Task):
 
             module_logger.info("Testing segment display...")
             self.start_t = time.time()  # everything synchronizes to this time
-            #queue.put(self.start_t)  # send start time to relay process for relay sync
+            queue.put(self.start_t)  # send start time to relay process for relay sync
             for i in range(14):
                 dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
                 while 0.0 < dt:
@@ -452,11 +452,11 @@ class InternalTest(Task):
 
                     temp_in_C = ((temperature/100)+15.8) # calibration in MVC
                     if self.temp_sensor.in_range(temp_in_C-5, temp_in_C+5):
-                        module_logger.debug("temperature in bounds: %s", temperature)
-                        self.measurement_results["temperature"] = [temperature, "ok", 0, "°C"]
+                        module_logger.debug("temperature in bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
+                        self.measurement_results["temperature"] = [temp_in_C, "ok", 0, "°C"]
                     else:
-                        module_logger.warning("temperature out of bounds: %s", temperature)
-                        self.measurement_results["temperature"] = [temperature, "fail", 0, "°C"]
+                        module_logger.warning("temperature out of bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
+                        self.measurement_results["temperature"] = [temp_in_C, "fail", 0, "°C"]
                     if rtc != 1:
                         module_logger.warning("rtc error: %s", rtc)
                         self.measurement_results["RTC"] = [0, "fail", 0, "bool"]
@@ -496,15 +496,14 @@ class InternalTest(Task):
         except:
             raise Exception("Internal test exception")
 
-        #relay_process.join(timeout=30)
-        #result = queue.get()
-        result = True
+        relay_process.join(timeout=30)
+        result = queue.get()
         if result == True:
             module_logger.debug("Relay test successful")
-            self.measurement_results["relay"] = [1, "ok", 0, "bool"]
+            self.measurement_results["relays"] = [1, "ok", 0, "bool"]
         else:
             module_logger.warning("Relay error ")
-            self.measurement_results["relay"] = [0, "fail", 0, "bool"]
+            self.measurement_results["relays"] = [0, "fail", 0, "bool"]
 
         LidOpenCheck()
         return self.measurement_results
@@ -586,6 +585,8 @@ class PrintSticker(Task):
         self.g = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
 
     def run(self):
+        test_status = "PASS" if strips_tester.current_product.test_status else "FAIL"
+        inverse = '^L\r' if test_status=='PASS' else '^LI\r'
         label=('^Q10,3\r'
                 '^W21\r'
                 '^H5\r'
@@ -600,7 +601,7 @@ class PrintSticker(Task):
                '^E12\r'
                '~R200\r'
                '^XSET,ROTATION,0\r'
-               '^L\r'
+               '{}'
                'Dy2-me-dd\r'
                'Th:m:s\r'
                'XRB115,14,3,0,{}\r'
@@ -608,11 +609,12 @@ class PrintSticker(Task):
                'ATC,13,43,14,14,0,0E,C,0,{}, fw{}\r'
                'ATA,17,13,25,25,0,0E,A,0,{}\r'
                'ATC,12,63,14,14,0,0E,C,0,SN {}\r'
-               'E\r').format(len(str(strips_tester.current_product.serial)),
+               'E\r').format(inverse,
+                            len(str(strips_tester.current_product.serial)),
                             strips_tester.current_product.serial,
                             strips_tester.current_product.type.name,
                             strips_tester.current_product.hw_release,
-                            "PASS" if strips_tester.current_product.test_status else "FAIL",
+                            test_status,
                             hex(strips_tester.current_product.serial))
         self.g.send_to_printer(label)
         return {"signal": [1, 'ok', 0, 'NA']}
