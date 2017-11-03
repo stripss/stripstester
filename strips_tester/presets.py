@@ -107,7 +107,7 @@ for db in databases:
         #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
     try:
         preset_tables_from_db('default', 'local')
-    except:
+    except Exception as ee:
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
         module_logger.info("Central database not available, changes have not been made to local database")
 

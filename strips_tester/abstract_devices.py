@@ -44,6 +44,7 @@ class AbstractFlasher:
             if self.run_flashing():
                 module_logger.info("Flash successful")
                 return True
+        module_logger.info("Flashing failed")
         return False
 
     def setup(self):

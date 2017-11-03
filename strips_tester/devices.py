@@ -699,6 +699,11 @@ class CompareAlgorithm:
         '''
         self.span = np.arange(-span, span)
         self.color_edge = 0.2*3*255
+        tx = [0, 1, 2, -1, -2]
+        ty = [0, 1, 2, -1, -2]
+        self.Tx, self.Ty = np.meshgrid(tx,ty)
+        self.Tx = self.Tx.flatten()
+        self.Ty = self.Ty.flatten()
 
     def run(self, images, masks, mask_indices_len, masks_length):
         images = images.astype(np.int16)
@@ -708,17 +713,23 @@ class CompareAlgorithm:
                 x = masks[j,i,0]
                 y = masks[j,i,1]
                 RGB = masks[j,i,2:]
-                if not self.compare(x, y, images[j,::,::], RGB):
+                if not self.compare_forloop(x, y, images[j,::,::], RGB):
                     module_logger.error("Failed at picture {} and index  {} with image RGB {} and mesh RGB {}".format(j,i,images[j,y,x], RGB))
                     return False
                 break
         return True
 
-    def compare(self, x, y, img1, img2):
+    def compare_forloop(self, x, y, img1, img2):
         for j in self.span:
             for i in self.span:
                 if self.colors_in_range(img1[y-j,x-i,:], img2):
                     return True
+        return False
+
+    def compare_start_from_middle(self, x, y, img1, img2):
+        for i in range(len(self.Tx)):
+            if self.colors_in_range(img1[y - self.Ty[i], x - self.Tx[i], :], img2):
+                return True
         return False
 
     def colors_in_range(self, RGB1, RGB2):

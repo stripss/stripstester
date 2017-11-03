@@ -585,8 +585,12 @@ class PrintSticker(Task):
         self.g = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
 
     def run(self):
-        test_status = "PASS" if strips_tester.current_product.test_status else "FAIL"
-        inverse = '^L\r' if test_status=='PASS' else '^LI\r'
+        if strips_tester.current_product.test_status:
+            test_status = 'PASS'
+            inverse = '^L\r'
+        else:
+            test_status = 'FAIL'
+            inverse = '^LI\r'
         label=('^Q10,3\r'
                 '^W21\r'
                 '^H5\r'
