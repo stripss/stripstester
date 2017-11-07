@@ -591,7 +591,7 @@ class SainBoard16:
         #     return new
 
 class YoctoVoltageMeter(AbstractSensor):
-    def __init__(self, delay: int = 1):
+    def __init__(self, device_name, delay: int = 1):
         super().__init__(delay,"Voltage", "V")
         self.sensor = None
 
@@ -600,7 +600,8 @@ class YoctoVoltageMeter(AbstractSensor):
             module_logger.error("Can't load yocto API : %s", errmsg)
             raise "Can't load yocto API"
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
-        self.sensor = YVoltage.FindVoltage("VOLTAGE1-A08C8.voltage1");
+        #sensor = YVoltage.FirstVoltage()
+        self.sensor = YVoltage.FindVoltage(device_name);
         if (self.sensor == None):
             raise ("No yocto device is connected")
         m = self.sensor.get_module()
@@ -699,11 +700,20 @@ class CompareAlgorithm:
         '''
         self.span = np.arange(-span, span)
         self.color_edge = 0.2*3*255
-        tx = [0, 1, 2, -1, -2]
-        ty = [0, 1, 2, -1, -2]
-        self.Tx, self.Ty = np.meshgrid(tx,ty)
-        self.Tx = self.Tx.flatten()
-        self.Ty = self.Ty.flatten()
+        #tx = [0, 1, 2, -1, -2]
+        #ty = [0, 1, 2, -1, -2]
+        #self.Tx, self.Ty = np.meshgrid(tx,ty)
+        #self.Tx = self.Tx.flatten()
+        #self.Ty = self.Ty.flatten()
+        ''' check only cross of pixels to speed up camera test i.e.
+                    *
+                    *
+                * * * * *
+                    *
+                    *
+        '''
+        #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3]
+        self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
 
     def run(self, images, masks, mask_indices_len, masks_length):
         images = images.astype(np.int16)
@@ -713,10 +723,9 @@ class CompareAlgorithm:
                 x = masks[j,i,0]
                 y = masks[j,i,1]
                 RGB = masks[j,i,2:]
-                if not self.compare_forloop(x, y, images[j,::,::], RGB):
+                if not self.compare_check_cross(x, y, images[j,::,::], RGB):
                     module_logger.error("Failed at picture {} and index  {} with image RGB {} and mesh RGB {}".format(j,i,images[j,y,x], RGB))
                     return False
-                break
         return True
 
     def compare_forloop(self, x, y, img1, img2):
@@ -732,9 +741,16 @@ class CompareAlgorithm:
                 return True
         return False
 
+    def compare_check_cross(self, x, y, img1, img2):
+        for i in range(len(self.Tx)):
+            if self.colors_in_range(img1[y - self.Ty[i], x - self.Tx[i], :], img2):
+                return True
+        return False
+
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
-        if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
+        #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
+        if (np.abs(RGB1[0]-RGB2[0]))<60:
             return True
         return False
 

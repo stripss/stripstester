@@ -281,11 +281,12 @@ def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
     settings.sync_db = False
 
 def check_db_connection():
+    global DB
     # with open(os.devnull, 'wb') as devnull:
     #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
     #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
-    response_fl = os.system('fping -c1 -t100 192.168.11.15')
-    response_fc = os.system('fping -c1 -t100 192.168.11.200')
+    response_fl = os.system('timeout 0.2 ping -c 1 '+str(settings.local_db_host))
+    response_fc = os.system('timeout 0.2 ping -c 1 '+str(settings.central_db_host))
     if response_fc == 0:
         DB = 'default'
     elif response_fc != 0:

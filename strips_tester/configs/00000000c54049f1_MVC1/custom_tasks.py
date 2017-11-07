@@ -60,7 +60,7 @@ class BarCodeReadTask(Task):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         #self.reader = devices.Honeywell1400(path="/dev/hidraw2", max_code_length=50)
         self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/0000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
         module_logger.info("Prepared for reading matrix code:")
@@ -143,7 +143,7 @@ class StartProcedureTask(Task):
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
                 state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-                if state_GPIO_SWITCH:
+                if  not state_GPIO_SWITCH:
                     module_logger.info("START_SWITCH pressed(lid closed)")
                     break
                 time.sleep(0.1)
@@ -163,7 +163,7 @@ class VoltageTest(Task):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         self.mesurement_delay = 0.14
         self.measurement_results = {}
-        self.voltmeter = devices.YoctoVoltageMeter(self.mesurement_delay)
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A953A.voltage1", self.mesurement_delay)
 
     def run(self) -> (bool, str):
         #Vc
@@ -344,7 +344,7 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/0000000005e16aa11_MVC2/Mask.json')
         self.camera_algorithm = devices.CompareAlgorithm(span=3)
         self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
         self.temp_sensor = devices.IRTemperatureSensor(0)  # meas delay = 0
@@ -369,23 +369,63 @@ class InternalTest(Task):
         module_logger.info("Testing_relays...")
         relay_tests = []
         self.relay_board.open()
-        self.mesurement_delay = 0.14
+        self.mesurement_delay = 0.0
         self.voltmeter = devices.YoctoVoltageMeter(self.mesurement_delay)
 
+        #RE1
         self.relay_board.close_relay(relays["RE1"])
+        time.sleep(0.15)
+        module_logger.debug("R1 %s", self.voltmeter.read())
+        self.relay_board.open_relay(relays["RE1"])
+        # RE2
         self.relay_board.close_relay(relays["RE2"])
-        module_logger.debug("both open")
+        time.sleep(0.15)
+        module_logger.debug("R2 %s", self.voltmeter.read())
+        self.relay_board.open_relay(relays["RE2"])
         time.sleep(1.2)
-        relay_tests.append(self.voltmeter.in_range(14.5, 15.5))
 
-        start_t = queue.get(block=True, timeout=10)
-        time.sleep(1)
-        module_logger.debug("both open ")
-        relay_tests.append(self.voltmeter.in_range(-0.5, 0.5))
-        module_logger.debug("last relay wait time: %s", max(0, start_t + 6 + 1 - time.time()))
-        time.sleep(max(0, start_t + 6 + 1 - time.time()))
-        relay_tests.append(self.voltmeter.in_range(14.5, 15.5))
+        #start_time = queue.get(block=True, timeout=10)
+        #time.sleep(1)
+        # module_logger.debug("both open ")
+        # relay_tests.append(self.voltmeter.in_range(-0.5, 0.5))
+        # module_logger.debug("last relay wait time: %s", max(0, start_t + 6 + 1 - time.time()))
+        # time.sleep(max(0, start_t + 6 + 1 - time.time()))
+        # relay_tests.append(self.voltmeter.in_range(14.5, 15.5))
 
+        delay_R1 = 0.3
+        delay_R2 = 0.3 + 0.5
+        sum_delay = 2.0
+        R1_voltage = [14.5, 0.0, 0.0]
+        R2_voltage = [0.0, 0.0, 14.5]
+        self.relay_board.open_relay(relays["RE1"])
+        self.relay_board.open_relay(relays["RE2"])
+        start_time = queue.get(block=True, timeout=10)
+        print(start_time)
+        for i in range(len(R1_voltage)):
+            # RE1
+            self.relay_board.close_relay(relays["RE1"])
+            dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
+            while 0.0 < dt:
+                time.sleep(0.5 * dt)
+                dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
+            print(time.time())
+            module_logger.debug("R1 %s", self.voltmeter.read())
+            self.relay_board.open_relay(relays["RE1"])
+            # RE2
+            self.relay_board.close_relay(relays["RE2"])
+            dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
+            while 0.0 < dt:
+                time.sleep(0.5 * dt)
+                dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
+            print(time.time())
+            module_logger.debug("R2 %s", self.voltmeter.read())
+            self.relay_board.open_relay(relays["RE2"])
+            print('\n\n')
+
+
+        ###
+        relay_tests.append(False)
+        ###
         self.relay_board.close()
         self.voltmeter.close()
         result = all(relay_tests)
@@ -428,6 +468,16 @@ class InternalTest(Task):
                 self.measurement_results["display"] = [1, "ok", 0, "bool"]
             else:
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
+
+            # default, even if no data from uart
+            ###
+            self.measurement_results["keyboard"] = [0, "fail", 0, "bool"]
+            self.measurement_results["temperature"] = [0.0, "fail", 0, "°C"]
+            self.measurement_results["RTC"] = [0, "fail", 0, "bool"]
+            self.measurement_results["flash test"] = [0, "fail", 0, "bool"]
+            self.measurement_results["switches"] = [0, "fail", 0, "bool"]
+            self.measurement_results["board test"] = [0, "fail", 0, "bool"]
+            ###
 
             payload = bytearray()
             module_logger.debug("Start listening on uart...")
@@ -488,10 +538,10 @@ class InternalTest(Task):
                     continue
                 else:
                     module_logger.error("Wrong packet header when reading internal test response")
-                    self.measurement_results["signal"] = [0, "fail", 2, "NA"]
+                    #self.measurement_results["signal"] = [0, "fail", 2, "NA"]
             # if there is no hit(break) in this for loop
             else:
-                self.measurement_results["signal"] = [0, "fail", 2, "NA"]
+                #self.measurement_results["signal"] = [0, "fail", 2, "NA"]
                 module_logger.warning("Unable to get any data from uart")
         except:
             raise Exception("Internal test exception")
