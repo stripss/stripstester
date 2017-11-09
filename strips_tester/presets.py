@@ -101,7 +101,7 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
 
 for db in databases:
     try:
-        preset_tables(db, True)
+        preset_tables(db, False)
     except Exception as ee:
         module_logger.info("Notification sended")
         #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))

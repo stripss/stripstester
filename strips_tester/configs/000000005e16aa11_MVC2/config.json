@@ -8,7 +8,7 @@
   "test_device_name": "MVC2",
   "test_device_employee": "Jure2",
   "central_db_host": "192.168.11.50",
-  "local_db_host": "192.168.11.4",
+  "local_db_host": "localhost",
   "sync_db": 0,
 
   "task_execution_order": {
@@ -108,11 +108,11 @@
     },
     "RE1": {
       "initial": 0,
-      "pin": 7
+      "pin": 6
     },
     "RE2": {
       "initial": 0,
-      "pin": 6
+      "pin": 7
     },
     "RST": {
       "initial": 0,

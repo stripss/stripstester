@@ -32,7 +32,9 @@ class Honeywell1400:
                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-    def __init__(self, vid: int = 0x0c2e, pid: int = 0x0b81, path: str = "/dev/hilslsdraw1", max_code_length: int = 50):
+    def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
+        if path==None or (vid==None and pid==None):
+            raise 'Not anough init parameters for Honeywell1400'
         self.vid = vid
         self.pid = pid
         self.path = path
@@ -424,7 +426,7 @@ class DigitalMultiMeter:
 
 
 class GoDEXG300:
-    def __init__(self, port='/dev/ttyUSB0', timeout=3.0):
+    def __init__(self, port, timeout=3.0):
         self.ser = serial.Serial(
             port=port,
             baudrate=9600,
@@ -440,34 +442,6 @@ class GoDEXG300:
         self.ser.flushOutput()
         self.ser.flushInput()
         self.logger = logging.getLogger(__name__)
-
-    @staticmethod
-    def generate(product_type: str, hw_release: str, variant: str, serial: str, test_result: str):
-        # label_str = ('^Q9,3\n'
-        #              '^W20\n'
-        #              '^H13\n'
-        #              '^P1\n'
-        #              '^S2\n'
-        #              '^AD\n'
-        #              '^C1\n'
-        #              '^R0\n'
-        #              '~Q+0\n'
-        #              '^O0\n'
-        #              '^D0\n'
-        #              '^E15\n'
-        #              '~R200\n'
-        #              '^XSET,ROTATION,0\n'
-        #              '^L\n'
-        #              'Dy2-me-dd\n'
-        #              'Th:m:s\n'
-        #              'XRB158,10,4,0,10\n'
-        #              '0123456789\n'
-        #              'AB,4,10,1,1,0,0E,{}, {}\n'
-        #              'AB,4,36,1,1,0,0E,{}\n'
-        #              'AB,4,62,1,1,0,0E,{}\n'
-        #              'AD,148,60,1,1,0,0E,{}\n'
-        #              'E\n'.format(product_type, hw_release, variant, serial, test_result).encode(encoding="ascii"))
-        pass
 
     def send_to_printer(self, label_str: str):
         w = self.ser.write(label_str.encode(encoding="ascii"))
@@ -712,8 +686,9 @@ class CompareAlgorithm:
                     *
                     *
         '''
+        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4]
         #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3]
-        self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
+        #self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
 
     def run(self, images, masks, mask_indices_len, masks_length):
         images = images.astype(np.int16)
@@ -750,7 +725,7 @@ class CompareAlgorithm:
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
         #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
-        if (np.abs(RGB1[0]-RGB2[0]))<60:
+        if (np.abs(RGB1[0]-RGB2[0]))<80:
             return True
         return False
 

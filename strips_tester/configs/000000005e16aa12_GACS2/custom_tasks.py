@@ -60,7 +60,7 @@ class BarCodeReadTask(Task):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         #self.reader = devices.Honeywell1400(path="/dev/hidraw2", max_code_length=50)
         self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/0000000005e16aa11_MVC2/Mask.json')
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
         module_logger.info("Prepared for reading matrix code:")

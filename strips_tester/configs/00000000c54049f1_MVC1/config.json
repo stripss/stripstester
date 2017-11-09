@@ -8,14 +8,14 @@
   "test_device_name": "MVC1",
   "test_device_employee": "Jure1",
   "central_db_host": "192.168.11.50",
-  "local_db_host": "192.168.11.3",
+  "local_db_host": "localhost",
   "sync_db": 0,
 
   "task_execution_order": {
     "BarCodeReadTask": 1,
     "ProductConfigTask": 1,
     "StartProcedureTask": 1,
-    "VoltageTest": 0,
+    "VoltageTest": 1,
     "FlashWifiModuleTask": 0,
     "FlashMCUTask": 1,
     "UartPingTest": 0,
@@ -108,11 +108,11 @@
     },
     "RE1": {
       "initial": 0,
-      "pin": 7
+      "pin": 6
     },
     "RE2": {
       "initial": 0,
-      "pin": 6
+      "pin": 7
     },
     "RST": {
       "initial": 0,
