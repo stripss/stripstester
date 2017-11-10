@@ -401,7 +401,7 @@ class CommandInterface:
         else:
             logger.debug( "Write %s bytes at %s" , chunk_size, hex(addr))
         self.cmdWriteMemory(addr, data[offs:offs+lng] + bytes([0xFF] * (chunk_size-lng)) )
-        logger.info("Writing flash complete")
+        logger.debug("Writing flash complete")
 
 
 def usage():

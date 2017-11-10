@@ -216,7 +216,7 @@ def run_custom_tasks():
                                 module_logger.debug("Executing: %s ...", CustomTask)
                                 custom_task = CustomTask()
                                 result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                                # strips_tester.current_product.task_results.append(result)
+                                strips_tester.current_product.task_results.append(result)
                             except Exception as ee:
                                 raise "CRITICAL EVENT EXCEPTION"
                     return True
@@ -229,9 +229,9 @@ def run_custom_tasks():
             module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
     if all(strips_tester.current_product.task_results):
-        module_logger.info("TEST USPEL :)")
+        module_logger.info("TEST USPEL :)\n\n")
     else:
-        module_logger.warning("TEST NI USPEL !!!")
+        module_logger.warning("TEST NI USPEL :(( !!!\n\n")
     #################################################################################
     # TASKS ENDS
 
@@ -315,18 +315,6 @@ def check_db_connection():
             raise 'Could not connect to default of local database'
     return DB
 
-
-def on_critical_event():
-    for task_name in settings.critical_event_tasks:
-        if settings.critical_event_tasks[task_name]:
-            CustomTask = getattr(custom_tasks, task_name)
-            try:
-                module_logger.debug("Executing: %s ...", CustomTask)
-                custom_task = CustomTask()
-                result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                #strips_tester.current_product.task_results.append(result)
-            except Exception as ee:
-                raise "CRITICAL EVENT EXCEPTION"
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])

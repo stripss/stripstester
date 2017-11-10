@@ -41,7 +41,7 @@ def initialize_logging(level: int = logging.INFO):
     lgr.addHandler(file_handler2)
 
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
-    stdout_handler.setLevel(level)
+    stdout_handler.setLevel(logging.INFO)
     stdout_handler.setFormatter(formatter)
     lgr.addHandler(stdout_handler)
 

@@ -39,12 +39,12 @@ class AbstractFlasher:
     def flash(self):
         self.setup(self.reset, self.dtr)
         success = False
-        module_logger.info("Flashing")
+        module_logger.info("Programiranje...")
         for retry_number in range(5):
             if self.run_flashing():
-                module_logger.info("Flash successful")
+                module_logger.info("Programiranje uspelo")
                 return True
-        module_logger.info("Flashing failed")
+        module_logger.error("Programiranje ni uspelo")
         return False
 
     def setup(self):
@@ -83,7 +83,7 @@ class AbstractSensor:
     def in_range(self, min, max):
         self.value = self.read()
         if min < self.value < max:
-            module_logger.info("%s looks normal, measured: %s%s", self.property, self.value, self.unit)
+            module_logger.debug("%s looks normal, measured: %s%s", self.property, self.value, self.unit)
             return True
         else:
             module_logger.error("%s is out of bounds: %s%s", self.property, self.value, self.unit)

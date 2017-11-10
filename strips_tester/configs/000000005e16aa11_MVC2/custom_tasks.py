@@ -62,10 +62,11 @@ class BarCodeReadTask(Task):
         self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
-        module_logger.info("Prepared for reading matrix code:")
+        #module_logger.info("Prepared for reading matrix code:")
+        module_logger.info("Skeniraj QR kodo: ")
         # global current_product
         #raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
-        module_logger.info("Code read successful")
+        #module_logger.info("Code read successful")
         #img = self.camera_device.take_one_picture()
         #center = self.meshloader.matrix_code_location["center"]
         #width = self.meshloader.matrix_code_location["width"]
@@ -138,12 +139,13 @@ class StartProcedureTask(Task):
 
     def run(self) -> (bool, str):
         if "START_SWITCH" in settings.gpios:
-            module_logger.info("Waiting for START_SWITCH...")
+            #module_logger.info("Waiting for START_SWITCH...")
+            module_logger.info("Za nadaljevanje zapri pokrov")
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
                 state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
                 if state_GPIO_SWITCH:
-                    module_logger.info("START_SWITCH pressed(lid closed)")
+                    #module_logger.info("START_SWITCH pressed(lid closed)")
                     break
                 time.sleep(0.1)
         else:
@@ -165,6 +167,7 @@ class VoltageTest(Task):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
 
     def run(self) -> (bool, str):
+        module_logger.info("Testiranje napetosti...")
         #Vc
         self.relay_board.close_relay(relays["Vc"])
         if self.voltmeter.in_range(13.5, 16.5):
@@ -365,7 +368,8 @@ class InternalTest(Task):
         return struct.unpack("BB", struct.pack("<H", crc))  # change endianess
 
     def test_relays(self, queue):
-        module_logger.info("Testing_relays...")
+        #module_logger.info("Testing_relays...")
+        module_logger.info("Testiranje relejev...")
         relay_tests = []
         self.relay_board.open()
         self.mesurement_delay = 0.0
@@ -435,9 +439,9 @@ class InternalTest(Task):
         self.voltmeter.close()
         result = all(relay_tests)
         if result:
-            module_logger.debug("Relays ok")
+            module_logger.info("Releji ok")
         else:
-            module_logger.error("Relays failed")
+            module_logger.error("Releji ne delujejo")
         queue.put(result)
         return all(relay_tests)
 
@@ -450,7 +454,7 @@ class InternalTest(Task):
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
             relay_process.start()
 
-            module_logger.info("STM32M0 boot time %s", 5)
+            #module_logger.info("STM32M0 boot time %s", 5)
             time.sleep(5) # process sync and UC boot time
 
             op_code = bytearray([0x06])
@@ -458,7 +462,8 @@ class InternalTest(Task):
             self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
             # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
 
-            module_logger.info("Testing segment display...")
+            #module_logger.info("Testing segment display...")
+            module_logger.info("Testiranje zaslona...")
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
             for i in range(14):
@@ -475,10 +480,10 @@ class InternalTest(Task):
             camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
             if camera_result == True:
                 self.measurement_results["display"] = [1, "ok", 0, "bool"]
-                module_logger.info("Display ok")
+                module_logger.info("Zaslon ok")
             else:
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
-                module_logger.error("Display failed")
+                module_logger.error("Zaslon ne deluje")
 
             # default, even if no data from uart
             ###
@@ -491,7 +496,8 @@ class InternalTest(Task):
             ###
 
             payload = bytearray()
-            module_logger.debug("Start listening on uart...")
+            #module_logger.info("Start listening on uart...")
+            module_logger.info("Testiranje tipk...")
             # retries end with serial timeout which is in set_up
             for try_number in range(40):
                 module_logger.debug("Trying to read header \x00")
@@ -683,6 +689,7 @@ class PrintSticker(Task):
                             test_status,
                             hex(strips_tester.current_product.serial))
         # wait for open lid
+        module_logger.info("Za tiskanje nalepke odpri pokrov")
         while LidStatus():
             time.sleep(0.010)
         self.g.send_to_printer(label)
