@@ -23,7 +23,7 @@
     "ManualLCDTest": 0,
     "CameraTest": 0,
     "FinishProcedureTask": 1,
-    "PrintSticker": 1
+    "PrintSticker": 0
   },
 
   "critical_event_tasks": {

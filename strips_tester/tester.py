@@ -113,7 +113,7 @@ class Task:
         #     raise "Wrong argument length"
         for keys, values in ret.items():
             if keys == "signal":
-                if values[1] == "fail" and self.test_level > 3:
+                if values[1] == "fail" and values[2] > 3:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == "ok":
@@ -123,7 +123,7 @@ class Task:
                     ###########################################################################
             else:
                 strips_tester.current_product.tests[keys] = values  # insert test to be written to DB
-                if values[1] == "fail" and self.test_level > 3:
+                if values[1] == "fail" and values[2] > 3:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == 'ok':
@@ -229,9 +229,11 @@ def run_custom_tasks():
             module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
     if all(strips_tester.current_product.task_results):
-        module_logger.info("TEST USPEL :)\n\n")
+        settings.test_pass_count += 1
+        module_logger.info('#'+str(settings.test_pass_count)+' TEST USPEL :)\n\n')
     else:
-        module_logger.warning("TEST NI USPEL :(( !!!\n\n")
+        settings.test_failed_count += 1
+        module_logger.warning('#'+str(settings.test_failed_count)+' TEST NI USPEL :(( !!!\n\n')
     #################################################################################
     # TASKS ENDS
 

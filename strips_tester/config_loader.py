@@ -30,6 +30,8 @@ class Settings:
         self.cpu_serial = utils.get_cpu_serial()
         self.gpios = None
         self.relays = None
+        self.test_pass_count = 0
+        self.test_failed_count = 0
         self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "config.json")
         self.sync_db = True
         self.load(self.config_file)
