@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import multiprocessing
+import Colorer
 
 import serial
 import struct
@@ -44,7 +45,7 @@ class LidOpenCheck:
     def __init__(self):
         # if lid is opened
         state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-        if not state_GPIO_SWITCH:
+        if state_GPIO_SWITCH:
             module_logger.error("Lid opened /")
             strips_tester.current_product.task_results.append(False)
             strips_tester.emergency_break_tasks = True
@@ -395,8 +396,8 @@ class InternalTest(Task):
         delay_R1 = 0.5
         delay_R2 = 1.5
         sum_delay = 2.0
-        R2_voltage = [14.5, 0.0, 0.0, 14.5]
-        R1_voltage = [0.0, 0.0, 14.5, 14.5]
+        R2_voltage = [14.5, 0.0, 0.0]
+        R1_voltage = [0.0, 0.0, 14.5]
         self.relay_board.open_relay(relays["RE1"])
         self.relay_board.open_relay(relays["RE2"])
         start_time = queue.get(block=True, timeout=10)
@@ -680,6 +681,9 @@ class PrintSticker(Task):
                             strips_tester.current_product.hw_release,
                             test_status,
                             hex(strips_tester.current_product.serial))
+        # wait for open lid
+        while LidStatus():
+            time.sleep(0.010)
         self.g.send_to_printer(label)
         return {"signal": [1, 'ok', 0, 'NA']}
 
@@ -699,3 +703,16 @@ class TestTask(Task):
         pass
 
 
+# Utils part due to import problems
+#########################################################################################
+def LidStatus():
+    # if lid is opened
+    state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
+    if not state_GPIO_SWITCH:
+        #module_logger.error("Lid opened /")
+        #strips_tester.current_product.task_results.append(False)
+        #strips_tester.emergency_break_tasks = True
+        return True
+    else:
+        #module_logger.debug("Lid closed")
+        return False

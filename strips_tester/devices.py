@@ -725,7 +725,7 @@ class CompareAlgorithm:
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
         #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
-        if (np.abs(RGB1[0]-RGB2[0]))<80:
+        if (np.abs(RGB1[0]-RGB2[0]))<50:
             return True
         return False
 

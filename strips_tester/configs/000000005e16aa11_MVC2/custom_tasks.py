@@ -46,11 +46,10 @@ class LidOpenCheck:
         state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
         if not state_GPIO_SWITCH:
             module_logger.error("Lid opened /")
-            strips_tester.current_product.task_results.append(False)
-            strips_tester.emergency_break_tasks = True
+            #strips_tester.current_product.task_results.append(False)
+            #strips_tester.emergency_break_tasks = True
         else:
             module_logger.debug("Lid closed")
-
 
 class BarCodeReadTask(Task):
     def __init__(self):
@@ -476,8 +475,10 @@ class InternalTest(Task):
             camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
             if camera_result == True:
                 self.measurement_results["display"] = [1, "ok", 0, "bool"]
+                module_logger.info("Display ok")
             else:
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
+                module_logger.error("Display failed")
 
             # default, even if no data from uart
             ###
@@ -681,6 +682,9 @@ class PrintSticker(Task):
                             strips_tester.current_product.hw_release,
                             test_status,
                             hex(strips_tester.current_product.serial))
+        # wait for open lid
+        while LidStatus():
+            time.sleep(0.010)
         self.g.send_to_printer(label)
         return {"signal": [1, 'ok', 0, 'NA']}
 
@@ -699,4 +703,16 @@ class TestTask(Task):
     def tear_down(self):
         pass
 
-
+# Utils part due to import problems
+#########################################################################################
+def LidStatus():
+    # if lid is opened
+    state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
+    if state_GPIO_SWITCH:
+        #module_logger.error("Lid opened /")
+        #strips_tester.current_product.task_results.append(False)
+        #strips_tester.emergency_break_tasks = True
+        return True
+    else:
+        #module_logger.debug("Lid closed")
+        return False

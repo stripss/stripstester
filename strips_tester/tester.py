@@ -5,6 +5,7 @@ import datetime
 import sys
 # import wifi
 import RPi.GPIO as GPIO
+import Colorer
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
@@ -112,7 +113,7 @@ class Task:
         #     raise "Wrong argument length"
         for keys, values in ret.items():
             if keys == "signal":
-                if values[1] == "fail" and self.test_level > strips_tester.ERROR:
+                if values[1] == "fail" and self.test_level > 3:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == "ok":
@@ -122,7 +123,7 @@ class Task:
                     ###########################################################################
             else:
                 strips_tester.current_product.tests[keys] = values  # insert test to be written to DB
-                if values[1] == "fail" and self.test_level > strips_tester.ERROR:
+                if values[1] == "fail" and self.test_level > 3:
                     self.end.append(True)
                     self.passed.append(False)
                 elif values[1] == 'ok':
@@ -205,8 +206,21 @@ def run_custom_tasks():
                 result, end = custom_task._execute(config_loader.TEST_LEVEL)
                 strips_tester.current_product.task_results.append(result)
                 if end == True:
-                    settings.on_critical_event()  # release all hardware, print sticker, etc...
-                    break
+                    # Could be separate function. Here, due to import restrictions.
+                    # release all hardware, print sticker, etc...
+                    #######################
+                    for task_name in settings.critical_event_tasks:
+                        if settings.critical_event_tasks[task_name]:
+                            CustomTask = getattr(custom_tasks, task_name)
+                            try:
+                                module_logger.debug("Executing: %s ...", CustomTask)
+                                custom_task = CustomTask()
+                                result, end = custom_task._execute(config_loader.TEST_LEVEL)
+                                # strips_tester.current_product.task_results.append(result)
+                            except Exception as ee:
+                                raise "CRITICAL EVENT EXCEPTION"
+                    return True
+                    ######################
             # catch code exception and bugs. It shouldn't be for functional use
             except Exception as e:
                 module_logger.error(str(e))
@@ -285,8 +299,8 @@ def check_db_connection():
     # with open(os.devnull, 'wb') as devnull:
     #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
     #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
-    response_fl = os.system('timeout 0.2 ping -c 1 '+str(settings.local_db_host))
-    response_fc = os.system('timeout 0.2 ping -c 1 '+str(settings.central_db_host))
+    response_fl = os.system('timeout 0.2 ping -c 1 '+str(settings.local_db_host)+' > /dev/null 2>&1')
+    response_fc = os.system('timeout 0.2 ping -c 1 '+str(settings.central_db_host)+' > /dev/null 2>&1')
     if response_fc == 0:
         DB = 'default'
     elif response_fc != 0:
@@ -301,6 +315,18 @@ def check_db_connection():
             raise 'Could not connect to default of local database'
     return DB
 
+
+def on_critical_event():
+    for task_name in settings.critical_event_tasks:
+        if settings.critical_event_tasks[task_name]:
+            CustomTask = getattr(custom_tasks, task_name)
+            try:
+                module_logger.debug("Executing: %s ...", CustomTask)
+                custom_task = CustomTask()
+                result, end = custom_task._execute(config_loader.TEST_LEVEL)
+                #strips_tester.current_product.task_results.append(result)
+            except Exception as ee:
+                raise "CRITICAL EVENT EXCEPTION"
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])
