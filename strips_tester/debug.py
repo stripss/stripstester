@@ -30,6 +30,15 @@ import time
 #     temp = IRTemperatureSensor().get_value()
 #     print(temp)
 
-my_camera = utils.Camera()
-my_camera.start_preview()
-time.sleep(1000)
+# my_camera = utils.Camera()
+# my_camera.start_preview()
+# time.sleep(1000)
+
+
+
+import os
+
+while True:
+    print(time.time())
+    os.system('sudo /home/pi/Desktop/YVoltage VOLTAGE1-A953A.voltage1 get_currentValue')
+    print(time.time())

@@ -575,7 +575,7 @@ class YoctoVoltageMeter(AbstractSensor):
             raise "Can't load yocto API"
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
         #sensor = YVoltage.FirstVoltage()
-        self.sensor = YVoltage.FindVoltage(device_name);
+        self.sensor = YVoltage.FindVoltage(device_name)
         if (self.sensor == None):
             raise ("No yocto device is connected")
         m = self.sensor.get_module()
@@ -586,9 +586,7 @@ class YoctoVoltageMeter(AbstractSensor):
         module_logger.debug("Yocto-volt init done")
 
     def get_value(self):
-        if (self.sensor.isOnline()):
-            return self.sensor.get_currentValue()
-        raise ("Yocto volt is not active")
+        return self.sensor.get_currentValue()
 
     def close(self):
         YAPI.FreeAPI()
@@ -687,7 +685,7 @@ class CompareAlgorithm:
                     *
         '''
         #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4]
-        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 2
+        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 3
         #self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
 
     def run(self, images, masks, mask_indices_len, masks_length):

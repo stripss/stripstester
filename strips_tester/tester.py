@@ -230,10 +230,10 @@ def run_custom_tasks():
     ## insert into DB
     if all(strips_tester.current_product.task_results):
         settings.test_pass_count += 1
-        module_logger.info('#'+str(settings.test_pass_count)+' TEST USPEL :)\n\n')
+        module_logger.info('OK: %s, FAIL: %s ---> TEST USPEL :)\n\n',settings.test_pass_count, settings.test_failed_count)
     else:
         settings.test_failed_count += 1
-        module_logger.warning('#'+str(settings.test_failed_count)+' TEST NI USPEL :(( !!!\n\n')
+        module_logger.error('OK: %s, FAIL: %s --->  TEST NI USPEL :(( !!!\n\n', settings.test_pass_count, settings.test_failed_count)
     #################################################################################
     # TASKS ENDS
 

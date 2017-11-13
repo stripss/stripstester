@@ -162,7 +162,7 @@ class VoltageTest(Task):
 
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        self.mesurement_delay = 0.14
+        self.mesurement_delay = 0.16
         self.measurement_results = {}
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
 
@@ -335,7 +335,7 @@ class InternalTest(Task):
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["COMMON"])
         self.measurement_results = {}
-        self.serial_port = serial.Serial(
+        self.serial_port_uart = serial.Serial(
             port="/dev/ttyAMA0",
             baudrate=115200,
             bytesize=serial.EIGHTBITS,
@@ -375,35 +375,36 @@ class InternalTest(Task):
         self.mesurement_delay = 0.0
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
 
-        #RE1
+        delay_R1 = 0.7
+        delay_R2 = 0.85
+        sum_delay = 1.0
+        R2_voltage = [14.5, 0.0, 0.0]
+        R1_voltage = [0.0, 0.0, 14.5]
+
+        # before test, both open
+        # RE1
         self.relay_board.close_relay(relays["RE1"])
-        time.sleep(0.15)
-        module_logger.debug("R1 %s", self.voltmeter.read())
+        time.sleep(0.250)
+        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+            relay_tests.append(False)
+            return False
+        else:
+            relay_tests.append(True)
+
         self.relay_board.open_relay(relays["RE1"])
         # RE2
         self.relay_board.close_relay(relays["RE2"])
-        time.sleep(0.15)
-        module_logger.debug("R2 %s", self.voltmeter.read())
+        time.sleep(0.250)
+        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+            relay_tests.append(False)
+            return False
+        else:
+            relay_tests.append(True)
         self.relay_board.open_relay(relays["RE2"])
-        time.sleep(1.2)
 
-        #start_time = queue.get(block=True, timeout=10)
-        #time.sleep(1)
-        # module_logger.debug("both open ")
-        # relay_tests.append(self.voltmeter.in_range(-0.5, 0.5))
-        # module_logger.debug("last relay wait time: %s", max(0, start_t + 6 + 1 - time.time()))
-        # time.sleep(max(0, start_t + 6 + 1 - time.time()))
-        # relay_tests.append(self.voltmeter.in_range(14.5, 15.5))
-
-        delay_R1 = 0.5
-        delay_R2 = 1.5
-        sum_delay = 2.0
-        R2_voltage = [14.5, 0.0, 0.0, 14.5]
-        R1_voltage = [0.0, 0.0, 14.5, 14.5]
-        self.relay_board.open_relay(relays["RE1"])
-        self.relay_board.open_relay(relays["RE2"])
+        # print(time.time())
         start_time = queue.get(block=True, timeout=10)
-        #print(start_time)
+        # print(start_time)
         for i in range(len(R1_voltage)):
             # RE1
             self.relay_board.close_relay(relays["RE1"])
@@ -411,11 +412,12 @@ class InternalTest(Task):
             while 0.0 < dt:
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
-            # print(time.time(),"   ", time.time() - start_time)
-            # module_logger.debug("R1 %s", self.voltmeter.read())
-            relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
-            #module_logger.debug("R1 %s", self.voltmeter.in_range(R1_voltage[i] - 1, R1_voltage[i] + 1))
-            #print(time.time(), "   ", time.time() - start_time, "\n\n")
+            # relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
+            if not self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0):
+                relay_tests.append(False)
+                return False
+            else:
+                relay_tests.append(True)
             self.relay_board.open_relay(relays["RE1"])
             # RE2
             self.relay_board.close_relay(relays["RE2"])
@@ -423,25 +425,18 @@ class InternalTest(Task):
             while 0.0 < dt:
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
-            # print(time.time(), "   ", time.time() - start_time)
-            # module_logger.debug("R2 %s", self.voltmeter.read())
-            relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
-            #module_logger.debug("R1 %s", self.voltmeter.in_range(R2_voltage[i] - 1, R2_voltage[i] + 1))
-            #print(time.time(), "   ", time.time() - start_time)
+            # relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
+            if not self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0):
+                relay_tests.append(False)
+                return False
+            else:
+                relay_tests.append(True)
             self.relay_board.open_relay(relays["RE2"])
-            #print('\n\n\n')
+            # print('\n\n\n')
 
-
-        ###
-        #relay_tests.append(False)
-        ###
         self.relay_board.close()
         self.voltmeter.close()
         result = all(relay_tests)
-        if result:
-            module_logger.info("Releji ok")
-        else:
-            module_logger.error("Releji ne delujejo")
         queue.put(result)
         return all(relay_tests)
 
@@ -454,12 +449,12 @@ class InternalTest(Task):
             self.relay_board.close()  #  can't pass relay board to other process so we close it here and reopen in relay process
             relay_process.start()
 
-            #module_logger.info("STM32M0 boot time %s", 5)
+            module_logger.info("STM32M0 boot time %ss", 5)
             time.sleep(5) # process sync and UC boot time
 
             op_code = bytearray([0x06])
             crc_part_1, crc_part_2 = self.crc(op_code)
-            self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
+            self.serial_port_uart.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
             # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
 
             #module_logger.info("Testing segment display...")
@@ -474,7 +469,6 @@ class InternalTest(Task):
                 pic_start_time = time.time()
                 self.camera_device.take_picture()
                 module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
-            module_logger.info("Input button sequence...")
             self.camera_device.save_all_imgs_to_file()
 
             camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
@@ -484,6 +478,16 @@ class InternalTest(Task):
             else:
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
                 module_logger.error("Zaslon ne deluje")
+
+            relay_process.join(timeout=15)
+            module_logger.info("Testiranje tipk...")
+            result = queue.get()
+            if result == True:
+                module_logger.info("Releji ok")
+                self.measurement_results["relays"] = [1, "ok", 0, "bool"]
+            else:
+                module_logger.error("Releji ne delujejo")
+                self.measurement_results["relays"] = [0, "fail", 0, "bool"]
 
             # default, even if no data from uart
             ###
@@ -497,17 +501,20 @@ class InternalTest(Task):
 
             payload = bytearray()
             #module_logger.info("Start listening on uart...")
-            module_logger.info("Testiranje tipk...")
             # retries end with serial timeout which is in set_up
+            self.serial_port_uart.flush()
             for try_number in range(40):
+                if not lid_closed():
+                    return self.measurement_results
+                time.sleep(0.015)
                 module_logger.debug("Trying to read header \x00")
-                header = self.serial_port.read(1)
+                header = self.serial_port_uart.read(1)
                 if header == b'\x00':
                     module_logger.debug("Receiving test results...")
-                    message_length = self.serial_port.read(1)
+                    message_length = self.serial_port_uart.read(1)
                     module_logger.debug("Message length: %s: ", message_length)
                     for i in range(int().from_bytes(message_length, "big") -1):
-                        payload.extend(self.serial_port.read(1))
+                        payload.extend(self.serial_port_uart.read(1))
                     module_logger.debug("payload: %s", payload)
                     msg_type, keyboard, temperature, rtc, flash, switches, board, crc1, crc2= struct.unpack("<BHhBBBBBB", payload)
                     if keyboard == 0xb03b: #0x8030:
@@ -554,7 +561,8 @@ class InternalTest(Task):
                     module_logger.debug("No data from uart")
                     continue
                 else:
-                    module_logger.error("Wrong packet header when reading internal test response")
+                    pass
+                    #module_logger.error("Wrong packet header when reading internal test response")
                     #self.measurement_results["signal"] = [0, "fail", 2, "NA"]
             # if there is no hit(break) in this for loop
             else:
@@ -563,21 +571,11 @@ class InternalTest(Task):
         except:
             raise Exception("Internal test exception")
 
-        relay_process.join(timeout=30)
-        result = queue.get()
-        if result == True:
-            module_logger.debug("Relay test successful")
-            self.measurement_results["relays"] = [1, "ok", 0, "bool"]
-        else:
-            module_logger.warning("Relay error ")
-            self.measurement_results["relays"] = [0, "fail", 0, "bool"]
-
-        LidOpenCheck()
         return self.measurement_results
 
     def tear_down(self):
         self.camera_device.close()
-        self.serial_port.close()
+        self.serial_port_uart.close()
         self.relay_board.open()
         self.relay_board.open_all_relays()
         self.relay_board.close()
@@ -690,7 +688,7 @@ class PrintSticker(Task):
                             hex(strips_tester.current_product.serial))
         # wait for open lid
         module_logger.info("Za tiskanje nalepke odpri pokrov")
-        while LidStatus():
+        while lid_closed():
             time.sleep(0.010)
         self.g.send_to_printer(label)
         return {"signal": [1, 'ok', 0, 'NA']}
@@ -712,7 +710,7 @@ class TestTask(Task):
 
 # Utils part due to import problems
 #########################################################################################
-def LidStatus():
+def lid_closed():
     # if lid is opened
     state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
     if state_GPIO_SWITCH:
