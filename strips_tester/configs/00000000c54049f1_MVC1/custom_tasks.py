@@ -75,7 +75,7 @@ class BarCodeReadTask(Task):
         #height = self.meshloader.matrix_code_location["height"]
         #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
         #strips_tester.current_product.raw_scanned_string = raw_scanned_string
-        strips_tester.current_product.raw_scanned_string = 'M1706080087500004S2401877'
+        strips_tester.current_product.raw_scanned_string = 'M1806080087500004S2401877'
         #module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
 
@@ -377,37 +377,46 @@ class InternalTest(Task):
         self.mesurement_delay = 0.0
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A953A.voltage1", self.mesurement_delay)
 
-        delay_R1 = 0.7
-        delay_R2 = 0.85
+        ''' | delay_R1 delay_R2  sum_delay
+            |     |      |     |  ...
+            |-----------------------
+            |     0.3   0.7    1.0
+        '''
+        delay_R1 = 0.3
+        delay_R2 = 0.7
         sum_delay = 1.0
-        R1_voltage = [0.0, 0.0, 14.5]
         R2_voltage = [14.5, 0.0, 0.0]
+        R1_voltage = [0.0, 0.0, 14.5]
 
-        # before test, both open
-        #RE1
-        self.relay_board.close_relay(relays["RE1"])
-        time.sleep(0.250)
-        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
-            module_logger.error("Releji ne delujejo. Both open")
-            return False
-        else:
-            relay_tests.append(True)
-
-        self.relay_board.open_relay(relays["RE1"])
-        # RE2
-        self.relay_board.close_relay(relays["RE2"])
-        time.sleep(0.250)
-        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
-            module_logger.error("Releji ne delujejo. Both open")
-            return False
-        else:
-            relay_tests.append(True)
-        self.relay_board.open_relay(relays["RE2"])
-        time.sleep(1.2)
+        # time.sleep(1.2)  # relay board open time
+        # # before test, both open
+        # # RE1
+        # self.relay_board.close_relay(relays["RE1"])
+        # time.sleep(0.150)
+        # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+        #     self.relay_exit(queue)
+        #     return False
+        # else:
+        #     relay_tests.append(True)
+        # self.relay_board.open_relay(relays["RE1"])
+        # # RE2
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(0.150)
+        # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+        #     self.relay_exit(queue)
+        #     return False
+        # else:
+        #     relay_tests.append(True)
+        # self.relay_board.open_relay(relays["RE2"])
 
         #print(time.time())
         start_time = queue.get(block=True, timeout=10)
-        #print(start_time)
+        #print('s',start_time)
+        # while True:
+        #     print(time.time())
+        #     module_logger.info('Voltage %s',self.voltmeter.read())
+        #     print(time.time())
+        # print(time.time())
         for i in range(len(R1_voltage)):
             # RE1
             self.relay_board.close_relay(relays["RE1"])
@@ -415,14 +424,17 @@ class InternalTest(Task):
             while 0.0 < dt:
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
-            #relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
-            #print(time.time()-start_time)
+            # relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
+            # print(time.time())
+            # module_logger.info('Voltage %s', self.voltmeter.read())
             if not self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0):
-                module_logger.error("Releji ne delujejo."+str(i))
-                #return False
+                # print(time.time())
+                # module_logger.error("Releji ne delujejo1." + str(i))
+                self.relay_exit(queue)
+                return False
             else:
                 relay_tests.append(True)
-            #print(time.time() - start_time)
+            # print(time.time())
             self.relay_board.open_relay(relays["RE1"])
             # RE2
             self.relay_board.close_relay(relays["RE2"])
@@ -430,26 +442,29 @@ class InternalTest(Task):
             while 0.0 < dt:
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
-            #relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
-            #print(time.time() - start_time)
+            # relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
+            # print(time.time())
             if not self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0):
-                module_logger.error("Releji ne delujejo."+str(i))
-                #return False
+                # print(time.time())
+                # module_logger.error("Releji ne delujejo2." + str(i))
+                self.relay_exit(queue)
+                return False
             else:
                 relay_tests.append(True)
-            #print(time.time() - start_time)
+            # print(time.time())
             self.relay_board.open_relay(relays["RE2"])
-            #print('\n\n\n')
+            # print('\n\n\n')
 
         self.relay_board.close()
         self.voltmeter.close()
         result = all(relay_tests)
-        if result:
-            module_logger.info("Releji ok")
-        else:
-            module_logger.error("Releji ne delujejo")
         queue.put(result)
         return all(relay_tests)
+
+    def relay_exit(self, queue):
+        self.relay_board.close()
+        self.voltmeter.close()
+        queue.put(False)
 
     def run(self):
 
@@ -472,7 +487,6 @@ class InternalTest(Task):
 
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
-            print(time.time())
             for i in range(14):
                 dt = (self.start_t + 0.08 + (i * 0.2)) - time.time()
                 while 0.0 < dt:

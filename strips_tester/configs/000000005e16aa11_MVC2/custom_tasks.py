@@ -375,36 +375,43 @@ class InternalTest(Task):
         self.mesurement_delay = 0.0
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
 
-        delay_R1 = 0.7
-        delay_R2 = 0.85
+        ''' | delay_R1 delay_R2  sum_delay
+            |     |      |     |  ...
+            |-----------------------
+            |     0.3   0.7    1.0
+        '''
+        delay_R1 = 0.3
+        delay_R2 = 0.7
         sum_delay = 1.0
         R2_voltage = [14.5, 0.0, 0.0]
         R1_voltage = [0.0, 0.0, 14.5]
 
-        # before test, both open
-        # RE1
-        self.relay_board.close_relay(relays["RE1"])
-        time.sleep(0.250)
-        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
-            relay_tests.append(False)
-            return False
-        else:
-            relay_tests.append(True)
 
-        self.relay_board.open_relay(relays["RE1"])
-        # RE2
-        self.relay_board.close_relay(relays["RE2"])
-        time.sleep(0.250)
-        if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
-            relay_tests.append(False)
-            return False
-        else:
-            relay_tests.append(True)
-        self.relay_board.open_relay(relays["RE2"])
+        # time.sleep(1.0)  # relay board open time
+        # # before test, both open
+        # # RE1
+        # self.relay_board.close_relay(relays["RE1"])
+        # time.sleep(0.250)
+        # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+        #     self.relay_exit(queue)
+        #     return False
+        # else:
+        #     relay_tests.append(True)
+        # self.relay_board.open_relay(relays["RE1"])
+        # # RE2
+        # time.sleep(0.5)
+        # self.relay_board.close_relay(relays["RE2"])
+        # time.sleep(0.250)
+        # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
+        #     self.relay_exit(queue)
+        #     return False
+        # else:
+        #     relay_tests.append(True)
+        # self.relay_board.open_relay(relays["RE2"])
 
-        # print(time.time())
+        #print(time.time())
         start_time = queue.get(block=True, timeout=10)
-        # print(start_time)
+        #print('s',start_time)
         for i in range(len(R1_voltage)):
             # RE1
             self.relay_board.close_relay(relays["RE1"])
@@ -413,11 +420,16 @@ class InternalTest(Task):
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
             # relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
+            #print(time.time())
+            #module_logger.info('Voltage %s', self.voltmeter.read())
             if not self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0):
-                relay_tests.append(False)
+                #print(time.time())
+                module_logger.error("Releji ne delujejo1." + str(i))
+                self.relay_exit(queue)
                 return False
             else:
                 relay_tests.append(True)
+            #print(time.time())
             self.relay_board.open_relay(relays["RE1"])
             # RE2
             self.relay_board.close_relay(relays["RE2"])
@@ -426,19 +438,28 @@ class InternalTest(Task):
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
             # relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
+            #print(time.time())
             if not self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0):
-                relay_tests.append(False)
+                #print(time.time())
+                module_logger.error("Releji ne delujejo2." + str(i))
+                self.relay_exit(queue)
                 return False
             else:
                 relay_tests.append(True)
+            #print(time.time())
             self.relay_board.open_relay(relays["RE2"])
-            # print('\n\n\n')
+            #print('\n\n\n')
 
         self.relay_board.close()
         self.voltmeter.close()
         result = all(relay_tests)
         queue.put(result)
         return all(relay_tests)
+
+    def relay_exit(self, queue):
+        self.relay_board.close()
+        self.voltmeter.close()
+        queue.put(False)
 
     def run(self):
 

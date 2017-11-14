@@ -182,10 +182,12 @@ def initialize_gpios():
 
 
 def run_custom_tasks():
+    test_set_status = None
     global DB
     DB = check_db_connection()
     if DB == 'default' and settings.sync_db == True:
-        sync_db(from_db='local', to_db='default')
+        pass
+        #sync_db(from_db='local', to_db='default')
     #get type from local or central
     product_type = ProductType.objects.using(DB).get(name=settings.product_name, type=settings.product_type)
     # TASKS
@@ -229,6 +231,11 @@ def run_custom_tasks():
             module_logger.debug("Task %s ignored", task_name)
     ## insert into DB
     if all(strips_tester.current_product.task_results):
+        test_set_status = True
+    else:
+        test_set_status = False
+
+    if test_set_status:
         settings.test_pass_count += 1
         module_logger.info('OK: %s, FAIL: %s ---> TEST USPEL :)\n\n',settings.test_pass_count, settings.test_failed_count)
     else:
@@ -247,19 +254,26 @@ def run_custom_tasks():
         strips_tester.current_product = Product.objects.using(DB).get(serial=strips_tester.current_product.serial)
     else:
         strips_tester.current_product.save(using=DB)
+
+
+    test_set = TestSet(product=strips_tester.current_product,
+                      status=test_set_status,
+                      test_device_name=settings.test_device_name,
+                      employee=settings.test_device_employee
+                      )
+    test_set.save(using=DB)
+
     tests = []
     for test_name, data in product_to_save.tests.items():
         test_type = TestType.objects.using(DB).get(name=test_name)
-        tests.append(Test(product=strips_tester.current_product,
+        tests.append(Test(test_set=test_set,
                           type=test_type,
                           value=data[0],
-                          result=data[1],
-                          test_device_name=settings.test_device_name,
-                          employee=settings.test_device_employee
-                          )
+                          result=data[1])
                      )
     Test.objects.using(DB).bulk_create(tests)
-
+    num_successfull_tests = TestSet.objects.using(DB).filter(status=True).distinct("id").count()
+    print(num_successfull_tests)
 
 
 

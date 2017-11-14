@@ -37,13 +37,25 @@ class TestType(StrModel):
     units = models.CharField(max_length=32, null=False, blank=False)
 
 
-class Test(StrModel):
-    value = models.FloatField()
-    result = models.CharField(max_length=16, null=False, blank=False)
+class TestSet(StrModel):
     datetime = models.DateTimeField(auto_now_add=True)
+    status = models.BooleanField(null=False, blank=False)
     test_device_name = models.CharField(max_length=32, null=False, blank=False)
     employee = models.CharField(max_length=32, null=True, blank=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)  # if we delete product we have no use for it's tests
+
+class Test(StrModel):
+    value = models.FloatField()
+    RESULT_OK = "ok"
+    RESULT_FAIL = "fail"
+    RESULT_UNTESTED = "untested"
+    RESULT_CHOICES = ((RESULT_OK, "ok"), (RESULT_FAIL, "fail"), (RESULT_UNTESTED, "untested"))
+    result = models.CharField(max_length=16, null=False, blank=False, choices=RESULT_CHOICES)
+    #datetime = models.DateTimeField(auto_now_add=True)
+    #test_device_name = models.CharField(max_length=32, null=False, blank=False)
+    #employee = models.CharField(max_length=32, null=True, blank=True)
+    #product = models.ForeignKey(Product, on_delete=models.CASCADE)  #  if we delete product we have no use for it's tests
+    test_set = models.ForeignKey(TestSet, on_delete=models.CASCADE)
     type = models.ForeignKey(TestType, on_delete=models.PROTECT)  # prevent TestType deletion
 
 
