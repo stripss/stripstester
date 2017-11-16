@@ -38,7 +38,7 @@ class TestType(StrModel):
 
 
 class TestSet(StrModel):
-    datetime = models.DateTimeField(auto_now_add=True)
+    datetime = models.DateTimeField(auto_now_add=False)
     status = models.BooleanField(null=False, blank=False)
     test_device_name = models.CharField(max_length=32, null=False, blank=False)
     employee = models.CharField(max_length=32, null=True, blank=True)

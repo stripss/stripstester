@@ -684,8 +684,8 @@ class CompareAlgorithm:
                     *
                     *
         '''
-        #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4]
-        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 3
+        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], np.multiply([0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4],2)
+        #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 3
         #self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
 
     def run(self, images, masks, mask_indices_len, masks_length):
@@ -697,7 +697,7 @@ class CompareAlgorithm:
                 y = masks[j,i,1]
                 RGB = masks[j,i,2:]
                 if not self.compare_check_cross(x, y, images[j,::,::], RGB):
-                    module_logger.error("Failed at picture {} and index  {} with image RGB {} and mesh RGB {}".format(j,i,images[j,y,x], RGB))
+                    module_logger.error("Failed at picture {} (x:{} y:{}) and index  {} with image RGB {} and mesh RGB {}".format(j, x, y, i, images[j,y,x], RGB))
                     return False
         return True
 
@@ -716,14 +716,14 @@ class CompareAlgorithm:
 
     def compare_check_cross(self, x, y, img1, img2):
         for i in range(len(self.Tx)):
-            if self.colors_in_range(img1[y - self.Ty[i], x - self.Tx[i], :], img2):
+            if self.colors_in_range(img1[y + self.Ty[i], x + self.Tx[i], :], img2):
                 return True
         return False
 
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
         #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
-        if (np.abs(RGB1[0]-RGB2[0]))<50:
+        if (np.abs(RGB1[0]-RGB2[0]))<70:
             return True
         return False
 

@@ -252,8 +252,9 @@ class FlashMCUTask(Task):
         time.sleep(0.5)
 
     def run(self):
+        if not lid_closed():
+            return {"signal": [0, "fail", 5, "NA"]}
         result = self.flasher.flash()
-        LidOpenCheck()
         if result:
             return {"MCU flash": [1, "ok", 5, "bool"]}
         else:
@@ -464,6 +465,9 @@ class InternalTest(Task):
     def run(self):
 
         internal_tests = []
+        if not lid_closed():
+            return {"signal": [0, "fail", 5, "NA"]}
+
         try:
             queue = multiprocessing.Queue()
             relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
@@ -500,7 +504,7 @@ class InternalTest(Task):
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
                 module_logger.error("Zaslon ne deluje")
 
-            relay_process.join(timeout=15)
+            relay_process.join(timeout=25)
             module_logger.info("Testiranje tipk...")
             result = queue.get()
             if result == True:

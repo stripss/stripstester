@@ -54,49 +54,52 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
     :param flag:
     :return:
     '''
-    module_logger.debug("Preseting test_db from db : %s to db: %s", from_db, to_db)
-    bulk_size = 100
-    # create one user -> db_manager
-    if not User.objects.using(to_db).filter(username="admin").exists():
-        admin = User.objects.db_manager(to_db).create_superuser('admin', 'admin@admin.com', 'admin')
+    if flag:
+        module_logger.info("Preseting test_db from db : %s to db: %s", from_db, to_db)
+        bulk_size = 100
+        # create one user -> db_manager
+        if not User.objects.using(to_db).filter(username="admin").exists():
+            admin = User.objects.db_manager(to_db).create_superuser('admin', 'admin@admin.com', 'admin')
 
-    # get data from db
-    central_product_types = ProductType.objects.using(from_db).all()
-    central_test_types = TestType.objects.using(from_db).all()
-    local_product_types = ProductType.objects.using(to_db).all()
-    local_test_types = TestType.objects.using(to_db).all()
+        # get data from db
+        central_product_types = ProductType.objects.using(from_db).all()
+        central_test_types = TestType.objects.using(from_db).all()
+        local_product_types = ProductType.objects.using(to_db).all()
+        local_test_types = TestType.objects.using(to_db).all()
 
-    local_product_types_types = local_product_types.values_list("type", flat=True)
-    central_product_types = central_product_types.exclude(type__in=list(local_product_types_types))
+        local_product_types_types = local_product_types.values_list("type", flat=True)
+        central_product_types = central_product_types.exclude(type__in=list(local_product_types_types))
 
-    local_test_types_names = local_test_types.values_list("name", flat=True)
-    central_test_types = central_test_types.exclude(name__in=list(local_test_types_names))
+        local_test_types_names = local_test_types.values_list("name", flat=True)
+        central_test_types = central_test_types.exclude(name__in=list(local_test_types_names))
 
-    rows = central_product_types.count()
-    bulks = rows//bulk_size
-    last_bulk = rows-(rows-(bulks*bulk_size))
-    for i in range(bulks):
-        existing_product_types_ram = list(central_product_types[i*bulk_size:(i+1)*bulk_size])
+        rows = central_product_types.count()
+        bulks = rows//bulk_size
+        last_bulk = rows-(rows-(bulks*bulk_size))
+        for i in range(bulks):
+            existing_product_types_ram = list(central_product_types[i*bulk_size:(i+1)*bulk_size])
+            ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
+        existing_product_types_ram = list(central_product_types[last_bulk:rows])
         ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
-    existing_product_types_ram = list(central_product_types[last_bulk:rows])
-    ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
 
-    rows = central_test_types.count()
-    bulks = rows // bulk_size
-    last_bulk = rows - (rows - (bulks * bulk_size))
-    for i in range(bulks):
-        existing_test_types_ram = list(central_test_types[i*bulk_size:(i+1)*bulk_size])
+        rows = central_test_types.count()
+        bulks = rows // bulk_size
+        last_bulk = rows - (rows - (bulks * bulk_size))
+        for i in range(bulks):
+            existing_test_types_ram = list(central_test_types[i*bulk_size:(i+1)*bulk_size])
+            TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
+        existing_test_types_ram = list(central_test_types[last_bulk:rows])
         TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
-    existing_test_types_ram = list(central_test_types[last_bulk:rows])
-    TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
-    # while central_product_types.exists() or central_test_types.exists():
-    #     # write product_types to_db
-    #     existing_product_types_ram = list(central_product_types[0:1000])
-    #     ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
-    #     existing_test_types_ram = list(central_test_types[0:1000])
-    #     TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
-    #     central_product_types.using()
-    #     #central_test_types
+        # while central_product_types.exists() or central_test_types.exists():
+        #     # write product_types to_db
+        #     existing_product_types_ram = list(central_product_types[0:1000])
+        #     ProductType.objects.using(to_db).bulk_create(existing_product_types_ram)
+        #     existing_test_types_ram = list(central_test_types[0:1000])
+        #     TestType.objects.using(to_db).bulk_create(existing_test_types_ram)
+        #     central_product_types.using()
+        #     #central_test_types
+    else:
+        module_logger.info('Not synced with central DB')
 
 
 for db in databases:
@@ -106,7 +109,7 @@ for db in databases:
         module_logger.info("Notification sended")
         #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
     try:
-        preset_tables_from_db('default', 'local')
+        preset_tables_from_db('default', 'local', True)
     except Exception as ee:
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
         module_logger.info("Central database not available, changes have not been made to local database")

@@ -37,15 +37,19 @@ class AbstractFlasher:
         self.dtr = dtr
 
     def flash(self):
-        self.setup(self.reset, self.dtr)
-        success = False
-        module_logger.info("Programiranje...")
-        for retry_number in range(5):
-            if self.run_flashing():
-                module_logger.info("Programiranje uspelo")
-                return True
-        module_logger.error("Programiranje ni uspelo")
-        return False
+        try:
+            self.setup(self.reset, self.dtr)
+            success = False
+            module_logger.info("Programiranje...")
+            for retry_number in range(5):
+                if self.run_flashing():
+                    module_logger.info("Programiranje uspelo")
+                    return True
+            module_logger.error("Programiranje ni uspelo")
+            return False
+        except Exception as ee:
+            module_logger.info('Exception %s occured in %s ', ee, type(self).__name__)
+            return False
 
     def setup(self):
         raise NotImplementedError

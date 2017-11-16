@@ -11,7 +11,8 @@ import hid
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 def send_email(subject: str='subject', emailText: str='content of email'):
-    module_logger.info(emailText)
+    #module_logger.info(emailText)
+    pass
     # SMTP_SERVER = 'smtp.gmail.com'
     # SMTP_PORT = 587
     # GMAIL_USERNAME = 'stripsdomzale.notification@gmail.com'

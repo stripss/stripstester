@@ -6,6 +6,7 @@ import sys
 # import wifi
 import RPi.GPIO as GPIO
 import Colorer
+import time
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
@@ -187,7 +188,7 @@ def run_custom_tasks():
     DB = check_db_connection()
     if DB == 'default' and settings.sync_db == True:
         pass
-        #sync_db(from_db='local', to_db='default')
+        sync_db(from_db='local', to_db='default')
     #get type from local or central
     product_type = ProductType.objects.using(DB).get(name=settings.product_name, type=settings.product_type)
     # TASKS
@@ -221,7 +222,7 @@ def run_custom_tasks():
                                 strips_tester.current_product.task_results.append(result)
                             except Exception as ee:
                                 raise "CRITICAL EVENT EXCEPTION"
-                    return True
+                    break
                     ######################
             # catch code exception and bugs. It shouldn't be for functional use
             except Exception as e:
@@ -237,10 +238,10 @@ def run_custom_tasks():
 
     if test_set_status:
         settings.test_pass_count += 1
-        module_logger.info('OK: %s, FAIL: %s ---> TEST USPEL :)\n\n',settings.test_pass_count, settings.test_failed_count)
+        module_logger.info('TEST USPEL :)\n\n')
     else:
         settings.test_failed_count += 1
-        module_logger.error('OK: %s, FAIL: %s --->  TEST NI USPEL :(( !!!\n\n', settings.test_pass_count, settings.test_failed_count)
+        module_logger.error('TEST NI USPEL :(( !!!\n\n')
     #################################################################################
     # TASKS ENDS
 
@@ -255,8 +256,9 @@ def run_custom_tasks():
     else:
         strips_tester.current_product.save(using=DB)
 
-
-    test_set = TestSet(product=strips_tester.current_product,
+    test_set_dt = datetime.datetime.now()
+    test_set = TestSet(datetime=test_set_dt,
+                      product=strips_tester.current_product,
                       status=test_set_status,
                       test_device_name=settings.test_device_name,
                       employee=settings.test_device_employee
@@ -273,42 +275,107 @@ def run_custom_tasks():
                      )
     Test.objects.using(DB).bulk_create(tests)
     num_successfull_tests = TestSet.objects.using(DB).filter(status=True).distinct("id").count()
-    print(num_successfull_tests)
-
+    #print(num_successfull_tests)
+    num_unsuccessfull_tests = TestSet.objects.using(DB).filter(status=False).distinct("id").count()
+    #print(num_successfull_tests)
+    module_logger.info('Stat: FROM START --> OK: {}, FAIL: {},  ALL --> OK: {}, FAIL: {}'.format(settings.test_pass_count,
+                                                                                                 settings.test_failed_count,
+                                                                                                 num_successfull_tests,
+                                                                                                 num_unsuccessfull_tests))
+    # num_successfull_tests = Product.objects.using(DB).filter(testset__status=True).order_by("id", '-testset_datetime').distinct("id").count()
+    # print(num_successfull_tests)
 
 
 def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
+    module_logger.warning('DATABASE SYNCRONIZATION %s', time.time())
+    bulk_size = 100
+    #products
     existing = Product.objects.using(to_db).all()  # .filter(serial__in=local_product_ids)
-    tests = Test.objects.using(from_db).all()
     local = Product.objects.using(from_db).all()
+    #tests and test sets
 
-    while local.exists() or tests.exists():
-        # write products
-        existing_product_ids = existing.values_list("serial", flat=True)
-        local_products = local.exclude(serial__in=list(existing_product_ids))
-        # write products to central base
-        local_products_ram = list(local_products[0:100])
+    # write products
+    existing_product_ids = existing.values_list("serial", flat=True)
+    local_products = local.exclude(serial__in=list(existing_product_ids))
+    rows = local_products.count()
+    bulks = rows // bulk_size
+    last_bulk = rows - (rows - (bulks * bulk_size))
+    for i in range(bulks):
+        local_products_ram = list(local_products[i * bulk_size:(i + 1) * bulk_size])
         for product in local_products_ram:
+        #for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
             product.id = None
-        Product.objects.using(to_db).bulk_create(local_products_ram)  # get all local products
-        # write tests
-        tests_ram = list(tests[:100])
-        for test in tests_ram:
-            test.id = None
-            # print(test.type.name)
-            # print(test.product.serial)
-            # print(test.id)
+        Product.objects.using(to_db).bulk_create(local_products_ram)
+    local_products_ram = list(local_products[last_bulk:rows])
+    Product.objects.using(to_db).bulk_create(local_products_ram)
+    # write products
+    # existing_product_ids = existing.values_list("serial", flat=True)
+    # local_products = local.exclude(serial__in=list(existing_product_ids))
+    # # write products to central base
+    # local_products_ram = local_products[0:100]
+    # print(str(local_products_ram.query))
+    # for product in local_products_ram.all():
+    #     product.id = None
+    # Product.objects.using(to_db).bulk_create(local_products_ram)  # get all local products
+    # local_products_ram.delete()
+
+    #write test_sets
+    test_sets = TestSet.objects.using(from_db).all()
+    rows = test_sets.count()
+    bulks = rows // bulk_size
+    last_bulk = rows - (rows - (bulks * bulk_size))
+    for i in range(bulks):
+        test_sets_ram = list(test_sets[i * bulk_size:(i + 1) * bulk_size])
+        for test_set in local_products_ram:
+        #for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
+            test_set.id = None
+            test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
+        TestSet.objects.using(to_db).bulk_create(test_sets_ram)
+
+    test_sets_ram = list(test_sets[last_bulk:rows])
+    for test_set in test_sets_ram:
+        # for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
+        test_set.id = None
+        test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
+    TestSet.objects.using(to_db).bulk_create(test_sets_ram)
+    # test_sets_ram = list(test_sets[0:100])
+    # for test_set in test_sets_ram:
+    #     test_set.id = None
+    #     test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
+    # TestSet.objects.using(to_db).bulk_create(test_sets_ram)
+
+    # write tests
+    tests = Test.objects.using(from_db).all()
+    rows = tests.count()
+    bulks = rows // bulk_size
+    last_bulk = rows - (rows - (bulks * bulk_size))
+    for i in range(bulks):
+        test_ram = list(tests[i * bulk_size:(i + 1) * bulk_size])
+        for test in test_ram:
             test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
-            test.product_id = Product.objects.using(to_db).get(serial=test.product.serial).id
-            # print(Product.objects.using(to_db).get(serial=test.product.serial))
-            # print(Product.objects.using(to_db).get(serial=test.product.serial).id)
-            # print(test.product.id)
+            test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
+        Test.objects.using(to_db).bulk_create(test_ram)
+    test_ram = list(tests[last_bulk:rows])
+    for test in test_ram:
+        test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
+        test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
+    Test.objects.using(to_db).bulk_create(test_ram)
+    # tests_ram = list(tests[:100])
+    # for test in tests_ram:
+    #     test.id = None
+    #     # print(test.type.name)
+    #     # print(test.product.serial)
+    #     # print(test.id)
+    #     test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
+    #     print(test.test_set.datetime)
+    #     test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
+    #     test.save(using=to_db)
 
-            test.save(using=to_db)
-        tests.using(from_db).delete()
-        local.using(from_db).delete()
-
+    test_sets.using(from_db).delete()
+    tests.using(from_db).delete()
+    local.using(from_db).delete()
     settings.sync_db = False
+    module_logger.info('DATABASE SYNCRONIZATION DONE %s', time.time())
 
 def check_db_connection():
     global DB
@@ -323,16 +390,23 @@ def check_db_connection():
         settings.sync_db = True
         if DB=='default':
             utils.send_email(subject='DB Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
+            module_logger.warning('Writing to local database!!!'.format(datetime.datetime.now()))
         DB = 'local'
         if response_fl==0:
             pass
         else:
             utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
+            module_logger.error('Could not connect to default of local database!!!'.format(datetime.datetime.now()))
             raise 'Could not connect to default of local database'
     return DB
+
+
 
 
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])
     module_logger.info("Starting tester ...")
     start_test_device()
+    module_logger.error('ZNOVA ZAŽENI PROGRAM IN OBVESTI DOMŽALE O NAPAKI!!!')
+    while True:
+        time.sleep(1)
