@@ -169,6 +169,9 @@ class VoltageTest(Task):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A953A.voltage1", self.mesurement_delay)
 
     def run(self) -> (bool, str):
+        if not lid_closed():
+            return {"signal": [0, "fail", 5, "NA"]}
+
         module_logger.info("Testiranje napetosti...")
         #Vc
         self.relay_board.close_relay(relays["Vc"])
@@ -199,7 +202,6 @@ class VoltageTest(Task):
             self.measurement_results['3V3'] = [self.voltmeter.value, "fail", 5, "V"]
         self.relay_board.open_relay(relays["3V3"])
 
-        LidOpenCheck()
         return self.measurement_results
 
     def tear_down(self):
@@ -254,8 +256,9 @@ class FlashMCUTask(Task):
         time.sleep(0.5)
 
     def run(self):
+        if not lid_closed():
+            return {"signal": [0, "fail", 5, "NA"]}
         result = self.flasher.flash()
-        LidOpenCheck()
         if result:
             return {"MCU flash": [1, "ok", 5, "bool"]}
         else:
@@ -469,6 +472,9 @@ class InternalTest(Task):
     def run(self):
 
         internal_tests = []
+        if lid_closed()==False:
+            return {"signal": [0, "fail", 5, "NA"]}
+
         try:
             queue = multiprocessing.Queue()
             relay_process = multiprocessing.Process(target=self.test_relays, args=(queue,))
@@ -507,7 +513,7 @@ class InternalTest(Task):
                 module_logger.error("Zaslon ne deluje")
 
 
-            relay_process.join(timeout=15)
+            relay_process.join(timeout=25)
             module_logger.info("Testiranje tipk...")
             result = queue.get()
             if result == True:
@@ -598,7 +604,6 @@ class InternalTest(Task):
         except:
             raise Exception("Internal test exception")
 
-        LidOpenCheck()
         return self.measurement_results
 
     def tear_down(self):
@@ -640,7 +645,7 @@ class ManualLCDTest(Task):
 
         GPIO.remove_event_detect(gpios["CONFIRM_GOOD_SWITCH"])
         GPIO.remove_event_detect(gpios["CONFIRM_BAD_SWITCH"])
-        LidOpenCheck()
+
         return True if good_triggered else False, "Button pressed"
 
     def tear_down(self):
