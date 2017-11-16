@@ -36,9 +36,21 @@ import time
 
 
 
-import os
+# import os
+#
+# while True:
+#     print(time.time())
+#     os.system('sudo /home/pi/Desktop/YVoltage VOLTAGE1-A953A.voltage1 get_currentValue')
+#     print(time.time())
 
-while True:
-    print(time.time())
-    os.system('sudo /home/pi/Desktop/YVoltage VOLTAGE1-A953A.voltage1 get_currentValue')
-    print(time.time())
+from pytz import timezone
+import datetime
+import pytz
+
+utc = pytz.utc
+#tz = utils.get_time_zone()
+lj_tz = timezone('Europe/Ljubljana')
+my_time = lj_tz.localize(datetime.datetime.now()).astimezone(utc)
+print(my_time)
+print(my_time.tzinfo)
+print(my_time.astimezone(lj_tz))

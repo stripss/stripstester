@@ -119,3 +119,8 @@ def hid_enumerate(vid=None, pid=None):
         print("Serial No: %s", h.get_serial_number_string())
     except:
         print("Faild to open device")
+
+
+def get_time_zone():
+    file_str = os.system('cat /etc/timezone')
+
