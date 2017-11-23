@@ -76,7 +76,6 @@ class BarCodeReadTask(Task):
         #height = self.meshloader.matrix_code_location["height"]
         #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
         strips_tester.current_product.raw_scanned_string = raw_scanned_string
-        #print(raw_scanned_string)
         #strips_tester.current_product.raw_scanned_string = 'M1706080087500004S2401877'
         module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)

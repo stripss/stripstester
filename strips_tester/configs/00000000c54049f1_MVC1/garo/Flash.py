@@ -197,4 +197,5 @@ class STM32M0Flasher(AbstractFlasher):
         GPIO.setup(dtr, GPIO.OUT)
 
     def close(self):
-        self.cmd.close()
+        if self.cmd != None:
+            self.cmd.close()

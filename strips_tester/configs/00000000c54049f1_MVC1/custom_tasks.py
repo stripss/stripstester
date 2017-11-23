@@ -4,6 +4,7 @@ import sys
 import time
 import multiprocessing
 import Colorer
+import os
 
 import serial
 import struct
@@ -45,10 +46,10 @@ class LidOpenCheck:
     def __init__(self):
         # if lid is opened
         state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-        if state_GPIO_SWITCH:
+        if not state_GPIO_SWITCH:
             module_logger.error("Lid opened /")
-            strips_tester.current_product.task_results.append(False)
-            strips_tester.emergency_break_tasks = True
+            #strips_tester.current_product.task_results.append(False)
+            #strips_tester.emergency_break_tasks = True
         else:
             module_logger.debug("Lid closed")
 
@@ -59,30 +60,34 @@ class BarCodeReadTask(Task):
 
     def set_up(self):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        #self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw2", max_code_length=50)
-        self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
+        #which_hid = os.system('ls /sys/class/hidraw')
+        self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
+        #self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
         self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
         #module_logger.info("Prepared for reading matrix code: ")
         module_logger.info("Skeniraj QR kodo: ")
         # global current_product
-        #raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        #print(raw_scanned_string)
         #module_logger.info("Code read successful")
         #img = self.camera_device.take_one_picture()
         #center = self.meshloader.matrix_code_location["center"]
         #width = self.meshloader.matrix_code_location["width"]
         #height = self.meshloader.matrix_code_location["height"]
         #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
-        #strips_tester.current_product.raw_scanned_string = raw_scanned_string
-        strips_tester.current_product.raw_scanned_string = 'M1806080087500004S2401877'
+        strips_tester.current_product.raw_scanned_string = raw_scanned_string
+        #strips_tester.current_product.raw_scanned_string = 'M1806080087500004S2401877'
+        #raw_scanned_string = input()
         #module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
 
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
-        self.camera_device.close()
+        pass
+        #self.camera_device.close()
 
 class ProductConfigTask(Task):
     def __init__(self):
@@ -146,7 +151,7 @@ class StartProcedureTask(Task):
             while True:
                 # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
                 state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-                if  not state_GPIO_SWITCH:
+                if state_GPIO_SWITCH:
                     #module_logger.info("START_SWITCH pressed(lid closed)")
                     break
                 time.sleep(0.1)
@@ -559,7 +564,7 @@ class InternalTest(Task):
 
                     temp_in_C = ((temperature/100)+15.8) # calibration in MVC
                     if self.temp_sensor.in_range(temp_in_C-5, temp_in_C+5):
-                        module_logger.debug("temperature in bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
+                        module_logger.info("temperature in bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
                         self.measurement_results["temperature"] = [temp_in_C, "ok", 0, "°C"]
                     else:
                         module_logger.warning("temperature out of bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
@@ -747,7 +752,7 @@ class TestTask(Task):
 def lid_closed():
     # if lid is opened
     state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-    if not state_GPIO_SWITCH:
+    if state_GPIO_SWITCH:
         #module_logger.error("Lid opened /")
         #strips_tester.current_product.task_results.append(False)
         #strips_tester.emergency_break_tasks = True

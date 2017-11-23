@@ -18,7 +18,7 @@ sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
 from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
-from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor
+from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor, AbstractBarCodeScanner
 #from matplotlib import pyplot as pp
 from collections import OrderedDict
 #from smbus2 import SMBus, i2c_msg
@@ -26,52 +26,102 @@ from smbus2 import SMBusWrapper
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
-class Honeywell1400:
-    hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
-                  17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
-                  30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
-                  47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-    def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
-        if path==None or (vid==None and pid==None):
-            raise 'Not anough init parameters for Honeywell1400'
+class Honeywell1400g(AbstractBarCodeScanner):
+    def __init__(self, vid, pid):
+        super().__init__(type(self).__name__)
+        if vid==None or pid==None:
+            raise 'Not anough init parameters for {}'.format(type(self).__name__)
         self.vid = vid
         self.pid = pid
-        self.path = path
-        self.max_code_length = max_code_length
-        self.logger = logging.getLogger(__name__)
+        self.open_scanner()
 
-    def flush_input(self, file_descriptor) -> bytearray():
-        discarded = bytearray()
-        while select.select([file_descriptor], [], [], 0)[0]:
-            discarded.append(os.read(file_descriptor, 8))
-        return discarded
+    def open_scanner(self):
+        self.device = hid.device()
+        self.device.open(self.vid, self.pid)  # VendorID/ProductID
 
-    def wait_for_read(self, inter_char_timeout_sec: float = 0.1) -> str:
-        try:
-            reader_fd = os.open(self.path, os.O_RDWR)
-            if select.select([reader_fd], [], [], 0)[0]:
-                self.flush_input(reader_fd)
-            scanned_chars = bytearray()
-            first_modifier_bytes = bytearray()
-            code_length = 0
-            for char in range(self.max_code_length):
-                buffer = os.read(reader_fd, 8)
-                first_modifier_bytes.append(buffer[0])
-                scanned_chars.append(buffer[2])
-                code_length += 1
-                if not select.select([reader_fd], [], [], inter_char_timeout_sec)[0]:
-                    break
-            scanned_code = []
-            for modifier, char_int in zip(first_modifier_bytes, scanned_chars):
-                char = self.hid_lookup.get(char_int, None)
-                if char:
-                    if modifier == 2:
-                        char = char.capitalize()
-                    scanned_code.append(char)
-            return "".join(scanned_code)
-        except Exception as ex:
-            self.logger.exception("Reading stream Honeywell1400 Exception %s", ex)
+    def read_raw(self):
+        # read HID report descriptor to decode and receive data
+        while True:
+            raw_data = self.device.read(128)
+            if raw_data:
+                return raw_data
+
+    def get_dec_data(self):
+        # read HID report descriptor to decode and receive data
+        '''
+        HID descriptor for honeywell 1400g
+        byte0 | report ID=2
+        byte1 | Symbology Identifier 1
+        byte2 | Symbology Identifier 2
+        byte3 | Symbology Identifier 3
+        byte4 | Used for very large messages
+        byte5-byte50 scanned data
+
+        read until 0x00 encountered
+
+        :return: decode string
+        '''
+        byte = 5
+        str_data = ''
+        while True:
+            raw_data = self.device.read(128)
+            if raw_data:
+                while raw_data[byte] != 0x00:
+                    #print(chr(raw_data[byte]))
+                    str_data += (chr(raw_data[byte]))
+                    byte += 1
+                break
+        return str_data
+
+
+
+# class Honeywell1400:
+#     hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
+#                   17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
+#                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
+#                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
+#
+#     def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
+#         if path==None and (vid==None and pid==None):
+#             raise 'Not anough init parameters for Honeywell1400'
+#         self.vid = vid
+#         self.pid = pid
+#         self.path = path
+#         self.max_code_length = max_code_length
+#         self.logger = logging.getLogger(__name__)
+#
+#     def flush_input(self, file_descriptor) -> bytearray():
+#         discarded = bytearray()
+#         while select.select([file_descriptor], [], [], 0)[0]:
+#             discarded.append(os.read(file_descriptor, 8))
+#         return discarded
+#
+#     def wait_for_read(self, inter_char_timeout_sec: float = 0.1) -> str:
+#         try:
+#             reader_fd = os.open(self.path, os.O_RDWR)
+#             if select.select([reader_fd], [], [], 0)[0]:
+#                 self.flush_input(reader_fd)
+#             scanned_chars = bytearray()
+#             first_modifier_bytes = bytearray()
+#             code_length = 0
+#             for char in range(self.max_code_length):
+#                 buffer = os.read(reader_fd, 8)
+#                 first_modifier_bytes.append(buffer[0])
+#                 scanned_chars.append(buffer[2])
+#                 code_length += 1
+#                 if not select.select([reader_fd], [], [], inter_char_timeout_sec)[0]:
+#                     break
+#             scanned_code = []
+#             for modifier, char_int in zip(first_modifier_bytes, scanned_chars):
+#                 char = self.hid_lookup.get(char_int, None)
+#                 if char:
+#                     if modifier == 2:
+#                         char = char.capitalize()
+#                     scanned_code.append(char)
+#             return "".join(scanned_code)
+#         except Exception as ex:
+#             self.logger.exception("Reading stream Honeywell1400 Exception %s", ex)
 
 
 
@@ -723,7 +773,7 @@ class CompareAlgorithm:
     def colors_in_range(self, RGB1, RGB2):
         #if np.sum(RGB1 - RGB2) < 75:
         #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
-        if (np.abs(RGB1[0]-RGB2[0]))<70:
+        if (np.abs(RGB1[0]-RGB2[0]))<100:
             return True
         return False
 
