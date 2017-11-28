@@ -12,7 +12,7 @@ from web_project.web_app.models import *
 from strips_tester import DB
 
 # name hardcoded, because program starts here so it would be "main" otherwise
-module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
+module_logger = logging.getLogger(".".join(("strips_tester", "presets")))
 databases = ['default'] # WRITE ONLY TO CENTRAL DB, local data is than synced from there
 
 

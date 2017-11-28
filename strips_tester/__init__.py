@@ -7,6 +7,9 @@ import json
 from strips_tester import config_loader
 import strips_tester.db
 import strips_tester.utils as utils
+import multiprocessing
+import time
+
 
 VERSION = '0.0.1'
 DB = "default"
@@ -48,10 +51,81 @@ def initialize_logging(level: int = logging.INFO):
     # db_handler = logging. # todo database logging handler
     return lgr
 
+'''
+# LOGGING
+################################################################################
+# Logger when creating multiple processes
+# All write to logger_queue, than listener gets one by one and write them to all handlers
+def set_queue_logger():
+    queue = multiprocessing.Queue(-1)
+    listener = multiprocessing.Process(target=listener_process,
+                                       args=(queue, listener_configurer))
+    listener.start()
+
+    worker = multiprocessing.Process(target=worker_process,
+                                             args=(queue, worker_configurer))
+    worker.start()
+
+    return queue
+
+def listener_process(queue, configurer):
+    configurer()
+    while True:
+        try:
+            record = queue.get()
+            #print(record)
+            if record is None:  # We send this as a sentinel to tell the listener to quit.
+                break
+            logger = logging.getLogger(record.name)
+            logger.handle(record)  # No level or filter logic applied - just do it!
+        except Exception:
+            import sys, traceback
+            print('Whoops! Problem:', file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+
+def listener_configurer():
+    root = logging.getLogger('Process logger')
+    # stdout_handler = logging.StreamHandler(stream=sys.stdout)
+    # f = logging.Formatter('%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s')
+    # stdout_handler.setFormatter(f)
+    # root.addHandler(stdout_handler)
+    # root.setLevel(logging.DEBUG)
+
+    root.debug('Staring process for queue logger')
+
+
+
+def worker_configurer(queue):
+    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
+    root = logging.getLogger()
+    root.addHandler(h)
+    root.setLevel(logging.DEBUG)
+    pass
+
+
+def worker_process(queue, configurer):
+    configurer(queue)
+    name = multiprocessing.current_process().name
+    print('Worker started: %s' % name)
+    for i in range(10):
+        time.sleep(1)
+        logger = logging.getLogger('Relay logger')
+        logger.info('from relays')
+        logger.debug('from relays')
+    print('Worker finished: %s' % name)
+
+    while True:
+        time.sleep(5)
+'''
 
 logger = initialize_logging(logging.DEBUG)
-LOGGER = logger
+#logger_queue = set_queue_logger()
 current_product = None
 settings = config_loader.Settings()
-# db = db.TestnaDB(settings.central_db_host)
+
+
+
+
+
 

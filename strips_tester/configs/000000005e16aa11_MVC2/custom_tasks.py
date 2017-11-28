@@ -55,17 +55,14 @@ class LidOpenCheck:
 class BarCodeReadTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
-
-    def set_up(self):
-        #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        which_hid = os.system('ls /sys/class/hidraw')
-        self.reader = devices.Honeywell1400g(0x0c2e, 0x0b87)
+        #which_hid = os.system('ls /sys/class/hidraw')
+        self.reader = devices.Honeywell1400g(vid=0x0c2e, pid=0x0b87)
         #self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
         #self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
         #module_logger.info("Prepared for reading matrix code:")
-        module_logger.info("Skeniraj QR kodo: ")
+        module_logger.info("Skeniraj QR kodo")
         # global current_product
         raw_scanned_string = self.reader.get_decoded_data() # use scanned instead of camera
         #raw_scanned_string = input()
@@ -83,7 +80,7 @@ class BarCodeReadTask(Task):
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
-        pass
+        self.reader.close()
         #self.camera_device.close()
 
 class ProductConfigTask(Task):
@@ -354,7 +351,7 @@ class InternalTest(Task):
         self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
         self.camera_algorithm = devices.CompareAlgorithm(span=3)
         self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.temp_sensor = devices.IRTemperatureSensor(0)  # meas delay = 0
+        self.temp_sensor = devices.IRTemperatureSensor(delay=0)  # meas delay = 0
         self.start_t = None
 
     @staticmethod

@@ -508,7 +508,7 @@ class SainBoard16:
     OPEN_CMD = (0xD2, 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x48, 0x49, 0x44, 0x43, 0x80, 0x02, 0x00, 0x00)
     CLOSE_CMD = (0x71, 0x0E, 0x71, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0x2A, 0x02, 0x00, 0x00)
 
-    def __init__(self, vid: int = 0x0416, pid=0x5020, path: str = None, initial_status=None, number_of_relays: int = 16):
+    def __init__(self, vid: int, pid, path: str = None, initial_status=None, number_of_relays: int = 16):
         self.vid = vid
         self.pid = pid
         self.path = path
@@ -643,7 +643,7 @@ class YoctoVoltageMeter(AbstractSensor):
 
 
 class CameraDevice:
-    def __init__(self, Xres: int=640, Yres: int=480):
+    def __init__(self, Xres: int, Yres: int):
         self.Xres = Xres
         self.Yres = Yres
         self.img_count = 0
@@ -897,7 +897,7 @@ class IRTemperatureSensor(AbstractSensor):
     MLX90615_REG_TEMP_AMBIENT = 0x26
     MLX90615_REG_TEMP_OBJECT = 0x27
 
-    def __init__(self, delay: int = 1):
+    def __init__(self, delay: int):
         super().__init__(delay, "Temperature", "°C")
         self.sensor = None
 

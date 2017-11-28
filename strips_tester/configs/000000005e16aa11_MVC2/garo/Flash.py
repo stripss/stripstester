@@ -1,8 +1,9 @@
 
 import RPi.GPIO as GPIO
 import sys, os
-
 import logging
+
+import glob
 
 from . import esptool
 #import stmtool as STM
@@ -151,6 +152,13 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='bin/wifi.bin'):
     module_logger.debug("Wifi upload done ")
     return True
 
+# MCU FLASHER
+#################################################################
+def get_latest_file(path_to_search):
+    list_of_files = glob.glob(path_to_search)  # * means all if need specific format then *.csv
+    latest_file = max(list_of_files, key=os.path.getctime)
+    return latest_file
+
 
 class STM32M0Flasher(AbstractFlasher):
     '''
@@ -161,6 +169,7 @@ class STM32M0Flasher(AbstractFlasher):
     def __init__(self,reset, dtr, retries, configFile='/stmConfig.json', UCbinFile='bin/mcu0'):
         super().__init__(reset, dtr, retries)
         self.cmd = None
+        #self.UCbinFile = get_latest_file('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/garo/bin/mcu*')
         self.UCbinFile = UCbinFile
         self.configFile = configFile
         self.config = UCFlashConfig.load(os.path.dirname(__file__) + configFile)
