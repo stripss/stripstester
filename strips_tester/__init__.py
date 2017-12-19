@@ -5,7 +5,6 @@ from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
 from strips_tester import config_loader
-import strips_tester.db
 import strips_tester.utils as utils
 import multiprocessing
 import time

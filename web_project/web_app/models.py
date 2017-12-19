@@ -29,6 +29,7 @@ class Product(StrModel):
         self.tests = {}
         self.raw_scanned_string = None
         self.test_status = False
+        self.mac = None
 
 
 class TestType(StrModel):

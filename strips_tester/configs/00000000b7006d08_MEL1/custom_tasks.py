@@ -21,7 +21,6 @@ from tester import Task #, connect_to_wifi
 from .garo import Flash
 from datetime import datetime
 import numpy as np
-import strips_tester.db
 from strips_tester import utils
 import urllib3
 import json
@@ -742,36 +741,46 @@ class WifiTask(Task):
         super().__init__(strips_tester.ERROR)
 
     def set_up(self):
-        self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
-        self.relay_board.close_relay(relays["GND"])
-        self.relay_board.close_relay(relays["UART_MCU_RX"])
-        self.relay_board.close_relay(relays["UART_MCU_TX"])
-        self.relay_board.close_relay(relays["COMMON"])
+        # self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
+        # self.relay_board.close_relay(relays["GND"])
+        # self.relay_board.close_relay(relays["UART_MCU_RX"])
+        # self.relay_board.close_relay(relays["UART_MCU_TX"])
+        # self.relay_board.close_relay(relays["COMMON"])
         self.measurement_results = {}
 
-        self.ESP = Flash.ESPRomAccess(
-            port="/dev/ttyAMA0",
-            resetPin=gpios.get("RST"),
-            bootPin=gpios.get("DTR"),
-            baudrate=115200)
-        self.wifi = self.devices.Wifi('wlan0')
+        # self.ESP = Flash.ESPRomAccess(
+        #     port="/dev/ttyAMA0",
+        #     resetPin=gpios.get("RST"),
+        #     bootPin=gpios.get("DTR"),
+        #     baudrate=115200)
+        self.wifi = devices.Wifi('wlan0')
 
     def run(self):
-        self.ESP.get_mac()
+        #self.ESP.get_mac()
         self.wifi.save('GARO-MELN-8e6e', '')
-        print(os.system('udo ifdown wlan0'))
+        #self.wifi.save('STRIPS_TESTING', 'Kandrse07')
+        print(os.system('sudo ifdown --force wlan0'))
         time.sleep(0.5)
+        print(self.wifi)
         self.wifi.activate()
-        time.sleep(0.5)
-        http = urllib3.PoolManager()
-        r = http.request('GET', '192.168.2.1/v1/info', timeout=10.0)
-        json_response = json.loads(r.data.decode('utf-8'))
-        print(json_response['mac'])
+        while 0 != os.system('timeout 0.2 ping -c 1 192.168.2.1 > /dev/null 2>&1'):
+            time.sleep(1.0)
 
+        http = urllib3.PoolManager()
+        try:
+            r = http.request('GET', '192.168.2.1/v1/info', timeout=10.0)
+            json_response = json.loads(r.data.decode('utf-8'))
+            print(json_response['mac'])
+        except:
+            print("Couldn't connect to wifi")
+
+        return {"signal": [1, 'ok', 0, 'NA']}
     def tear_down(self):
-        self.ESP.close()
+        #self.ESP.close()
         pass
 
+    def compare_mac(self):
+        pass
 
 # Utils part due to import problems
 #########################################################################################

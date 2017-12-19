@@ -940,7 +940,6 @@ class Wifi:
     def __init__(self, interface):
         self.iface = interface
         self.network = collections.OrderedDict()
-        self.set()
 
     def __str__(self):
         '''
@@ -965,7 +964,7 @@ class Wifi:
         return str_config
 
     def save(self, ssid, psk, encryption_type = 'WPA2-PSK', options = None):
-        if self.psk == '':
+        if psk == '':
             self.network['ssid'] = '"' + ssid + '"'
             self.network['key_mgmt'] = 'NONE'
         else:
