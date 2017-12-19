@@ -1,4 +1,3 @@
-
 import RPi.GPIO as GPIO
 import sys, os
 
@@ -56,35 +55,39 @@ class ESP8266Flasher(AbstractFlasher):
 
 
     def run_flashing(self):
-        dir1 = os.path.join(os.path.dirname(__file__), self.wifibinFile)
-        args = Namespace()
-        args.flash_size = "detect"
-        args.flash_mode = "qio"
-        args.flash_freq = "40m"
-        args.no_progress = False
-        args.no_stub = False
-        args.verify = False  # TRUE is deprecated
-        args.compress = True
-        args.addr_filename = [[int("0x00000", 0), open(dir1, 'relay_board')]]
+        try:
+            dir1 = os.path.join(os.path.dirname(__file__), self.wifibinFile)
+            args = Namespace()
+            args.flash_size = "detect"
+            args.flash_mode = "qio"
+            args.flash_freq = "40m"
+            args.no_progress = False
+            args.no_stub = False
+            args.verify = False  # TRUE is deprecated
+            args.compress = True
+            args.addr_filename = [[int("0x00000", 0), open(dir1, 'relay_board')]]
 
-        if self.erase_before_flash:
-            esptool.erase_flash(self.esp, args)
-        esptool.write_flash(self.esp, args)
+            if self.erase_before_flash:
+                esptool.erase_flash(self.esp, args)
+            esptool.write_flash(self.esp, args)
 
-        module_logger.debug("Hard reseting")
-        self.esp.hard_reset()
-        module_logger.debug("Wifi upload done ")
-        return True
-
+            module_logger.debug("Hard reseting")
+            self.esp.hard_reset()
+            module_logger.debug("Wifi upload done ")
+            return True
+        except:
+            return False
 
     def setup(self, reset, dtr):
-        pass
+        # get mac to connect to wifi
+        strips_tester.current_product.mac = self.esp.get_mac()
         # already initialized at startup
         #GPIO.setup(reset, GPIO.OUT)
         #GPIO.setup(dtr, GPIO.OUT)
 
     def close(self):
-        pass
+        if self.esp != None:
+            self.esp.close()
 
 
 class STM32M0Flasher(AbstractFlasher):
