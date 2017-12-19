@@ -1,5 +1,7 @@
-import utils
+#import utils
 import time
+
+
 # from smbus2 import SMBusWrapper
 #
 # class IRTemperatureSensor():
@@ -23,16 +25,10 @@ import time
 #         #self.bus.close()
 #         pass
 #
-# # my_camera = utils.Camera()
-# # my_camera.start_preview()
-# # time.sleep(1000)
 # while True:
 #     temp = IRTemperatureSensor().get_value()
 #     print(temp)
 
-# my_camera = utils.Camera()
-# my_camera.start_preview()
-# time.sleep(1000)
 
 
 
@@ -60,130 +56,10 @@ import time
 # hid.enumerate()
 # print('finish')
 
-import hid
+#import hid
 import time
 
-class AbstractBarCodeScanner:
-    def __init__(self, name):
-        self.name = name
-        #self.open()
 
-    def get_decoded_data(self):
-        return self.get_dec_data()
-
-    def get_raw_data(self):
-        return self.read_raw()
-
-    def open(self):
-        self.open_scanner()
-        #module_logger.debug("%s opened", self.name)
-
-    def close(self):
-        self.close_scanner()
-        #module_logger.debug("%s closed", self.name)
-
-
-class Honeywell1400g(AbstractBarCodeScanner):
-    def __init__(self, vid, pid):
-        super().__init__(type(self).__name__)
-        if vid==None or pid==None:
-            raise 'Not anough init parameters for {}'.format(type(self).__name__)
-        self.vid = vid
-        self.pid = pid
-        self.open_scanner()
-
-    def open_scanner(self):
-        self.device = hid.device()
-        self.device.open(self.vid, self.pid)  # VendorID/ProductID
-
-    def read_raw(self):
-        # read HID report descriptor to decode and receive data
-        while True:
-            raw_data = self.device.read(128)
-            if raw_data:
-                return raw_data
-
-    def get_dec_data(self):
-        # read HID report descriptor to decode and receive data
-        '''
-        HID descriptor for honeywell 1400g
-        byte0 | report ID=2
-        byte1 | Symbology Identifier 1
-        byte2 | Symbology Identifier 2
-        byte3 | Symbology Identifier 3
-        byte4 | Used for very large messages
-        byte5-byte50 scanned data
-
-        read until 0x00 encountered
-
-        :return: decode string
-        '''
-        byte = 5
-        str_data = ''
-        while True:
-            raw_data = self.device.read(128)
-            if raw_data:
-                while raw_data[byte] != 0x00:
-                    #print(chr(raw_data[byte]))
-                    str_data += (chr(raw_data[byte]))
-                    byte += 1
-                break
-        return str_data
-
-# # enumerate USB devices
-#
-# for d in hid.enumerate():
-#     keys = list(d.keys())
-#     keys.sort()
-#     for key in keys:
-#         print("%s : %s" % (key, d[key]))
-#     print()
-#
-# # try opening a device, then perform write and read
-#
-# try:
-#     print("Opening the device")
-#
-#     h = hid.device()
-#     h.open(0x0c2e, 0x0b87) # TREZOR VendorID/ProductID
-#
-#     print("Manufacturer: %s" % h.get_manufacturer_string())
-#     print("Product: %s" % h.get_product_string())
-#     print("Serial No: %s" % h.get_serial_number_string())
-#     #print("Descriptor %s" % h.get_feature_report())
-#
-#     # enable non-blocking mode
-#     h.set_nonblocking(1)
-#
-#     # write some data to the device
-#     # print("Write the data")
-#     # h.write([0, 63, 35, 35] + [0] * 61)
-#
-#     # wait
-#     time.sleep(0.05)
-#
-#     # read back the answer
-#     print("Read the data")
-#     str = None
-#     while True:
-#         d = h.read(256)
-#         if d:
-#             for i in range(len(d)):
-#                 print(hex(d[i]))
-#                 print(chr(d[i]))
-#
-#             #print(str(d))
-#             break
-#
-#     print("Closing the device")
-#     h.close()
-#
-# except IOError as ex:
-#     print(ex)
-#     print("You probably don't have the hard coded device. Update the hid.device line")
-#     print("in this script with one from the enumeration list output above and try again.")
-#
-# print("Done")
 
 
 # my_scanner = Honeywell1400g(0x0c2e, 0x0b87)
@@ -210,114 +86,107 @@ class Honeywell1400g(AbstractBarCodeScanner):
 
 # -*- coding: utf-8 -*-
 
-import wifi
+# import picamera
+# import numpy as np
+#
+# class CameraDevice:
+#     def __init__(self, Xres: int, Yres: int):
+#         self.Xres = Xres
+#         self.Yres = Yres
+#         self.img_count = 0
+#         #max 20 pictures
+#         self.img = np.empty((20, self.Yres, self.Xres, 3), dtype=np.uint8)
+#
+#         self.camera = picamera.PiCamera()
+#         self.set_camera_parameters(flag=False)
+#         try:
+#             # logger.debug("Starting self test")
+#             # self.self_test()
+#             pass
+#         except:
+#             print("Failed to init Camera")
+#
+#     def close(self):
+#         self.camera.close()
+#
+#     def set_camera_parameters(self, flag=False):
+#         if flag:
+#             print("Set parameters. Setting iso and exposure time. Wait 2.5 s")
+#             self.camera.resolution = (self.Xres, self.Yres)
+#             self.camera.framerate = 80
+#             self.camera.brightness = 30
+#             time.sleep(2)
+#             self.camera.iso = 1 # change accordingly
+#             time.sleep(1)
+#             self.camera.shutter_speed = self.camera.exposure_speed * 3
+#             self.camera.exposure_mode = 'off'
+#             g = self.camera.awb_gains
+#             self.camera.awb_mode = 'off'
+#             self.camera.awb_gains = g
+#             time.sleep(0.5)
+#         else:
+#             #self.camera.resolution = (self.Xres, self.Yres)
+#             self.camera.framerate = 20
+#             self.camera.exposure_mode = 'off'
+#             self.camera.shutter_speed = 50000
+#             time.sleep(1)
+#
+#     def take_picture(self):
+#         self.camera.capture(self.img[self.img_count,::,::,::], 'rgb', use_video_port=True)
+#         self.img_count += 1
+#
+#     def take_one_picture(self):
+#         self.take_picture()
+#         return self.img[self.img_count-1,::,::,::]
+#
+#     def get_picture(self, Idx=0):
+#         return self.img[Idx,::,::,::]
+#
+#     def take_img_to_array_RGB(self, xres=128, yres=80, RGB=0):
+#         slika = np.empty([xres, yres, 3], dtype=np.uint8)
+#         self.camera.capture(slika, 'rgb')
+#         return slika[:, :, RGB]
+#
+#     def take_img_to_file(self, file_path):
+#         time.sleep(1)
+#         self.camera.capture(file_path)
+#
+#     def save_all_imgs_to_file(self):
+#         for i in range(self.img_count):
+#             self.imSaveRaw3d('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,::,::,::])
 
 
-def Search():
-    wifilist = []
-
-    cells = wifi.Cell.all('wlan0')
-
-    for cell in cells:
-        wifilist.append(cell)
-
-    return wifilist
-
-
-def FindFromSearchList(ssid):
-    wifilist = Search()
-
-    for cell in wifilist:
-        if cell.ssid == ssid:
-            return cell
-
-    return False
-
-
-def FindFromSavedList(ssid):
-    cell = wifi.Scheme.find('wlan0', ssid)
-
-    if cell:
-        return cell
-
-    return False
-
-
-def Connect(ssid, password=None):
-    cell = FindFromSearchList(ssid)
-
-    if cell:
-        savedcell = FindFromSavedList(cell.ssid)
-
-        # Already Saved from Setting
-        if savedcell:
-            savedcell.activate()
-            return cell
-
-        # First time to conenct
-        else:
-            if cell.encrypted:
-                if password:
-                    scheme = Add(cell, password)
-
-                    try:
-                        scheme.activate()
-
-                    # Wrong Password
-                    except wifi.exceptions.ConnectionError:
-                        Delete(ssid)
-                        return False
-
-                    return cell
-                else:
-                    return False
-            else:
-                scheme = Add(cell)
-
-                try:
-                    scheme.activate()
-                except wifi.exceptions.ConnectionError:
-                    Delete(ssid)
-                    return False
-
-                return cell
-
-    return False
-
-
-def Add(cell, password=None):
-    if not cell:
-        return False
-
-    scheme = wifi.Scheme.for_cell('wlan0', cell.ssid, cell, password)
-    scheme.save()
-    return scheme
-
-
-def Delete(ssid):
-    if not ssid:
-        return False
-
-    cell = FindFromSavedList(ssid)
-
-    if cell:
-        cell.delete()
-        return True
-
-    return False
-
+import Wifi
+import urllib3
+import os
+import json
 
 if __name__ == '__main__':
-    # Search WiFi and return WiFi list
-    print(Search())
-    #
-    # # Connect WiFi with password & without password
-    # print
-    Connect('OpenWiFi')
-    cell = FindFromSearchList('Xperia')
-    #Add(cell, 'jurejure123')
-    #print(Connect('Xperia', 'jurejure123'))
-    #
-    # # Delete WiFi from auto connect list
-    # print
-    Delete('Xperia')
+
+    my_cell = Wifi.Scheme.find_from_wifi_list('GARO-MELN-8e6e')
+    print(my_cell.ssid)
+    print(os.system('sudo ifdown wlan0'))
+    time.sleep(0.5)
+    my_scheme = Wifi.Scheme(my_cell.ssid, '')
+    #my_scheme = WifiScheme('STRIPS_TESTING', 'Kandrse07')
+    print(my_scheme)
+    my_scheme.save()
+    my_scheme.activate()
+    time.sleep(0.5)
+    http = urllib3.PoolManager()
+    r = http.request('GET', '192.168.2.1/v1/info', timeout=3.0)
+    json_response = json.loads(r.data.decode('utf-8'))
+    print(json_response['mac'])
+
+
+
+
+
+
+
+# print('start')
+# my_camera = CameraDevice(640,480)
+# my_camera.camera.start_preview()
+# time.sleep(1000)
+# my_camera.camera.stop_preview()
+# my_camera.close()

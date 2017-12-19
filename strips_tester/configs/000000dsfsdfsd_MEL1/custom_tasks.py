@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import multiprocessing
+import Colorer
 import os
 
 import serial
@@ -20,7 +21,10 @@ from tester import Task #, connect_to_wifi
 from .garo import Flash
 from datetime import datetime
 import numpy as np
+import strips_tester.db
 from strips_tester import utils
+import urllib3
+import json
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -51,20 +55,24 @@ class LidOpenCheck:
         else:
             module_logger.debug("Lid closed")
 
+
 class BarCodeReadTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
+
+    def set_up(self):
+        #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         #which_hid = os.system('ls /sys/class/hidraw')
-        self.reader = devices.Honeywell1400gHID(vid=0x0c2e, pid=0x0b87)
+        self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
         #self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        #self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
 
     def run(self) -> (bool, str):
-        #module_logger.info("Prepared for reading matrix code:")
-        module_logger.info("Skeniraj QR kodo")
+        #module_logger.info("Prepared for reading matrix code: ")
+        module_logger.info("Skeniraj QR kodo: ")
         # global current_product
-        raw_scanned_string = self.reader.get_decoded_data() # use scanned instead of camera
-        #raw_scanned_string = input()
+        raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        #print(raw_scanned_string)
         #module_logger.info("Code read successful")
         #img = self.camera_device.take_one_picture()
         #center = self.meshloader.matrix_code_location["center"]
@@ -72,14 +80,15 @@ class BarCodeReadTask(Task):
         #height = self.meshloader.matrix_code_location["height"]
         #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
         strips_tester.current_product.raw_scanned_string = raw_scanned_string
-        #strips_tester.current_product.raw_scanned_string = 'M1706080087500004S2401877'
-        module_logger.debug("%s", strips_tester.current_product)
+        #strips_tester.current_product.raw_scanned_string = 'M1806080087500004S2401877'
+        #raw_scanned_string = input()
+        #module_logger.debug("%s", strips_tester.current_product)
         GPIO.output(gpios["LIGHT_GREEN"], G_LOW)
 
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
-        self.reader.close()
+        pass
         #self.camera_device.close()
 
 class ProductConfigTask(Task):
@@ -164,9 +173,12 @@ class VoltageTest(Task):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         self.mesurement_delay = 0.16
         self.measurement_results = {}
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A953A.voltage1", self.mesurement_delay)
 
     def run(self) -> (bool, str):
+        if not lid_closed():
+            return {"signal": [0, "fail", 5, "NA"]}
+
         module_logger.info("Testiranje napetosti...")
         #Vc
         self.relay_board.close_relay(relays["Vc"])
@@ -197,7 +209,6 @@ class VoltageTest(Task):
             self.measurement_results['3V3'] = [self.voltmeter.value, "fail", 5, "V"]
         self.relay_board.open_relay(relays["3V3"])
 
-        LidOpenCheck()
         return self.measurement_results
 
     def tear_down(self):
@@ -336,7 +347,7 @@ class InternalTest(Task):
         self.relay_board.close_relay(relays["UART_MCU_TX"])
         self.relay_board.close_relay(relays["COMMON"])
         self.measurement_results = {}
-        self.serial_port_uart = serial.Serial(
+        self.serial_port = serial.Serial(
             port="/dev/ttyAMA0",
             baudrate=115200,
             bytesize=serial.EIGHTBITS,
@@ -347,10 +358,10 @@ class InternalTest(Task):
             timeout=0.5,
             dsrdtr=0
         )
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/00000000c54049f1_MVC1/Mask.json')
         self.camera_algorithm = devices.CompareAlgorithm(span=3)
         self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.temp_sensor = devices.IRTemperatureSensor(delay=0)  # meas delay = 0
+        self.temp_sensor = devices.IRTemperatureSensor(0)  # meas delay = 0
         self.start_t = None
 
     @staticmethod
@@ -374,7 +385,7 @@ class InternalTest(Task):
         relay_tests = []
         self.relay_board.open()
         self.mesurement_delay = 0.0
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A08C8.voltage1", self.mesurement_delay)
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A953A.voltage1", self.mesurement_delay)
 
         ''' | delay_R1 delay_R2  sum_delay
             |     |      |     |  ...
@@ -387,12 +398,11 @@ class InternalTest(Task):
         R2_voltage = [14.5, 0.0, 0.0]
         R1_voltage = [0.0, 0.0, 14.5]
 
-
-        # time.sleep(1.0)  # relay board open time
+        # time.sleep(1.2)  # relay board open time
         # # before test, both open
         # # RE1
         # self.relay_board.close_relay(relays["RE1"])
-        # time.sleep(0.250)
+        # time.sleep(0.150)
         # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
         #     self.relay_exit(queue)
         #     return False
@@ -400,9 +410,8 @@ class InternalTest(Task):
         #     relay_tests.append(True)
         # self.relay_board.open_relay(relays["RE1"])
         # # RE2
-        # time.sleep(0.5)
         # self.relay_board.close_relay(relays["RE2"])
-        # time.sleep(0.250)
+        # time.sleep(0.150)
         # if not self.voltmeter.in_range(14.5 - 1.0, 14.5 + 1.0):
         #     self.relay_exit(queue)
         #     return False
@@ -413,6 +422,11 @@ class InternalTest(Task):
         #print(time.time())
         start_time = queue.get(block=True, timeout=10)
         #print('s',start_time)
+        # while True:
+        #     print(time.time())
+        #     module_logger.info('Voltage %s',self.voltmeter.read())
+        #     print(time.time())
+        # print(time.time())
         for i in range(len(R1_voltage)):
             # RE1
             self.relay_board.close_relay(relays["RE1"])
@@ -421,16 +435,16 @@ class InternalTest(Task):
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R1) - time.time()
             # relay_tests.append(self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0))
-            #print(time.time())
-            #module_logger.info('Voltage %s', self.voltmeter.read())
+            # print(time.time())
+            # module_logger.info('Voltage %s', self.voltmeter.read())
             if not self.voltmeter.in_range(R1_voltage[i] - 1.0, R1_voltage[i] + 1.0):
-                #print(time.time())
-                module_logger.error("Releji ne delujejo1." + str(i))
+                # print(time.time())
+                # module_logger.error("Releji ne delujejo1." + str(i))
                 self.relay_exit(queue)
                 return False
             else:
                 relay_tests.append(True)
-            #print(time.time())
+            # print(time.time())
             self.relay_board.open_relay(relays["RE1"])
             # RE2
             self.relay_board.close_relay(relays["RE2"])
@@ -439,17 +453,17 @@ class InternalTest(Task):
                 time.sleep(0.5 * dt)
                 dt = (start_time + i * (sum_delay) + delay_R2) - time.time()
             # relay_tests.append(self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0))
-            #print(time.time())
+            # print(time.time())
             if not self.voltmeter.in_range(R2_voltage[i] - 1.0, R2_voltage[i] + 1.0):
-                #print(time.time())
-                module_logger.error("Releji ne delujejo2." + str(i))
+                # print(time.time())
+                # module_logger.error("Releji ne delujejo2." + str(i))
                 self.relay_exit(queue)
                 return False
             else:
                 relay_tests.append(True)
-            #print(time.time())
+            # print(time.time())
             self.relay_board.open_relay(relays["RE2"])
-            #print('\n\n\n')
+            # print('\n\n\n')
 
         self.relay_board.close()
         self.voltmeter.close()
@@ -465,7 +479,7 @@ class InternalTest(Task):
     def run(self):
 
         internal_tests = []
-        if not lid_closed():
+        if lid_closed()==False:
             return {"signal": [0, "fail", 5, "NA"]}
 
         try:
@@ -477,13 +491,13 @@ class InternalTest(Task):
             module_logger.info("STM32M0 boot time %ss", 5)
             time.sleep(5) # process sync and UC boot time
 
-            op_code = bytearray([0x06])
-            crc_part_1, crc_part_2 = self.crc(op_code)
-            self.serial_port_uart.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
-            # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
-
             #module_logger.info("Testing segment display...")
             module_logger.info("Testiranje zaslona...")
+            op_code = bytearray([0x06])
+            crc_part_1, crc_part_2 = self.crc(op_code)
+            self.serial_port.write(bytes([0x00, 0x04, int().from_bytes(op_code, "big"), crc_part_1, crc_part_2]))
+            # self.serial_port.write(bytes([0x00, 0x04, 0x06, 0xC6, 0x60]))  # full start_test packet
+
             self.start_t = time.time()  # everything synchronizes to this time
             queue.put(self.start_t)  # send start time to relay process for relay sync
             for i in range(14):
@@ -494,6 +508,7 @@ class InternalTest(Task):
                 pic_start_time = time.time()
                 self.camera_device.take_picture()
                 module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
+            #module_logger.info("Input button sequence...")
             self.camera_device.save_all_imgs_to_file()
 
             camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
@@ -504,14 +519,15 @@ class InternalTest(Task):
                 self.measurement_results["display"] = [0, "fail", 0, "bool"]
                 module_logger.error("Zaslon ne deluje")
 
+
             relay_process.join(timeout=25)
             module_logger.info("Testiranje tipk...")
             result = queue.get()
             if result == True:
-                module_logger.info("Releji ok")
+                module_logger.debug("Relay test successful")
                 self.measurement_results["relays"] = [1, "ok", 0, "bool"]
             else:
-                module_logger.error("Releji ne delujejo")
+                module_logger.warning("Relay error ")
                 self.measurement_results["relays"] = [0, "fail", 0, "bool"]
 
             # default, even if no data from uart
@@ -527,19 +543,18 @@ class InternalTest(Task):
             payload = bytearray()
             #module_logger.info("Start listening on uart...")
             # retries end with serial timeout which is in set_up
-            self.serial_port_uart.flush()
+            self.serial_port.flush()
             for try_number in range(40):
                 if not lid_closed():
                     return self.measurement_results
-                time.sleep(0.015)
                 module_logger.debug("Trying to read header \x00")
-                header = self.serial_port_uart.read(1)
+                header = self.serial_port.read(1)
                 if header == b'\x00':
                     module_logger.debug("Receiving test results...")
-                    message_length = self.serial_port_uart.read(1)
+                    message_length = self.serial_port.read(1)
                     module_logger.debug("Message length: %s: ", message_length)
                     for i in range(int().from_bytes(message_length, "big") -1):
-                        payload.extend(self.serial_port_uart.read(1))
+                        payload.extend(self.serial_port.read(1))
                     module_logger.debug("payload: %s", payload)
                     msg_type, keyboard, temperature, rtc, flash, switches, board, crc1, crc2= struct.unpack("<BHhBBBBBB", payload)
                     if keyboard == 0xb03b: #0x8030:
@@ -600,7 +615,7 @@ class InternalTest(Task):
 
     def tear_down(self):
         self.camera_device.close()
-        self.serial_port_uart.close()
+        self.serial_port.close()
         self.relay_board.open()
         self.relay_board.open_all_relays()
         self.relay_board.close()
@@ -637,7 +652,7 @@ class ManualLCDTest(Task):
 
         GPIO.remove_event_detect(gpios["CONFIRM_GOOD_SWITCH"])
         GPIO.remove_event_detect(gpios["CONFIRM_BAD_SWITCH"])
-        LidOpenCheck()
+
         return True if good_triggered else False, "Button pressed"
 
     def tear_down(self):
@@ -722,16 +737,41 @@ class PrintSticker(Task):
         self.g.close()
 
 
-class TestTask(Task):
+class WifiTask(Task):
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 
+    def set_up(self):
+        self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
+        self.relay_board.close_relay(relays["GND"])
+        self.relay_board.close_relay(relays["UART_MCU_RX"])
+        self.relay_board.close_relay(relays["UART_MCU_TX"])
+        self.relay_board.close_relay(relays["COMMON"])
+        self.measurement_results = {}
+
+        self.ESP = Flash.ESPRomAccess(
+            port="/dev/ttyAMA0",
+            resetPin=gpios.get("RST"),
+            bootPin=gpios.get("DTR"),
+            baudrate=115200)
+        self.wifi = self.devices.Wifi('wlan0')
+
     def run(self):
-        connect_to_wifi("STRIPS_GUEST", "yourbestpartner")
-        return False, "not implemented yet"
+        self.ESP.get_mac()
+        self.wifi.save('GARO-MELN-8e6e', '')
+        print(os.system('udo ifdown wlan0'))
+        time.sleep(0.5)
+        self.wifi.activate()
+        time.sleep(0.5)
+        http = urllib3.PoolManager()
+        r = http.request('GET', '192.168.2.1/v1/info', timeout=10.0)
+        json_response = json.loads(r.data.decode('utf-8'))
+        print(json_response['mac'])
 
     def tear_down(self):
+        self.ESP.close()
         pass
+
 
 # Utils part due to import problems
 #########################################################################################

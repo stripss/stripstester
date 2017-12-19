@@ -19,7 +19,6 @@ from tester import Task #, connect_to_wifi
 from .garo import Flash
 from datetime import datetime
 import numpy as np
-import strips_tester.db
 from strips_tester import utils
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))

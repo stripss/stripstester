@@ -21,7 +21,6 @@ from tester import Task #, connect_to_wifi
 from .garo import Flash
 from datetime import datetime
 import numpy as np
-import strips_tester.db
 from strips_tester import utils
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
@@ -564,10 +563,10 @@ class InternalTest(Task):
 
                     temp_in_C = ((temperature/100)+15.8) # calibration in MVC
                     if self.temp_sensor.in_range(temp_in_C-5, temp_in_C+5):
-                        module_logger.info("temperature in bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
+                        module_logger.info("temperature in bounds: meas:%s ref:%s", temp_in_C, self.temp_sensor.value)
                         self.measurement_results["temperature"] = [temp_in_C, "ok", 0, "°C"]
                     else:
-                        module_logger.warning("temperature out of bounds: %s vs %s", temp_in_C, self.temp_sensor.value)
+                        module_logger.warning("temperature out of bounds: meas:%s ref:%s", temp_in_C, self.temp_sensor.value)
                         self.measurement_results["temperature"] = [temp_in_C, "fail", 0, "°C"]
                     if rtc != 1:
                         module_logger.warning("rtc error: %s", rtc)
@@ -735,7 +734,7 @@ class PrintSticker(Task):
         self.g.close()
 
 
-class TestTask(Task):
+class WifiTest(Task):
     def __init__(self):
         super().__init__(strips_tester.ERROR)
 

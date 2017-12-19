@@ -23,11 +23,15 @@ from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, A
 from collections import OrderedDict
 #from smbus2 import SMBus, i2c_msg
 from smbus2 import SMBusWrapper
+import wifi
+import collections
+
+
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
 
-class Honeywell1400g(AbstractBarCodeScanner):
+class Honeywell1400gHID(AbstractBarCodeScanner):
     def __init__(self, vid, pid):
         super().__init__(type(self).__name__)
         if vid==None or pid==None:
@@ -74,54 +78,55 @@ class Honeywell1400g(AbstractBarCodeScanner):
                 break
         return str_data
 
+    def close_scanner(self):
+        self.device.close()
 
+class Honeywell1400:
+    hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
+                  17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
+                  30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
+                  47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-# class Honeywell1400:
-#     hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
-#                   17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
-#                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
-#                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
-#
-#     def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
-#         if path==None and (vid==None and pid==None):
-#             raise 'Not anough init parameters for Honeywell1400'
-#         self.vid = vid
-#         self.pid = pid
-#         self.path = path
-#         self.max_code_length = max_code_length
-#         self.logger = logging.getLogger(__name__)
-#
-#     def flush_input(self, file_descriptor) -> bytearray():
-#         discarded = bytearray()
-#         while select.select([file_descriptor], [], [], 0)[0]:
-#             discarded.append(os.read(file_descriptor, 8))
-#         return discarded
-#
-#     def wait_for_read(self, inter_char_timeout_sec: float = 0.1) -> str:
-#         try:
-#             reader_fd = os.open(self.path, os.O_RDWR)
-#             if select.select([reader_fd], [], [], 0)[0]:
-#                 self.flush_input(reader_fd)
-#             scanned_chars = bytearray()
-#             first_modifier_bytes = bytearray()
-#             code_length = 0
-#             for char in range(self.max_code_length):
-#                 buffer = os.read(reader_fd, 8)
-#                 first_modifier_bytes.append(buffer[0])
-#                 scanned_chars.append(buffer[2])
-#                 code_length += 1
-#                 if not select.select([reader_fd], [], [], inter_char_timeout_sec)[0]:
-#                     break
-#             scanned_code = []
-#             for modifier, char_int in zip(first_modifier_bytes, scanned_chars):
-#                 char = self.hid_lookup.get(char_int, None)
-#                 if char:
-#                     if modifier == 2:
-#                         char = char.capitalize()
-#                     scanned_code.append(char)
-#             return "".join(scanned_code)
-#         except Exception as ex:
-#             self.logger.exception("Reading stream Honeywell1400 Exception %s", ex)
+    def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
+        if path==None and (vid==None and pid==None):
+            raise 'Not anough init parameters for Honeywell1400'
+        self.vid = vid
+        self.pid = pid
+        self.path = path
+        self.max_code_length = max_code_length
+        self.logger = logging.getLogger(__name__)
+
+    def flush_input(self, file_descriptor) -> bytearray():
+        discarded = bytearray()
+        while select.select([file_descriptor], [], [], 0)[0]:
+            discarded.append(os.read(file_descriptor, 8))
+        return discarded
+
+    def wait_for_read(self, inter_char_timeout_sec: float = 0.1) -> str:
+        try:
+            reader_fd = os.open(self.path, os.O_RDWR)
+            if select.select([reader_fd], [], [], 0)[0]:
+                self.flush_input(reader_fd)
+            scanned_chars = bytearray()
+            first_modifier_bytes = bytearray()
+            code_length = 0
+            for char in range(self.max_code_length):
+                buffer = os.read(reader_fd, 8)
+                first_modifier_bytes.append(buffer[0])
+                scanned_chars.append(buffer[2])
+                code_length += 1
+                if not select.select([reader_fd], [], [], inter_char_timeout_sec)[0]:
+                    break
+            scanned_code = []
+            for modifier, char_int in zip(first_modifier_bytes, scanned_chars):
+                char = self.hid_lookup.get(char_int, None)
+                if char:
+                    if modifier == 2:
+                        char = char.capitalize()
+                    scanned_code.append(char)
+            return "".join(scanned_code)
+        except Exception as ex:
+            self.logger.exception("Reading stream Honeywell1400 Exception %s", ex)
 
 
 
@@ -706,7 +711,7 @@ class CameraDevice:
 
     def save_all_imgs_to_file(self):
         for i in range(self.img_count):
-            self.imSaveRaw3d('/home/pi/Desktop/Picture{}.jpg'.format(i), self.img[i,::,::,::])
+            self.imSaveRaw3d('/strips_tester_project/logs/Camera/Picture{}.jpg'.format(i), self.img[i,::,::,::])
 
     def imSaveRaw3d(self, fid, data):
         data.tofile(fid)
@@ -912,3 +917,80 @@ class IRTemperatureSensor(AbstractSensor):
     def close(self):
         #self.bus.close()
         pass
+
+
+class Wifi:
+    '''
+    Dependency on wifi
+    Saved configuration for connecting to a wireless network.  This
+    class provides a Python interface to the /etc/network/interfaces
+    file.
+        example for open network:
+        network={
+            ssid="GARO-MELN-2e8e6e"
+            key_mgmt=NONE
+        }
+    '''
+    interfaces = '/etc/wpa_supplicant/wpa_supplicant.conf'
+    head = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n'
+    head += 'update_config=1\n'
+    head += 'country=GB\n\n'
+
+
+    def __init__(self, interface):
+        self.iface = interface
+        self.network = collections.OrderedDict()
+        self.set()
+
+    def __str__(self):
+        '''
+        Returns the representation of a scheme that you would need
+        in the /etc/wpa_supplicant/wpa_supplicant.conf' file.
+        '''
+        scheme_str = ''
+        scheme_str += 'network={\n'
+        for k, v in self.network.items():
+            scheme_str += "\t{}={}\n".format(k, v)
+        scheme_str += '}\n'
+        return scheme_str
+
+
+    def format_file(self, network_dict):
+        str_config = ''
+        str_config += Wifi.head
+        str_config += 'network={\n'
+        for k, v in network_dict.items():
+            str_config += "{}={}\n".format(k, v)
+        str_config += '}\n'
+        return str_config
+
+    def save(self, ssid, psk, encryption_type = 'WPA2-PSK', options = None):
+        if self.psk == '':
+            self.network['ssid'] = '"' + ssid + '"'
+            self.network['key_mgmt'] = 'NONE'
+        else:
+            self.network['ssid'] = '"' + ssid + '"'
+            self.network['psk'] = '"' + psk + '"'
+            # network['key_mgmt'] = self.encryption_type.upper()
+
+        if_file = open(Wifi.interfaces, 'w')
+        if_file.write(self.format_file(self.network))
+
+    def activate(self):
+        print(os.system('sudo ifup {}'.format(self.iface)))
+
+    @staticmethod
+    def search():
+        wifilist = []
+        cells = wifi.Cell.all('self.iface')
+        for cell in cells:
+            wifilist.append(cell)
+        return wifilist
+
+    @staticmethod
+    def find_from_wifi_list(ssid):
+        wifilist = Wifi.search()
+        for cell in wifilist:
+            if cell.ssid == ssid:
+                return cell
+        return False

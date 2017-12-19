@@ -278,7 +278,7 @@ def run_custom_tasks():
     #print(num_successfull_tests)
     num_unsuccessfull_tests = TestSet.objects.using(DB).filter(status=False).distinct("id").count()
     #print(num_successfull_tests)
-    module_logger.info('Stat: FROM START --> OK: {}, FAIL: {},  ALL --> OK: {}, FAIL: {}'.format(settings.test_pass_count,
+    module_logger.info('Statistika: FROM START --> OK: {}, FAIL: {},  ALL --> OK: {}, FAIL: {}'.format(settings.test_pass_count,
                                                                                                  settings.test_failed_count,
                                                                                                  num_successfull_tests,
                                                                                                  num_unsuccessfull_tests))

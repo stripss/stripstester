@@ -43,7 +43,7 @@ def preset_tables(database: str='central', flag: bool=False):
         for test in TestType.objects.using(database).all():
             module_logger.debug("%s, %s, %s", test.name, test.description, test.units)
     else:
-        module_logger.info('NO table preset')
+        module_logger.warning('NO test_type and product_type preset')
 
 
 def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool=False):
@@ -55,7 +55,7 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
     :return:
     '''
     if flag:
-        module_logger.info("Preseting test_db from db : %s to db: %s", from_db, to_db)
+        module_logger.warning("Preseting test_db from db : %s to db: %s", from_db, to_db)
         bulk_size = 100
         # create one user -> db_manager
         if not User.objects.using(to_db).filter(username="admin").exists():
@@ -99,7 +99,7 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
         #     central_product_types.using()
         #     #central_test_types
     else:
-        module_logger.info('Not synced with central DB')
+        module_logger.warning('Not synced with central DB')
 
 
 for db in databases:
@@ -112,7 +112,7 @@ for db in databases:
         preset_tables_from_db('default', 'local', True)
     except Exception as ee:
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
-        module_logger.info("Central database not available, changes have not been made to local database")
+        module_logger.warning("Central database not available, changes have not been made to local database")
 
 
 
