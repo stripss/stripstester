@@ -41,6 +41,10 @@ os.system("sudo apt-get install -y i2c-tools")
 os.system("sudo apt-get install -y libpq-dev")
 os.system("sudo apt-get install -y postgresql-9.6")
 
+# pygame dependecies
+os.system('sudo apt-get install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev')
+os.system('sudo apt-get install -y libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev')
+
 # # python
 os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
 os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
