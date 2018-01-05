@@ -62,15 +62,16 @@ class BarCodeReadTask(Task):
     def set_up(self):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         #which_hid = os.system('ls /sys/class/hidraw')
-        self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
+        #self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
         #self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        #self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        pass
 
     def run(self) -> (bool, str):
         #module_logger.info("Prepared for reading matrix code: ")
         module_logger.info("Skeniraj QR kodo: ")
         # global current_product
-        raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        #raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
         #print(raw_scanned_string)
         #module_logger.info("Code read successful")
         #img = self.camera_device.take_one_picture()
@@ -78,6 +79,10 @@ class BarCodeReadTask(Task):
         #width = self.meshloader.matrix_code_location["width"]
         #height = self.meshloader.matrix_code_location["height"]
         #raw_scanned_string = utils.decode_qr(img[center[0]-height//2:center[0]+height//2+1, center[1]-width//2:center[1]+width//2+1, :]) # hard coded, add feature to mesh generator
+        #(175, 160, 3)
+        test_qr = utils.imLoadRaw3d('/strips_tester_project/strips_tester/qr_raw', 268, 294, 3, dtype=np.uint8, order='yxz')
+        #utils.imSaveRaw3d('/strips_tester_project/strips_tester/qr_raw1', test_qr)
+        raw_scanned_string = utils.decode_qr(test_qr)
         strips_tester.current_product.raw_scanned_string = raw_scanned_string
         #strips_tester.current_product.raw_scanned_string = 'M1806080087500004S2401877'
         #raw_scanned_string = input()

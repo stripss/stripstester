@@ -81,9 +81,14 @@ class ESP8266Flasher(AbstractFlasher):
     def setup(self, reset, dtr):
         # get mac to connect to wifi
         strips_tester.current_product.mac = self.esp.get_mac()
+        self.print_mac("MAC", strips_tester.current_product.mac)
         # already initialized at startup
         #GPIO.setup(reset, GPIO.OUT)
         #GPIO.setup(dtr, GPIO.OUT)
+
+    def get_mac(self):
+        def print_mac(label, mac):
+            module_logger.info('%s: %s' % (label, ':'.join(map(lambda x: '%02x' % x, mac))))
 
     def close(self):
         if self.esp != None:

@@ -7,6 +7,8 @@ import pylibdmtx.pylibdmtx as qrlib
 import picamera
 import time
 import hid
+import numpy as np
+#from matplotlib import pyplot as pp
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -124,3 +126,44 @@ def hid_enumerate(vid=None, pid=None):
 def get_time_zone():
     file_str = os.system('cat /etc/timezone')
 
+
+
+def imLoadRaw3d(fid, width, height, depth, dtype=np.uint8, order='xyz'):
+
+    slika = np.fromfile(fid, dtype=dtype)
+
+    if order == 'xyz':
+        slika.shape = [depth, height, width]
+
+    # ...
+    elif order=='yxz':
+        slika.shape = [height, width, depth]
+        #slika = slika.transpose([1, 2, 0])
+
+    elif order == 'zyx':
+        # Indeksi osi: [ 0  1  2]
+        slika.shape = [width, height, depth]
+        slika = slika.transpose([2, 1, 0])
+    else:
+        raise ValueError('Vrstni red ima napačno vrednost.' \
+                         'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
+    return slika
+
+
+
+
+def imSaveRaw3d(fid, data):
+    """
+
+    Funkcija shrani 3d sliko v surovem formatu.
+
+    Parametri
+    -------
+        fid:
+            Ime datoteke
+
+        data:
+            Podatki - slika
+
+    """
+    data.tofile(fid)

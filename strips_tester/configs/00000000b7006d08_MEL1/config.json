@@ -12,7 +12,7 @@
   "sync_db": 0,
 
   "task_execution_order": {
-    "BarCodeReadTask": 0,
+    "BarCodeReadTask": 1,
     "ProductConfigTask": 0,
     "StartProcedureTask": 0,
     "VoltageTest": 0,

@@ -976,7 +976,7 @@ class Wifi:
         if_file.write(self.format_file(self.network))
 
     def activate(self):
-        print(os.system('sudo ifup {}'.format(self.iface)))
+        module_logger.debug(os.system('sudo ifup {}'.format(self.iface)))
 
     @staticmethod
     def search():

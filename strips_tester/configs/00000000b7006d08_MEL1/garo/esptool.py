@@ -204,6 +204,10 @@ class ESPLoader(object):
         print('')
         raise FatalError("Unexpected UART datecode value 0x%08x. Failed to autodetect chip type." % date_reg)
 
+    def close(self):
+        #close Serial
+        self._port.close()
+
     """ Read a SLIP packet from the serial port """
     def read(self):
         return next(self._slip_reader)

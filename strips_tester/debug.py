@@ -163,24 +163,46 @@ import json
 
 if __name__ == '__main__':
 
-    my_cell = Wifi.Scheme.find_from_wifi_list('GARO-MELN-8e6e')
-    print(my_cell.ssid)
-    print(os.system('sudo ifdown wlan0'))
-    time.sleep(0.5)
-    my_scheme = Wifi.Scheme(my_cell.ssid, '')
-    #my_scheme = WifiScheme('STRIPS_TESTING', 'Kandrse07')
-    print(my_scheme)
-    my_scheme.save()
-    my_scheme.activate()
-    time.sleep(0.5)
-    http = urllib3.PoolManager()
-    r = http.request('GET', '192.168.2.1/v1/info', timeout=3.0)
-    json_response = json.loads(r.data.decode('utf-8'))
-    print(json_response['mac'])
+    # my_cell = Wifi.Scheme.find_from_wifi_list('GARO-MELN-8e6e')
+    # print(my_cell.ssid)
+    # print(os.system('sudo ifdown wlan0'))
+    # time.sleep(0.5)
+    # my_scheme = Wifi.Scheme(my_cell.ssid, '')
+    # #my_scheme = WifiScheme('STRIPS_TESTING', 'Kandrse07')
+    # print(my_scheme)
+    # my_scheme.save()
+    # my_scheme.activate()
+    # time.sleep(0.5)
+    # http = urllib3.PoolManager()
+    # r = http.request('GET', '192.168.2.1/v1/info', timeout=3.0)
+    # json_response = json.loads(r.data.decode('utf-8'))
+    # print(json_response['mac'])
+
+    # import pygame
+    # import pygame.camera
+    # from pygame.locals import *
+    #
+    # pygame.init()
+    # pygame.camera.init()
+    #
+    # cam = pygame.camera.Camera("/dev/video0", (1280, 720))
+    # #cam.stop()
+    # cam.start()
+    # image = cam.get_image()
+    # pygame.image.save(image,"/home/pi/Desktop/qr.jpg")
+    # img = pygame.surfarray.array2d(image)
+    # cam.stop()
+    # pygame.quit()
 
 
+    import picamera
+    import numpy as np
 
-
+    camera = picamera.PiCamera()
+    print("Prewiev running")
+    camera.start_preview()
+    time.sleep(1000)
+    camera.stop_preview()
 
 
 
