@@ -99,26 +99,6 @@ class AbstractBarCodeScanner:
         self.name = name
         self.open()
 
-    def get_decode_data(self):
-        self.get_data()
-
-    def get_raw_data(self):
-        return self.read_raw()
-
-    def open(self):
-        self.open_scanner()
-        module_logger.debug("%s opened", self.name)
-
-    def close(self):
-        self.close_scanner()
-        module_logger.debug("%s closed", self.name)
-
-
-class AbstractBarCodeScanner:
-    def __init__(self, name):
-        self.name = name
-        #self.open()
-
     def get_decoded_data(self):
         return self.get_dec_data()
 
