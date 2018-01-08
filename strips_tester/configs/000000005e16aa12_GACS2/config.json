@@ -11,7 +11,7 @@
 
   "task_execution_order": {
     "BarCodeReadTask": 1,
-    "ProductConfigTask": 1,
+    "ProductConfigTask": 0,
     "StartProcedureTask": 0,
     "VoltageTest": 0,
     "FlashWifiModuleTask": 0,
@@ -22,7 +22,7 @@
     "CameraTest": 0,
     "FinishProcedureTask": 0,
     "PrintSticker": 0,
-    "GACSTestLed": 1,
+    "GACSTestLed": 0,
     "WriteToDB": 0
   },
 

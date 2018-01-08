@@ -60,15 +60,17 @@ class BarCodeReadTask(Task):
     def set_up(self):
         #self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16)
         #which_hid = os.system('ls /sys/class/hidraw')
-        self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
+        #self.reader = devices.Honeywell1400(vid=None, pid=None, path="/dev/hidraw0", max_code_length=50)
         #self.camera_device = devices.CameraDevice(Xres=640, Yres=480)
-        self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        #self.meshloader = devices.MeshLoaderToList('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/Mask.json')
+        self.reader = devices.Honeywell1400gHID(vid=0x0c2e, pid=0x0b87)
 
     def run(self) -> (bool, str):
         #module_logger.info("Prepared for reading matrix code: ")
         module_logger.info("Skeniraj QR kodo: ")
         # global current_product
-        raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        #raw_scanned_string = self.reader.wait_for_read() # use scanned instead of camera
+        raw_scanned_string = self.reader.get_decoded_data()
         #print(raw_scanned_string)
         #module_logger.info("Code read successful")
         #img = self.camera_device.take_one_picture()
@@ -85,7 +87,7 @@ class BarCodeReadTask(Task):
         return {"signal":[1, "ok", 5, "NA"]}
 
     def tear_down(self):
-        pass
+        self.reader.close()
         #self.camera_device.close()
 
 class ProductConfigTask(Task):

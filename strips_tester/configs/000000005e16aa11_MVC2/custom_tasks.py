@@ -505,7 +505,6 @@ class InternalTest(Task):
                 module_logger.error("Zaslon ne deluje")
 
             relay_process.join(timeout=25)
-            module_logger.info("Testiranje tipk...")
             result = queue.get()
             if result == True:
                 module_logger.info("Releji ok")
@@ -513,7 +512,7 @@ class InternalTest(Task):
             else:
                 module_logger.error("Releji ne delujejo")
                 self.measurement_results["relays"] = [0, "fail", 0, "bool"]
-
+            module_logger.info("Testiranje tipk...")
             # default, even if no data from uart
             ###
             self.measurement_results["keyboard"] = [0, "fail", 0, "bool"]

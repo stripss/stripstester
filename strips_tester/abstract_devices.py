@@ -97,7 +97,7 @@ class AbstractSensor:
 class AbstractBarCodeScanner:
     def __init__(self, name):
         self.name = name
-        self.open()
+        #self.open()
 
     def get_decoded_data(self):
         return self.get_dec_data()

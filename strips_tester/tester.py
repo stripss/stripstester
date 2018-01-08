@@ -199,6 +199,7 @@ def run_custom_tasks():
                                             notes=settings.product_notes,
                                             type=product_type)
 
+
     custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
     for task_name in settings.task_execution_order:
         if settings.task_execution_order[task_name]:

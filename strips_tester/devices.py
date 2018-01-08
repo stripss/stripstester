@@ -23,7 +23,7 @@ from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, A
 from collections import OrderedDict
 #from smbus2 import SMBus, i2c_msg
 from smbus2 import SMBusWrapper
-import wifi
+#import wifi
 import collections
 
 
@@ -38,7 +38,7 @@ class Honeywell1400gHID(AbstractBarCodeScanner):
             raise 'Not anough init parameters for {}'.format(type(self).__name__)
         self.vid = vid
         self.pid = pid
-        #self.open_scanner()
+        self.open_scanner()
 
     def open_scanner(self):
         self.device = hid.device()
