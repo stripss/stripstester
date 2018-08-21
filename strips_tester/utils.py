@@ -129,24 +129,31 @@ def get_time_zone():
 
 
 def imLoadRaw3d(fid, width, height, depth, dtype=np.uint8, order='xyz'):
+    from PIL import Image
 
-    slika = np.fromfile(fid, dtype=dtype)
+    img = Image.open(fid + '.png')
+    slika = np.array(img, dtype='uint8')
+
+    #np.save(fid + '.npy', data)
+
+    #slika = np.fromfile(fid + ".png", dtype=dtype)
+    #slika = np.fromfile(fid, dtype='uint8', count=width * height).reshape((width, height))
 
     if order == 'xyz':
         slika.shape = [depth, height, width]
-
     # ...
     elif order=='yxz':
         slika.shape = [height, width, depth]
         #slika = slika.transpose([1, 2, 0])
 
     elif order == 'zyx':
-        # Indeksi osi: [ 0  1  2]
+        # Indeksi osi: [0  1  2]
         slika.shape = [width, height, depth]
         slika = slika.transpose([2, 1, 0])
     else:
         raise ValueError('Vrstni red ima napačno vrednost.' \
                          'Dopustne vrednosti so \'xyz\' ali \'zyx\'.')
+
     return slika
 
 

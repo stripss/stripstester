@@ -25,8 +25,8 @@ from collections import OrderedDict
 from smbus2 import SMBusWrapper
 #import wifi
 import collections
-
-
+from ina219 import INA219
+import RPi.GPIO as GPIO
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -513,7 +513,7 @@ class SainBoard16:
     OPEN_CMD = (0xD2, 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x48, 0x49, 0x44, 0x43, 0x80, 0x02, 0x00, 0x00)
     CLOSE_CMD = (0x71, 0x0E, 0x71, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0x2A, 0x02, 0x00, 0x00)
 
-    def __init__(self, vid: int, pid, path: str = None, initial_status=None, number_of_relays: int = 16):
+    def __init__(self, vid: int, pid, path: str = None, initial_status=None, number_of_relays: int = 16,ribbon=False):
         self.vid = vid
         self.pid = pid
         self.path = path
@@ -523,6 +523,7 @@ class SainBoard16:
         self.logger = logging.getLogger(__name__)
         self.status = initial_status if initial_status else [False] * number_of_relays
         self.open()
+        self.ribbon = ribbon
 
     def open(self):
         if self.is_open:
@@ -582,7 +583,10 @@ class SainBoard16:
 
     def open_relay(self, relay_number: int):
         """ Opens relay by its number """
+        #print("Relay '{}' opened.".format(relay_number))
         if 1 <= relay_number <= self.number_of_relays:
+            if self.ribbon:
+                relay_number = self.ribbon_cable(relay_number)
             self.status[relay_number - 1] = False
         else:
             self.logger.critical("Relay number out of bounds")
@@ -590,6 +594,10 @@ class SainBoard16:
         self.logger.debug("Relay %s OPENED", relay_number)
 
     def close_relay(self, relay_number: int):
+        #print("Relay '{}' closed.".format(relay_number))
+        if self.ribbon:
+            relay_number = self.ribbon_cable(relay_number)
+
         """ Connect/close_relay relay by its number """
         if 1 <= relay_number <= self.number_of_relays:
             self.status[relay_number - 1] = True
@@ -619,6 +627,46 @@ class SainBoard16:
         #         new = original | mask  # If value was True, set the bit indicated by the mask.
         #     return new
 
+    def ribbon_cable(self,relay_number):
+        # return swapped pin number because of ribbon cable which invert pins
+
+        result = (relay_number - 1) - (2 * -(relay_number % 2))
+
+        return result
+
+
+class INA219a(AbstractSensor):
+    ADDR = 0x40
+    SHUNT_OHMS = 0.1
+    MAX_EXPECTED_AMPS = 0.2
+
+    def __init__(self):
+        self.ina = INA219(INA219a.SHUNT_OHMS, INA219a.MAX_EXPECTED_AMPS, INA219a.ADDR)
+        self.ina.configure(self.ina.RANGE_16V, self.ina.GAIN_1_40MV)
+
+    def get_voltage(self):
+        with SMBusWrapper(1) as bus:
+            hibyte = bus.read_byte_data(INA219a.ADDR, 0x02)
+            result = (hibyte << 8) + bus.read_byte_data(INA219a.ADDR, 0x02 + 1)
+
+        return (result >> 3) * 4
+
+    def voltmeter(self):
+        try:
+            repeat = 60
+            voltage = 0.0
+
+            for x in range(0, repeat):
+                voltage += self.get_voltage()
+
+            voltage /= repeat
+            voltage *= 0.001
+
+        except Exception as ee:
+            print("ERROR: {}".format(ee))
+
+        return voltage
+
 class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, device_name, delay: int = 1):
         super().__init__(delay,"Voltage", "V")
@@ -627,20 +675,26 @@ class YoctoVoltageMeter(AbstractSensor):
         errmsg = None
         if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
             module_logger.error("Can't load yocto API : %s", errmsg)
+            print("poasidjaspiodj")
             raise "Can't load yocto API"
+
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
         #sensor = YVoltage.FirstVoltage()
+
         self.sensor = YVoltage.FindVoltage(device_name)
         if (self.sensor == None):
             raise ("No yocto device is connected")
         m = self.sensor.get_module()
         target = m.get_serialNumber()
+
         module_logger.debug("Module %s found with serial number %s", m, target);
         if not (self.sensor.isOnline()):
             raise ('yocto volt is not on')
         module_logger.debug("Yocto-volt init done")
 
+
     def get_value(self):
+
         return self.sensor.get_currentValue()
 
     def close(self):
@@ -820,6 +874,346 @@ class MeshLoaderToList:
                 self.indices[j,i,:] = [x_loc,y_loc,R,G,B]
             self.indices_length.append(len(temp_mesh))
 
+
+
+
+
+class Stepper:
+    def __init__(self,dirPin,stepPin,enablePin,limitPin,servoPin,powerPin):
+        self.position = 0
+        self.retract = 100
+        self.jammed = False
+
+        self.dirPin = dirPin
+        self.stepPin = stepPin
+        self.enablePin = enablePin
+        self.limitPin = limitPin
+        self.servoPin = servoPin
+        self.powerPin = powerPin
+
+        # Set up limit switch
+        GPIO.setup(limitPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+        # Set output pins
+        GPIO.setup(dirPin, GPIO.OUT)
+        GPIO.setup(stepPin, GPIO.OUT)
+        GPIO.setup(enablePin, GPIO.OUT)
+        GPIO.setup(servoPin, GPIO.OUT)
+        GPIO.setup(powerPin, GPIO.OUT)
+
+        self.steps_per_mm = 61
+
+        self.step_delay = 0.0008
+
+        #self.calibrate()
+
+    def calibrate(self,timeout = 5):
+        # Calibrate stepper to zero position
+        self.disconnect()
+
+        # Start calibration
+        GPIO.output(self.dirPin, GPIO.LOW)
+        GPIO.output(self.enablePin, GPIO.LOW)
+
+
+        start = time.time()
+        # Detect limit switch
+        while GPIO.input(self.limitPin):
+            self.make_step()
+
+            if start + timeout < time.time():
+                self.jam()
+                return
+
+        self.step_delay = self.step_delay + 0.0005
+        GPIO.output(self.dirPin, GPIO.HIGH)
+
+        # Stepper is at close zero, retract a little
+        while not GPIO.input(self.limitPin):
+            self.make_step()
+
+        # Retraction
+        for steps in range(self.retract):
+            self.make_step()
+
+        GPIO.output(self.dirPin, GPIO.LOW)
+
+        start = time.time()
+        # Slowly touch limit switch
+        while GPIO.input(self.limitPin):
+            self.make_step()
+
+            if start + timeout < time.time():
+                self.jam()
+                return
+
+        self.step_delay = self.step_delay - 0.0005
+        GPIO.output(self.enablePin, GPIO.HIGH)
+        self.position = 0
+        print("Calibration done.")
+        time.sleep(1)
+
+    def connect(self):
+        if self.jammed:
+            return
+
+        # Move servo up and down with duration
+        self.servo_write(160)
+        # Wait for servo to come down
+        time.sleep(1)
+
+    def disconnect(self):
+        self.servo_write(80)
+        # Wait for servo to come down
+        time.sleep(0.1)
+
+    def servo_write(self, angle):
+        duty = angle / 18 + 2
+
+        self.pwm = GPIO.PWM(self.servoPin, 50)
+        self.pwm.start(duty)
+
+        GPIO.output(self.servoPin, GPIO.HIGH)
+        self.pwm.ChangeDutyCycle(duty)
+        time.sleep(0.1)
+        GPIO.output(self.servoPin, GPIO.LOW)
+        self.pwm.stop()
+
+    def set_mode(self,mode):
+        if self.jammed:
+            return
+        # Mode 0 - voltmeter
+        # Mode 1 - ammeter
+
+        if mode:
+            GPIO.output(self.powerPin,GPIO.HIGH)
+        else:
+            GPIO.output(self.powerPin,GPIO.LOW)
+
+        time.sleep(0.1)
+
+
+    def move(self,index):
+        if index < 0 or self.jammed:
+            return
+
+        new_position = index * self.steps_per_mm
+
+        # DIR True - to limit switch
+        # DIR False - against limit switch
+
+        if self.position > new_position:
+            GPIO.output(self.dirPin, GPIO.LOW)
+        else:
+            GPIO.output(self.dirPin, GPIO.HIGH)
+
+
+        GPIO.output(self.enablePin, GPIO.LOW)
+
+        # Preveri ce pride do odstopanja enega stepa zaradi neupostevanja =
+        while self.position != new_position:
+            if self.position > new_position:
+                self.position -= 1
+            elif self.position < new_position:
+                self.position += 1
+
+            self.make_step()
+
+        GPIO.output(self.enablePin, GPIO.HIGH)
+
+    def make_step(self):
+        if self.jammed:
+            return
+
+        GPIO.output(self.stepPin, GPIO.HIGH)
+        time.sleep(self.step_delay)
+        GPIO.output(self.stepPin, GPIO.LOW)
+        time.sleep(self.step_delay)
+
+    def jam(self):
+        self.jammed = True
+        GPIO.output(self.enablePin, GPIO.HIGH)
+
+
+class Arduino:
+    def __init__(self,address = 0x05):
+        if isinstance(address, str):
+            address = int(address,16)
+
+        self.addr = address
+        self.ready = 0
+
+
+    # Ping MCP23017 to see if address is valid
+    def ping(self):
+        try:
+            with SMBusWrapper(1) as bus:
+                # Set port A as output
+
+                bus.write_byte_data(self.addr,0x00, 1)
+        except OSError:
+            raise
+
+    # Ping MCP23017 to see if address is valid
+    def moveStepper(self,index):
+        if index < 0 or index > 40:
+            return
+
+        with SMBusWrapper(1) as bus:
+            result = False
+
+            for i in range(20):
+                # Set port A as output
+                try:
+                    bus.write_byte(0x04, 100)
+                    bus.write_byte(0x04, index)
+
+                    result = True
+                    self.ready = 0
+
+                    break
+                except OSError:
+                    print("Write OS Error")
+                    time.sleep(0.1)
+
+            if not result:
+                raise Exception
+
+            print(self.ready)
+            while not self.ready:
+                try:
+                    self.ready = bus.read_byte(0x04)
+                    break
+                except OSError:
+                    print("Read OS Error")
+                    time.sleep(0.1)
+
+    def calibrate(self):
+        with SMBusWrapper(1) as bus:
+            result = False
+
+            for i in range(20):
+                # Set port A as output
+                try:
+
+                    bus.write_byte(0x04, 103)
+                    bus.write_byte(0x04, 10) # dummmy data
+
+                    result = True
+                    self.ready = 0
+                    break
+                except OSError:
+                    print("Write OS3 Error")
+                    time.sleep(0.1)
+
+            if not result:
+                raise Exception
+
+            while not self.ready:
+                try:
+                    self.ready = bus.read_byte(0x04)
+                    break
+                except OSError:
+                    print("Read OS Error")
+                    time.sleep(0.1)
+
+    def connect(self):
+        self.ready = 0
+        with SMBusWrapper(1) as bus:
+            result = False
+
+            for i in range(20):
+                # Set port A as output
+                try:
+
+                    bus.write_byte(0x04, 101)
+                    bus.write_byte(0x04, 130)
+
+                    print("Writing...")
+
+                    result = True
+
+                    break
+                except OSError:
+                    print("Write OS1 Error")
+                    time.sleep(0.1)
+
+            if not result:
+                raise Exception
+
+            while not self.ready:
+                try:
+                    self.ready = bus.read_byte(0x04)
+                    break
+                except OSError:
+                    print("Read OS Error")
+                    time.sleep(0.1)
+
+
+    def servo1(self,angle):
+        self.ready = 0
+        with SMBusWrapper(1) as bus:
+            result = False
+
+            for i in range(20):
+                # Set port A as output
+                try:
+
+                    bus.write_byte(0x04, 200)
+                    bus.write_byte(0x04, angle)
+
+                    print("Writing...")
+
+                    result = True
+
+                    break
+                except OSError:
+                    print("Write OS Error")
+                    time.sleep(0.1)
+
+            if not result:
+                raise Exception
+
+            while not self.ready:
+                try:
+                    self.ready = bus.read_byte(0x04)
+                    break
+                except OSError:
+                    print("Read OS Error")
+                    time.sleep(0.1)
+
+    def disconnect(self):
+        self.ready = 0
+        with SMBusWrapper(1) as bus:
+            result = False
+
+
+            for i in range(20):
+                # Set port A as output
+                try:
+                    bus.write_byte(0x04, 102)
+                    bus.write_byte(0x04, 60)
+
+                    result = True
+                    break
+                except OSError:
+                    print("Write OS2 Error")
+                    time.sleep(0.1)
+
+            if not result:
+                raise Exception
+
+            while not self.ready:
+                try:
+                    self.ready = bus.read_byte(0x04)
+                    break
+                except OSError:
+                    print("Read OS Error")
+                    time.sleep(0.1)
+
+
+
+
 class MCP23017:
     IODIRA = 0x00
     IODIRB = 0x01
@@ -828,9 +1222,41 @@ class MCP23017:
     OLATA = 0x14
     OLATB = 0x15
 
-    ADDR = 0x20
-    def __init__(self):
-        pass
+
+    def __init__(self,address = 0x20):
+        if isinstance(address, str):
+            address = int(address,16)
+
+        self.addr = address
+        self.ping()
+
+    # Ping MCP23017 to see if address is valid
+    def ping(self):
+        try:
+            with SMBusWrapper(1) as bus:
+                # Set port A as output
+                data = 0x00
+                bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
+        except OSError:
+            raise
+
+    def set_led_status(self,status):
+        module_logger.debug("Starting led test in %s",__name__)
+
+        with SMBusWrapper(1) as bus:
+            # 0x01 - zelena leva
+            # 0x02 - rdeca leva
+
+            # 0x04 - zelena desna
+            # 0x08 - rdeca desna
+
+
+            # Set port A as output
+            data = 0x00
+            bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
+
+            data = status
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
 
     def test_led(self):
         module_logger.debug("Starting led test in %s",__name__)
@@ -838,38 +1264,65 @@ class MCP23017:
         with SMBusWrapper(1) as bus:
             # set GPIOB to output
             data = 0x00
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
             time.sleep(0.05)
 
-            # turn on every GPIOA
-            for i in range(7):
+            for i in range(4):
                 data = 0x01 << i
-                bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+                bus.write_byte_data(self.addr, MCP23017.OLATA, data)
                 time.sleep(1)
+
             # turn off
             data = 0x00
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
+
+
+
+
+    def test_one_led(self,lednum):
+        self.lednum = lednum
+        module_logger.debug("Starting led test in %s",__name__)
+
+        with SMBusWrapper(1) as bus:
+            # set GPIOB to output
+            data = 0x00
+            bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
+            time.sleep(0.05)
+
+            data = 0x01 << lednum
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
+            time.sleep(0.05)
+
+            # turn off
+            #data = 0x00
+            #bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+
+    def manual_off(self):
+        with SMBusWrapper(1) as bus:
+            data = 0x00
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
+
 
     def turn_heater_on(self):
         with SMBusWrapper(1) as bus:
         # set GPIOA 7 to output
             data = 0x00
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
             time.sleep(0.05)
 
             data = 0x01 << 7
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
         module_logger.debug("Heater on")
 
     def turn_heater_off(self):
         with SMBusWrapper(1) as bus:
             # set GPIOA 7 to output
             data = 0x00
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.IODIRA, data)
+            bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
             time.sleep(0.05)
 
             data = 0x00 << 7
-            bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+            bus.write_byte_data(self.addr, MCP23017.OLATA, data)
         module_logger.debug("Heater off")
 
 

@@ -15,11 +15,11 @@
     "BarCodeReadTask": 1,
     "ProductConfigTask": 1,
     "StartProcedureTask": 1,
-    "VoltageTest": 1,
+    "VoltageTest": 0,
     "FlashWifiModuleTask": 0,
-    "FlashMCUTask": 1,
+    "FlashMCUTask": 0,
     "UartPingTest": 0,
-    "InternalTest": 1,
+    "InternalTest": 0,
     "ManualLCDTest": 0,
     "CameraTest": 0,
     "FinishProcedureTask": 1,
@@ -27,8 +27,7 @@
   },
 
   "critical_event_tasks": {
-    "FinishProcedureTask": 1,
-    "PrintSticker": 1
+    "FinishProcedureTask": 1
   },
 
   "gpio_settings": {

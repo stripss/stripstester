@@ -30,29 +30,34 @@ class AbstractVoltMeter:
             return False
 
 
-class AbstractFlasher:
-    def __init__(self, reset, dtr, retries: int = 5):
+class AbstractFlasher(threading.Thread):
+    def __init__(self,que, reset, dtr, retries: int = 5):
         self.retries = retries
         self.reset = reset
         self.dtr = dtr
+        self.que = que
 
     def flash(self):
         try:
             self.setup(self.reset, self.dtr)
+
             success = False
             module_logger.info("Programiranje...")
+            print("Programiranje")
             for retry_number in range(5):
+                print("RETRYING...")
                 if self.run_flashing():
                     module_logger.info("Programiranje uspelo")
 
-
+                    self.que.put(True)
                     return True
             module_logger.error("Programiranje ni uspelo")
 
+            self.que.put(False)
             return False
         except Exception as ee:
             module_logger.info('Exception %s occured in %s ', ee, type(self).__name__)
-
+            self.que.put(False)
             return False
 
     def setup(self):

@@ -1,0 +1,127 @@
+{
+  "product_name": "GACS_A2 Bender",
+  "product_type": 10,
+  "product_variant": "",
+  "product_hw_release": "1.0",
+  "product_description": "nothing to say",
+  "product_notes": "nothing so say",
+  "test_device_name": "Testna",
+  "test_type": "Testna",
+  "test_device_employee": "Marcel",
+  "central_db_host": "192.168.11.136",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+    "StartProcedureTask": 1
+  },
+
+  "critical_event_tasks": {
+  },
+
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 12,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 29,
+      "initial": 1
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 15,
+      "initial": 1
+    },
+    "LOCK": {
+      "function": 0,
+      "pin": 31,
+      "initial": 1
+    },
+    "LED_red_left": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    },
+    "LED_red_right": {
+      "function": 0,
+      "pin": 13,
+      "initial": 1
+    },
+    "INTERIOR_LED": {
+      "function": 0,
+      "pin": 33,
+      "initial": 1
+    }
+
+
+  },
+  "relay_settings": {
+    "12V": {
+      "initial": 0,
+      "pin": 10
+    },
+    "3V3": {
+      "initial": 0,
+      "pin": 1
+    },
+    "Heater": {
+      "initial": 0,
+      "pin": 8
+    },
+    "Vcc1": {
+      "initial": 0,
+      "pin": 2
+    },
+    "Vcc2": {
+      "initial": 0,
+      "pin": 3
+    },
+    "OUT_relay_1": {
+      "initial": 0,
+      "pin": 6
+    },
+    "OUT_relay_2": {
+      "initial": 0,
+      "pin": 7
+    },
+    "OUT_relay_3": {
+      "initial": 0,
+      "pin": 5
+    },
+    "OUT_relay_4": {
+      "initial": 0,
+      "pin": 4
+    },
+    "IN_relay_1": {
+      "initial": 0,
+      "pin": 13
+    },
+    "IN_relay_2": {
+      "initial": 0,
+      "pin": 14
+    },
+    "Inv_relay_1": {
+      "initial": 0,
+      "pin": 11
+    },
+    "Inv_relay_2": {
+      "initial": 0,
+      "pin": 12
+    },
+    "Power": {
+      "initial": 0,
+      "pin": 9
+    },
+    "LED_green_left": {
+      "initial": 0,
+      "pin": 16
+    },
+    "LED_green_right": {
+      "initial": 0,
+      "pin": 15
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "light_panel": {"MCP23017": ["0x25"]},
+  "stepper": {"Stepper": [38, 11, 40, 37, 32, 35]},
+  "voltmeter": {"YoctoVoltageMeter": ["VOLTAGE1-B5E9C.voltage1",0.16]}
+}

@@ -1,0 +1,328 @@
+{
+  "product_name": "GACS A2 Bender",
+  "product_type": 10,
+  "product_variant": "basic",
+  "product_hw_release": "1.0",
+  "product_description": "GACS A2 charger indicator",
+  "product_notes": "nothing to say",
+  "test_device_name": "GACS A2 Bender",
+  "test_device_employee": "employee2",
+  "central_db_host": "none",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+
+
+
+
+    "StartProcedureTask": {
+      "name": "Start Testa",
+      "desc": "Izvaja se start testa",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Začetni čas",
+          "slug": "start_time",
+          "desc": "Začetni čakalni čas",
+          "value": 2,
+          "unit": "s"
+        },
+        {
+          "name": "Končni čas",
+          "slug": "end_time",
+          "desc": "Končni čakalni čas",
+          "value": 1,
+          "unit": "s"
+        }
+      ]
+    },
+
+    "ReadSerial": {
+      "name": "Branje QR kode",
+      "desc": "Branje QR kode s pomočjo kamere.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Ime datoteke",
+          "slug": "image_name",
+          "desc": "Ime datoteke, ki shranjuje QR sliko zadnjega testiranega modula",
+          "value": "datamatrix",
+          "unit": ".jpg"
+        }
+      ]
+    },
+
+    "VoltageTest": {
+      "name": "Meritev napetosti",
+      "desc": "Izvaja se meritev referenčnih napetosti",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Referenca 12V",
+          "slug": "ref_12v",
+          "desc": "Napajalna napetost 12V",
+          "value": 12,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "reftol_12v",
+          "desc": "Toleranca referenčne napetosti 12v",
+          "value": 1,
+          "unit": "V"
+        },
+        {
+          "name": "Referenca 3.3V",
+          "slug": "ref_3v3",
+          "desc": "Napajalna napetost mikrokontrolerjev 3.3V",
+          "value": 3.3,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "reftol_3v3",
+          "desc": "Toleranca referenčne napetosti 3.3V",
+          "value": 0.5,
+          "unit": "V"
+        }
+      ]
+    },
+
+    "I2C_Communication": {
+      "name": "I2C komunikacija",
+      "desc": "Pregled komunikacije tiskanine preko i2c protokola.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Zelena LED - tok",
+          "slug": "green_max_current",
+          "desc": "Maksimalni tok skozi zelene LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Modra LED - tok",
+          "slug": "blue_max_current",
+          "desc": "Maksimalni tok skozi modre LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Rdeča LED - tok",
+          "slug": "red_max_current",
+          "desc": "Maksimalni tok skozi rdeče LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Bela LED - tok",
+          "slug": "white_max_current",
+          "desc": "Maksimalni tok skozi bele LED diode",
+          "value": 120,
+          "unit": "mA"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "tolerance",
+          "desc": "Toleranca pri meritvah toka",
+          "value": 10,
+          "unit": "mA"
+        },
+        {
+          "name": "Temperatura",
+          "slug": "temperature",
+          "desc": "Željena merjena temperatura",
+          "value": 25,
+          "unit": "°C"
+        },
+        {
+          "name": "Toleranca temperature",
+          "slug": "temp_tolerance",
+          "desc": "Toleranca pri meritve temperature",
+          "value": 5,
+          "unit": "°C"
+        }
+      ]
+    },
+
+
+    "PowerOffTest": {
+      "name": "Signalne LED",
+      "desc": "Test signalnih LED diod.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Zelena LED",
+          "slug": "green_led_voltage",
+          "desc": "Napetost zelene signalne LED diode",
+          "value": 8.2,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "green_led_tolerance",
+          "desc": "Toleranca napetosti zelene LED diode",
+          "value": 0.3,
+          "unit": "V"
+        },
+        {
+          "name": "Rdeča LED",
+          "slug": "red_led_voltage",
+          "desc": "Napetost rdeče signalne LED diode",
+          "value": 1.8,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "red_led_tolerance",
+          "desc": "Toleranca napetosti rdeče LED diode",
+          "value": 0.3,
+          "unit": "V"
+        },
+        {
+          "name": "Čas preverbe napolnjenosti",
+          "slug": "time_before_check",
+          "desc": "Čas, po katetem TN pregleda napetost modula",
+          "value": 5,
+          "unit": "s"
+        },
+        {
+          "name": "Napetost",
+          "slug": "voltage_check",
+          "desc": "Napetost na kondenzatorjih po izklopu napajanja",
+          "value": 10,
+          "unit": "V"
+        }
+      ]
+    },
+
+    "LockSimulator": {
+      "name": "Simulator zaklepa",
+      "desc": "Simulator zaklepa ključavnice.",
+      "enable": 1
+    },
+    "FinishProcedureTask": {
+      "name": "Konec testa",
+      "desc": "Izvaja se meritev referenčnih napetosti",
+      "enable": 1
+    }
+  },
+
+  "critical_event_tasks": {
+
+  },
+
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 40,
+      "pull": 22
+    },
+    "MANUAL_LOCK": {
+      "function": 1,
+      "pin": 16,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 29,
+      "initial": 1
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 31,
+      "initial": 1
+    },
+    "LOCK": {
+      "function": 0,
+      "pin": 37,
+      "initial": 1
+    },
+    "INTERIOR_LED": {
+      "function": 0,
+      "pin": 33,
+      "initial": 1
+    },
+    "3V3": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    },
+    "OUT_relay_3": {
+      "function": 0,
+      "pin": 13,
+      "initial": 1
+    },
+    "OUT_relay_4": {
+      "function": 0,
+      "pin": 15,
+      "initial": 1
+    }
+  },
+  "relay_settings": {
+    "12V": {
+      "initial": 0,
+      "pin": 10
+    },
+    "Heater": {
+      "initial": 0,
+      "pin": 8
+    },
+    "Vcc1": {
+      "initial": 0,
+      "pin": 15
+    },
+    "Vcc2": {
+      "initial": 0,
+      "pin": 3
+    },
+    "OUT_relay_1": {
+      "initial": 0,
+      "pin": 12
+    },
+    "OUT_relay_2": {
+      "initial": 0,
+      "pin": 1
+    },
+    "IN_relay_1": {
+      "initial": 0,
+      "pin": 16
+    },
+    "IN_relay_2": {
+      "initial": 0,
+      "pin": 2
+    },
+    "Inv_relay_1": {
+      "initial": 0,
+      "pin": 7
+    },
+    "Inv_relay_2": {
+      "initial": 0,
+      "pin": 6
+    },
+    "Power": {
+      "initial": 0,
+      "pin": 9
+    },
+    "LED_green_left": {
+      "initial": 0,
+      "pin": 14
+    },
+    "LED_green_right": {
+      "initial": 0,
+      "pin": 4
+    },
+    "LED_red_left": {
+      "initial": 0,
+      "pin": 13
+    },
+    "LED_red_right": {
+      "initial": 0,
+      "pin": 5
+    }
+  }
+}
+
+
+

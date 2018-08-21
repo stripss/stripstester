@@ -1,18 +1,17 @@
-
 import RPi.GPIO as GPIO
 import sys, os
-
 import logging
 
-from . import esptool
+import glob
+
+#from . import esptool
 #import stmtool as STM
 import json
 # from esptool import ESPLoader
 # from esptool import NotImplementedInROMError
 from argparse import Namespace
-from . import stm32loader as STM
-from strips_tester.abstract_devices import AbstractFlasher
-import strips_tester
+import stm32loader as STM
+from abstract_devicesThread import AbstractFlasher
 
 
 module_logger = logging.getLogger("strips_tester.garo.flash")
@@ -76,7 +75,7 @@ class UCFlashConfig:
         self.mode = "qio"
         self.firmware_path = None
         self.port = "/dev/ttyAMA0"
-        self.resetPin = 6
+        self.resetPin =6
         self.bootPin = 13
     @classmethod
     def load(cls, file_path):
@@ -151,6 +150,13 @@ def flash_wifi(configFile='/wifiConfig.json', wifibinFile='bin/wifi.bin'):
     module_logger.debug("Wifi upload done ")
     return True
 
+# MCU FLASHER
+#################################################################
+def get_latest_file(path_to_search):
+    list_of_files = glob.glob(path_to_search)  # * means all if need specific format then *.csv
+    latest_file = max(list_of_files, key=os.path.getctime)
+    return latest_file
+
 
 class STM32M0Flasher(AbstractFlasher):
     '''
@@ -158,12 +164,14 @@ class STM32M0Flasher(AbstractFlasher):
     :param UCbinFile:  binary file for stm
     :return:
     '''
-    def __init__(self,reset, dtr, retries, configFile='/stmConfig.json', UCbinFile='bin/mcu0'):
-        super().__init__(reset, dtr, retries)
+    def __init__(self,que,reset, dtr, retries, configFile='/stmConfig.json', UCbinFile='bin/mcu0'):
+        super().__init__(que,reset, dtr, retries)
         self.cmd = None
+        #self.UCbinFile = get_latest_file('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/garo/bin/mcu*')
         self.UCbinFile = UCbinFile
         self.configFile = configFile
         self.config = UCFlashConfig.load(os.path.dirname(__file__) + configFile)
+        self.que = que
 
     def run_flashing(self):
         self.cmd = STM.CommandInterface( self.config)
@@ -171,10 +179,13 @@ class STM32M0Flasher(AbstractFlasher):
         module_logger.debug("Open port %s, baud %s",  self.config.port,  self.config.baud)
         module_logger.debug("Open port %s", self.cmd.sp.get_settings())
 
+
         try:
             self.cmd.initChip()
             module_logger.debug("Init done")
+            print("init ok")
         except Exception as ex:
+            print("cant init")
             module_logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
             return False
 
@@ -197,5 +208,4 @@ class STM32M0Flasher(AbstractFlasher):
         GPIO.setup(dtr, GPIO.OUT)
 
     def close(self):
-        if self.cmd != None:
-            self.cmd.close()
+        self.cmd.close()

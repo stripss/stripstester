@@ -29,6 +29,8 @@ import logging
 import serial
 import time
 import RPi.GPIO as GPIO
+
+
 try:
     raise Exception()
     # from progressbar import *
@@ -64,7 +66,7 @@ class CommandInterface:
         self.resetPin = config.resetPin
         self.bootPin = config.bootPin
 
-    def open(self, aport='/dev/serial0', abaudrate=115200):
+    def open(self, aport='/dev/serial0', abaudrate=115200) :
         self.sp = serial.Serial(
             #port=aport,
             port='/dev/serial0',
@@ -72,11 +74,10 @@ class CommandInterface:
             baudrate=115200,     # baudrate
             bytesize=serial.EIGHTBITS,             # number of databits
             parity=serial.PARITY_EVEN,
-            stopbits=
-            serial.STOPBITS_ONE,
+            stopbits=serial.STOPBITS_ONE,
             xonxoff=0,              # don't enable software flow control
             rtscts=0,               # don't enable RTS/CTS flow control
-            timeout=1,               # set a timeout value, None for waiting forever
+            timeout=1.5,               # set a timeout value, None for waiting forever
             dsrdtr = 0
         )
 
@@ -102,21 +103,22 @@ class CommandInterface:
     def reset(self):
         GPIO.output(self.bootPin, GPIO.HIGH)
         GPIO.output(self.resetPin, GPIO.LOW)
-        time.sleep(0.2)
-        GPIO.output(self.resetPin, GPIO.HIGH)
         time.sleep(1)
+        GPIO.output(self.resetPin, GPIO.HIGH)
+        time.sleep(2)
 
     def unreset(self):
         GPIO.output(self.bootPin, GPIO.LOW)
-        time.sleep(0.2)
+        time.sleep(0.5)
         GPIO.output(self.resetPin, GPIO.LOW)
-        time.sleep(0.2)
+        time.sleep(0.5)
         GPIO.output(self.resetPin, GPIO.HIGH)
 
     def initChip(self):
         # Set boot
         self.reset()
-        w_len = self.sp.write(bytes([0x7f]))       # Syncro
+        w_len = self.sp.write(bytes([0x7f])) # Syncro
+
         return self._wait_for_ask("Syncro")
 
     def releaseChip(self):
@@ -435,7 +437,7 @@ if __name__ == "__main__":
         pass
 
     conf = {
-            'port': '/dev/ttyS0',
+            'port': '/dev/serial0',
             'baud': 115200,
             'address': 0x08000000,
             'erase': 0,

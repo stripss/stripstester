@@ -4,14 +4,31 @@ import sys
 from logging.handlers import RotatingFileHandler
 import sqlite3
 import json
-from strips_tester import config_loader
-import strips_tester.utils as utils
-import multiprocessing
-import time
 
+sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
+from strips_tester import config_loader
+import strips_tester.gui_server
+from strips_tester.gui_server import Server
+settings = config_loader.Settings()
 
 VERSION = '0.0.1'
 DB = "default"
+import multiprocessing
+import time
+import datetime
+
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
+django.setup()
+import strips_tester.utils as utils
+# first time check & create admin user
+from django.contrib.auth.models import User, Group
+from web_project.web_app.models import *
+
+from strips_tester import presets  # ORM preset
+from web_project.web_app.models import *
+module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
+
 # test levels == logging levels (ints)
 CRITICAL = logging.CRITICAL
 ERROR = logging.CRITICAL
@@ -50,81 +67,39 @@ def initialize_logging(level: int = logging.INFO):
     # db_handler = logging. # todo database logging handler
     return lgr
 
-'''
-# LOGGING
-################################################################################
-# Logger when creating multiple processes
-# All write to logger_queue, than listener gets one by one and write them to all handlers
-def set_queue_logger():
-    queue = multiprocessing.Queue(-1)
-    listener = multiprocessing.Process(target=listener_process,
-                                       args=(queue, listener_configurer))
-    listener.start()
-
-    worker = multiprocessing.Process(target=worker_process,
-                                             args=(queue, worker_configurer))
-    worker.start()
-
-    return queue
-
-def listener_process(queue, configurer):
-    configurer()
-    while True:
-        try:
-            record = queue.get()
-            #print(record)
-            if record is None:  # We send this as a sentinel to tell the listener to quit.
-                break
-            logger = logging.getLogger(record.name)
-            logger.handle(record)  # No level or filter logic applied - just do it!
-        except Exception:
-            import sys, traceback
-            print('Whoops! Problem:', file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
-
-
-def listener_configurer():
-    root = logging.getLogger('Process logger')
-    # stdout_handler = logging.StreamHandler(stream=sys.stdout)
-    # f = logging.Formatter('%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s')
-    # stdout_handler.setFormatter(f)
-    # root.addHandler(stdout_handler)
-    # root.setLevel(logging.DEBUG)
-
-    root.debug('Staring process for queue logger')
 
 
 
-def worker_configurer(queue):
-    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
-    root = logging.getLogger()
-    root.addHandler(h)
-    root.setLevel(logging.DEBUG)
-    pass
+def check_db_connection():
+    DB = 'default'
+    # with open(os.devnull, 'wb') as devnull:
+    #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
+    #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
+    response_fl = os.system('timeout 0.2 ping -c 1 '+str(settings.local_db_host)+' > /dev/null 2>&1')
+    response_fc = os.system('timeout 0.2 ping -c 1 '+str(settings.central_db_host)+' > /dev/null 2>&1')
+    if response_fc == 0:
+        DB = 'default'
+    elif response_fc != 0:
+        settings.sync_db = True
+        if DB=='default':
+            utils.send_email(subject='DB Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
+            module_logger.warning('Writing to local database!!!'.format(datetime.datetime.now()))
+        DB = 'local'
+        if response_fl==0:
+            pass
+        else:
+            utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
+            module_logger.error('Could not connect to default of local database!!!'.format(datetime.datetime.now()))
+            raise 'Could not connect to default of local database'
+    return DB
 
-
-def worker_process(queue, configurer):
-    configurer(queue)
-    name = multiprocessing.current_process().name
-    print('Worker started: %s' % name)
-    for i in range(10):
-        time.sleep(1)
-        logger = logging.getLogger('Relay logger')
-        logger.info('from relays')
-        logger.debug('from relays')
-    print('Worker finished: %s' % name)
-
-    while True:
-        time.sleep(5)
-'''
 
 logger = initialize_logging(logging.DEBUG)
 #logger_queue = set_queue_logger()
 current_product = None
-settings = config_loader.Settings()
 
-
-
-
+server = Server()
+server.Daemon = True
+queue = multiprocessing.Queue(0)
 
 

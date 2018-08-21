@@ -64,10 +64,10 @@ class CommandInterface:
         self.resetPin = config.resetPin
         self.bootPin = config.bootPin
 
-    def open(self, aport='/dev/serial0', abaudrate=115200):
+    def open(self, aport='/dev/ttyS0', abaudrate=115200) :
         self.sp = serial.Serial(
             #port=aport,
-            port='/dev/serial0',
+            port='/dev/ttyAMA0',
             #baudrate=abaudrate,     # baudrate
             baudrate=115200,     # baudrate
             bytesize=serial.EIGHTBITS,             # number of databits

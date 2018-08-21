@@ -1,0 +1,118 @@
+{
+  "product_name": "GO-HA",
+  "product_type": 12,
+  "product_variant": "basic",
+  "product_hw_release": "1.0",
+  "product_description": "GO-HA hall sensor",
+  "product_notes": "nothing to say",
+  "test_device_name": "GO-HA",
+  "test_device_employee": "employee2",
+  "central_db_host": "none",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+
+
+
+
+    "StartProcedureTask": {
+      "name": "Start Testa",
+      "desc": "Izvaja se start testa",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Začetni čas",
+          "slug": "start_time",
+          "desc": "Začetni čakalni čas",
+          "value": 0,
+          "unit": "s"
+        },
+        {
+          "name": "Končni čas",
+          "slug": "end_time",
+          "desc": "Končni čakalni čas",
+          "value": 0,
+          "unit": "s"
+        }
+      ]
+    },
+
+
+
+
+    "VoltageTest": {
+      "name": "Meritev napetosti",
+      "desc": "Meritev napetosti Hall senzorju",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Minimalni prag",
+          "slug": "min_voltage",
+          "desc": "Minimalna napetost na izhodu",
+          "value": 0.0,
+          "unit": "V"
+        },
+        {
+          "name": "Maksimalni prag",
+          "slug": "max_voltage",
+          "desc": "Maksimalna napetost na izhodu",
+          "value": 5.5,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "tolerance",
+          "desc": "Toleranca napetosti",
+          "value": 1,
+          "unit": ""
+        }
+      ]
+    },
+
+    "EndProcedureTask": {
+      "name": "Konec Testa",
+      "desc": "Izvaja se konec testa",
+      "enable": 1
+    }
+
+  },
+
+  "critical_event_tasks": {
+  },
+
+  "gpio_settings": {
+    "SIDE": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    },
+    "VCC": {
+      "function": 0,
+      "pin": 13,
+      "initial": 1
+    },
+    "BUZZER": {
+      "function": 0,
+      "pin": 15,
+      "initial": 1
+    },
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 18,
+      "pull": 22
+    },
+    "SERVO": {
+      "function": 0,
+      "pin": 32,
+      "initial": 0
+    }
+  },
+
+  "relay_settings": {
+    "4V": {
+      "pull": 0,
+      "pin": 2
+    }
+  }
+}

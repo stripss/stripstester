@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 """
 
 import os
-from strips_tester import settings
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,13 +31,13 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'web_project.web_app',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'web_project.web_app'
+    'django.contrib.staticfiles'
 ]
 
 MIDDLEWARE = [
@@ -82,7 +81,7 @@ DATABASES = {
         # The following settings are not used with sqlite3:
         'USER': 'admin',
         'PASSWORD': 'admin',
-        'HOST': settings.central_db_host,  # Empty for localhost through domain sockets or           '127.0.0.1' for localhost through TCP.
+        'HOST': '127.0.0.1',  # Empty for localhost through domain sockets or           '127.0.0.1' for localhost through TCP.
         'PORT': '5432',  # Set to empty string for default.
     },
     "local": {
@@ -91,7 +90,7 @@ DATABASES = {
         # The following settings are not used with sqlite3:
         'USER': 'admin',
         'PASSWORD': 'admin',
-        'HOST': settings.local_db_host,  # Empty for localhost through domain sockets or           '127.0.0.1' for localhost through TCP.
+        'HOST': '127.0.0.1',  # Empty for localhost through domain sockets or           '127.0.0.1' for localhost through TCP.
         'PORT': '5432',  # Set to empty string for default.
     },
 }

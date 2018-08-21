@@ -4,12 +4,10 @@ import logging
 from strips_tester import utils
 import datetime
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
-django.setup()
+
 # first time check & create admin user
 from django.contrib.auth.models import User, Group
 from web_project.web_app.models import *
-from strips_tester import DB
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "presets")))
@@ -24,8 +22,15 @@ def preset_tables(database: str='central', flag: bool=False):
             admin = User.objects.db_manager(database).create_superuser('admin', 'admin@admin.com', 'admin')
         # PRODUCT TYPES
         ProductType.objects.using(database).get_or_create(name='MVC', type=1, variant='basic', description='mvc module for Garo')
+        ProductType.objects.using(database).get_or_create(name='MEL', type=2, variant='wifi', description='mel module for Garo')
+        ProductType.objects.using(database).get_or_create(name='GACS A2 Bender', type=10, variant='none', description='')
+        ProductType.objects.using(database).get_or_create(name='GARO MEL Programator', type=11, variant='none', description='')
+        ProductType.objects.using(database).get_or_create(name='GO-HA', type=12, variant='none', description='')
+        ProductType.objects.using(database).get_or_create(name='GO-C19', type=13, variant='none', description='')
+
         for product_type in ProductType.objects.using(database).all():
-            module_logger.debug("%s, %s, %s, %s",product_type.type, product_type.name, product_type.variant, product_type.description)
+            module_logger.info("%s, %s, %s, %s",product_type.type, product_type.name, product_type.variant, product_type.description)
+
         # TEST TYPES
         TestType.objects.using(database).get_or_create(name='Vc', description='15V', units='V')
         TestType.objects.using(database).get_or_create(name='12V', description='12V', units='V')
@@ -40,8 +45,13 @@ def preset_tables(database: str='central', flag: bool=False):
         TestType.objects.using(database).get_or_create(name='switches', description='switches status', units='bool')
         TestType.objects.using(database).get_or_create(name='board test', description='board type', units='uint8')
         TestType.objects.using(database).get_or_create(name='display', description='display status', units='bool')
+        TestType.objects.using(database).get_or_create(name='LED', description='LED status', units='bool')
+        TestType.objects.using(database).get_or_create(name='Lock', description='GACS_A2 Lock simulator', units='bool')
+        TestType.objects.using(database).get_or_create(name='Heater', description='GACS_A2 Heater voltages', units='bool')
+        TestType.objects.using(database).get_or_create(name='LED_Board', description='GACS_A2 Board LED diodes', units='bool')
+
         for test in TestType.objects.using(database).all():
-            module_logger.debug("%s, %s, %s", test.name, test.description, test.units)
+            module_logger.info("%s, %s, %s", test.name, test.description, test.units)
     else:
         module_logger.warning('NO test_type and product_type preset')
 
@@ -54,6 +64,7 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
     :param flag:
     :return:
     '''
+
     if flag:
         module_logger.warning("Preseting test_db from db : %s to db: %s", from_db, to_db)
         bulk_size = 100
@@ -104,12 +115,12 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
 
 for db in databases:
     try:
-        preset_tables(db, False)
+        preset_tables(db, True)
     except Exception as ee:
         module_logger.info("Notification sended")
         #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
     try:
-        preset_tables_from_db('default', 'local', True)
+        preset_tables_from_db('default', 'local', False)
     except Exception as ee:
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
         module_logger.warning("Central database not available, changes have not been made to local database")

@@ -1,0 +1,243 @@
+{
+  "product_name": "GACS A2 Bender",
+  "product_type": 10,
+  "product_variant": "basic",
+  "product_hw_release": "1.0",
+  "product_description": "GACS A2 charger indicator",
+  "product_notes": "nothing to say",
+  "test_device_name": "GACS A2 Bender",
+  "test_device_employee": "employee2",
+  "central_db_host": "none",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+
+
+
+
+    "StartProcedureTask": {
+      "name": "Start Testa",
+      "desc": "Izvaja se start testa",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Začetni čas",
+          "slug": "start_time",
+          "desc": "Začetni čakalni čas",
+          "value": 2,
+          "unit": "s",
+          "type": "int"
+        },
+        {
+          "name": "Končni čas",
+          "slug": "end_time",
+          "desc": "Končni čakalni čas",
+          "value": 1,
+          "unit": "s",
+          "type": "int"
+        }
+      ]
+    },
+
+    "VoltageTest": {
+      "name": "Meritev napetosti",
+      "desc": "Izvaja se meritev referenčnih napetosti",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Začetni čas",
+          "slug": "start_time",
+          "desc": "Začetni čakalni čas",
+          "value": 2,
+          "unit": "s",
+          "type": "int"
+        },
+        {
+          "name": "Končni čas",
+          "slug": "end_time",
+          "desc": "Končni čakalni čas",
+          "value": 1,
+          "unit": "s",
+          "type": "int"
+        }
+      ]
+    },
+
+    "I2C_Communication": {
+      "name": "I2C komunikacija",
+      "desc": "Pregled komunikacije tiskanine preko i2c protokola.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Zelena LED - tok",
+          "slug": "green_max_current",
+          "desc": "Maksimalni tok skozi zelene LED diode",
+          "value": 40,
+          "unit": "mA",
+          "type": "int"
+        },
+        {
+          "name": "Modra LED - tok",
+          "slug": "blue_max_current",
+          "desc": "Maksimalni tok skozi modre LED diode",
+          "value": 40,
+          "unit": "mA",
+          "type": "int"
+        },
+        {
+          "name": "Rdeča LED - tok",
+          "slug": "red_max_current",
+          "desc": "Maksimalni tok skozi rdeče LED diode",
+          "value": 40,
+          "unit": "mA",
+          "type": "int"
+        },
+        {
+          "name": "Bela LED - tok",
+          "slug": "white_max_current",
+          "desc": "Maksimalni tok skozi bele LED diode",
+          "value": 120,
+          "unit": "mA",
+          "type": "int"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "tolerance",
+          "desc": "Toleranca pri meritvah toka",
+          "value": 10,
+          "unit": "",
+          "type": "int"
+        },
+        {
+          "name": "Temperatura",
+          "slug": "temperature",
+          "desc": "Željena merjena temperatura",
+          "value": 25,
+          "unit": "°C",
+          "type": "int"
+        },
+        {
+          "name": "Toleranca temperature",
+          "slug": "temp_tolerance",
+          "desc": "Toleranca pri meritve temperature",
+          "value": 10,
+          "unit": "",
+          "type": "int"
+        }
+      ]
+    }
+
+  },
+
+  "critical_event_tasks": {
+  },
+
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 12,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 29,
+      "initial": 1
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 15,
+      "initial": 1
+    },
+    "LOCK": {
+      "function": 0,
+      "pin": 31,
+      "initial": 1
+    },
+    "LED_red_left": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    },
+    "LED_red_right": {
+      "function": 0,
+      "pin": 13,
+      "initial": 1
+    },
+    "INTERIOR_LED": {
+      "function": 0,
+      "pin": 33,
+      "initial": 1
+    },
+    "3V3": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    }
+  },
+  "relay_settings": {
+    "12V": {
+      "initial": 0,
+      "pin": 10
+    },
+    "Heater": {
+      "initial": 0,
+      "pin": 8
+    },
+    "Vcc1": {
+      "initial": 0,
+      "pin": 2
+    },
+    "Vcc2": {
+      "initial": 0,
+      "pin": 3
+    },
+    "OUT_relay_1": {
+      "initial": 0,
+      "pin": 6
+    },
+    "OUT_relay_2": {
+      "initial": 0,
+      "pin": 7
+    },
+    "OUT_relay_3": {
+      "initial": 0,
+      "pin": 5
+    },
+    "OUT_relay_4": {
+      "initial": 0,
+      "pin": 4
+    },
+    "IN_relay_1": {
+      "initial": 0,
+      "pin": 13
+    },
+    "IN_relay_2": {
+      "initial": 0,
+      "pin": 14
+    },
+    "Inv_relay_1": {
+      "initial": 0,
+      "pin": 11
+    },
+    "Inv_relay_2": {
+      "initial": 0,
+      "pin": 12
+    },
+    "Power": {
+      "initial": 0,
+      "pin": 9
+    },
+    "LED_green_left": {
+      "initial": 0,
+      "pin": 16
+    },
+    "LED_green_right": {
+      "initial": 0,
+      "pin": 15
+    }
+  }
+}
+
+
+

@@ -52,7 +52,7 @@ class LidOpenCheck:
         else:
             module_logger.debug("Lid closed")
 
-
+'''
 class BarCodeReadTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
@@ -89,7 +89,7 @@ class BarCodeReadTask(Task):
     def tear_down(self):
         self.reader.close()
         #self.camera_device.close()
-
+'''
 class ProductConfigTask(Task):
     def __init__(self):
         super().__init__(strips_tester.CRITICAL)
