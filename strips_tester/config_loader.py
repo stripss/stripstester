@@ -103,6 +103,7 @@ class Settings:
                     except Exception as err:
                         print("Device {} not loaded: {}".format(result[0],err))
 
+    # Return device if device is successfully loaded and configured.
     def is_device_loaded(self,device):
         if device in self.device_list:
             return True

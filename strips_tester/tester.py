@@ -48,6 +48,10 @@ server = strips_tester.server
 queue = strips_tester.queue
 
 class Task:
+    TASK_OK = 0
+    TASK_WARNING = 1
+    TASK_FAIL = 2
+
     def __init__(self,level: int = logging.CRITICAL):
         self.test_level = level
         self.end = []
@@ -58,6 +62,8 @@ class Task:
         self.device = settings.device_list
 
     def use_device(self,device):
+
+        # Check if device is loaded from beginning
         if settings.is_device_loaded(device):
 
             return settings.device_list[device]
@@ -85,19 +91,57 @@ class Task:
         pass
 
     def _execute(self,test_level: int):
-        self.set_up()
-        module_logger.debug("Task: %s setUp", type(self).__name__)
+        ret = Task.TASK_OK
 
-        # { "db_test_type_name1":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str },
-        # "db_test_type_name2":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str }}
-        ret = self.run()
-        # if len(ret) != 5:
-        #     raise "Wrong argument length"
+        # Task set_up program
+        try:
+            self.set_up()
+        
+        except Exception as ee:
+            # Setup procedure is for test device
+            # If error happen, it is critical
+            print("[Task set_up]: {}".format(ee))
+            ret = Task.TASK_FAIL
+
+        # If set_up succeeded
+        if ret != Task.TASK_FAIL:
+            try:
+                # Task run program (return task name)
+                task_ret = self.run()
+
+                # Loop through nests and see if all tasks succeeded
+                for current in range(len(strips_tester.product)):
+                    if strips_tester.product[current].ok: # If some of products are not ok, inspect at which task
+                        print("Product {} FAIL".format(current))
+                        if task_ret in strips_tester.product[current].measurements:
+                            print("Return: {}".format(task_ret))
+                            print(len(strips_tester.product[current].measurements[task_ret]))
+                            for i in range(len(strips_tester.product[current].measurements[task_ret])):
+                                if strips_tester.product[current].measurements[task_ret][i]['ok']: # If any of values are fail, inspect
+                                    ret = strips_tester.product[current].measurements[task_ret][i]['ok']
+
+                                    break
+
+                            if ret == Task.TASK_FAIL:
+                                break
+                    else:
+                        print("Product {} OK".format(current))
+
+            # Return task name
+                # Check all products if exists and fail at that task
 
 
-        # Dictionary for individual task measurement data
-        strips_tester.current_product.tests['measurements'][type(self).__name__] = ret
+            except Exception as ee:
+                # Setup procedure is for test device
+                # If error happen, it is critical
+                print("[Task run]: {}".format(ee))
+                ret = Task.TASK_FAIL
 
+
+        # Task tear_down program
+        self.tear_down()
+
+        '''
         for keys, values in ret.items():
             if keys == "signal":
                 if values[1] == "fail" and values[2] > 3:
@@ -120,35 +164,54 @@ class Task:
                     self.passed.append(False)
                     ##########################################################################
         # normal flow when task is not critical
-
-        result = all(self.passed)
-        end = any(self.end)
-
-        if result:
-            module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, result)
-        else:
-            module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, result)
-
-        self.tear_down()  # normal tear down
-        return result, end  # to indicate further testing
+        '''
+        print("RET: {}" . format(ret))
+        return ret
 
     def set_level(self, level: int):
         self.test_level = level
 
 
+# Define testing product information, which stores info through test
+class ProductInfo:
+    def __init__(self):
+        self.exist = False
+        self.ok = 0 # Task.TASK_OK
+        self.serial = 0
+        self.measurements = {}
+
+    def add_measurement(self,task,slug,state,value):
+        if not self.exist:
+            print("Product does not exist yet!")
+            return
+
+        if task not in self.measurements:
+            self.measurements[task] = []
+
+        # Append new measurement at current task
+        self.measurements[task].append({})
+
+        self.measurements[task][-1]['slug'] = slug
+        self.measurements[task][-1]['ok'] = state
+        self.measurements[task][-1]['value'] = value
+
+        if state: # If some measurement fail, make product fail
+            self.ok = state
+
+        return
+
 def test_device_state(boot):
-    i2c = settings.device_list['light_panel']
+    i2c = settings.device_list['LightBoard']
 
     if boot:
         # Boot state until someone connects
-        boot_freq = 0.1
+        freq = 0.1
+
         while server.num_of_clients == 0:
-            for i in range(2):
-                i2c.set_led_status(0x05)
-                time.sleep(boot_freq)
-                i2c.set_led_status(0x00)
-                time.sleep(boot_freq)
-            time.sleep(2)
+            i2c.set_led_status(0x14)
+            time.sleep(freq)
+            i2c.set_led_status(0x00)
+            time.sleep(freq)
     else:
         # Shutdown state
         for i in range(10):
@@ -159,14 +222,14 @@ def test_device_state(boot):
 
 def start_test_device():
     global custom_tasks
-    server.start()
 
     ### one time tasks
     initialize_gpios()
     settings.load_devices()
+    server.start()
 
-    # If light panel is accessible, signal test device state
-    if settings.is_device_loaded("light_panel"):
+    # If LightBoard is accessible, signal test device state
+    if settings.is_device_loaded("LightBoard"):
         test_device_state(True)
 
     # Initialize good and bad tests from server.DB
@@ -197,10 +260,6 @@ def start_test_device():
                     start_msg = False
 
                 start = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-
-
-
-
 
                 if not start:
                     if server.master:
@@ -237,7 +296,6 @@ def start_test_device():
                     TestDevice.objects.filter(name=settings.test_device_name).update(calibrationdate=msg['calibration'])
 
                 if "factory_reset" in msg:  # Factory reset of TN
-
 
                     if os.path.exists(strips_tester.settings.config_file):
                         # remove config.json file and replace it with new (updated) one.
@@ -297,29 +355,40 @@ def start_test_device():
                     # Update CountDate to DB
                     TestDevice.objects.filter(name=settings.test_device_name).update(countdate=countdate)
 
-                    # Send statistics information
-                    query = TestDevice_Test.objects.using(server.DB).filter(test_device_id=server.test_device_id, datetime__gte=countdate).distinct("id")
-                    good1 = query.filter(countgood=1).count()
-                    bad1 = query.filter(countbad=1).count()
-                    good2 = query.filter(countgood=2).count()
-                    bad2 = query.filter(countbad=2).count()
 
-                    good = good1 + good2 * 2
-                    bad = bad1 + bad2 * 2
+                    query = strips_tester.TestDevice.objects.using(strips_tester.DB).get(
+                        name=strips_tester.settings.test_device_name)
+
+                    # Send statistics to newly connected user
+
+                    # Get all tests with this TN
+                    count_query = strips_tester.TestDevice_Test.objects.using(strips_tester.DB).filter(
+                        test_device_id=query.id, datetime__gte=query.countdate)
+
+                    good = 0
+                    bad = 0
+                    for current_test in count_query:
+                        # Send statistics information
+                        good = good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
+                            test_id=current_test.id, ok=True).count()
+                        bad = bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
+                            test_id=current_test.id, ok=False).count()
 
                     # Send count info for each client
                     for client_number in range(server.num_of_clients):
                         if server.clientdata[client_number]['connected']:
+                            count_query_user = count_query.filter(employee=server.clientdata[client_number]['id'])
 
-                            user_good1 = query.filter(countgood=1,employee=server.clientdata[client_number]['id']).count()
-                            user_bad1 = query.filter(countbad=1,employee=server.clientdata[client_number]['id']).count()
-                            user_good2 = query.filter(countgood=2,employee=server.clientdata[client_number]['id']).count()
-                            user_bad2 = query.filter(countbad=2,employee=server.clientdata[client_number]['id']).count()
+                            user_good = 0
+                            user_bad = 0
+                            for current_test in count_query_user:
+                                # Send statistics information
+                                user_good = user_good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
+                                    test_id=current_test.id, ok=True).count()
+                                user_bad = user_bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
+                                    test_id=current_test.id, ok=False).count()
 
-                            user_good = user_good1 + user_good2 * 2
-                            user_bad = user_bad1 + user_bad2 * 2
-
-                            server.send(client_number, {"count": {"good": user_good, "bad": user_bad, "good_global": good, "bad_global": bad, "countdate": countdate}})
+                                server.send(client_number, {"count": {"good": user_good, "bad": user_bad, "good_global": good, "bad_global": bad, "countdate": countdate}})
 
                     # Update counts for all clients!
 
@@ -361,26 +430,43 @@ def initialize_gpios():
             module_logger.critical("Not implemented gpio function")
 
     st_state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-    module_logger.debug("GPIOs initialized")
 
 
 def run_custom_tasks():
     global custom_tasks
-    test_set_status = None
 
-    #if server.DB == 'default' and settings.sync_db == True:
-    #    pass
-    #    sync_db(from_db='local', to_db='default')
+    strips_tester.product = []
+    task_results = []
 
-    #get type from local or central
-    product_type = ProductType.objects.using(server.DB).get(name=settings.product_name, type=settings.product_type)
     # TASKS
     #################################################################################
-    strips_tester.current_product = Product(serial=None,
-                                            production_datetime=None,
-                                            hw_release=settings.product_hw_release,
-                                           notes=settings.product_notes,
-                                           type=product_type)
+
+
+    # Check if TN exists in DB
+    result = TestDevice.objects.using(server.DB).filter(name=settings.test_device_name).exists()
+
+    if result:
+        # Get test device class
+        test_device = TestDevice.objects.using(server.DB).get(name=settings.test_device_name)
+    else:
+        date = datetime.datetime.now() + datetime.timedelta(hours=2)
+
+
+        # If test device is not found, create one
+        test_device = TestDevice(name=settings.test_device_name,
+                                 author="Spremeni",
+                                 service=1000,
+                                 manual="",
+                                 countdate=date,
+                                 calibrationdate=date,
+                                 nests=1)
+        test_device.save()
+
+
+    for i in range(test_device.nests):
+        # Initialize ProductInfo object for all products
+        strips_tester.product.append(ProductInfo())
+        print("New product {} created." . format(i))
 
     importlib.reload(custom_tasks)
 
@@ -395,9 +481,8 @@ def run_custom_tasks():
     for task_name in settings.task_execution_order:
         server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "idle", "task_info": ""}})
 
-    strips_tester.current_product.tests['measurements'] = {}
-    strips_tester.current_product.countgood = 0
-    strips_tester.current_product.countbad = 0
+
+
 
     for task_name in settings.task_execution_order:
         if settings.task_execution_order[task_name]:
@@ -407,37 +492,40 @@ def run_custom_tasks():
                 CustomTask = getattr(custom_tasks, task_name)
 
                 try:
-                    module_logger.debug("Executing: %s ...", CustomTask)
                     server.send_broadcast({"text": {"text": "Izvajanje naloge '{}'...\n" . format(settings.task_execution_order[task_name]['name']), "tag": "blue"}})
                     server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "work"}})
                     custom_task = CustomTask()
 
-                    result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                    strips_tester.current_product.task_results.append(result)
+                    # Run custom task
+                    result = custom_task._execute(config_loader.TEST_LEVEL)
 
-                    if result:
+                    # Store task result into list for final decision
+                    task_results.append(result)
+
+                    if result == Task.TASK_OK:
                         server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "ok"}})
                     else:
                         server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "fail"}})
 
-                    if end == True:
-                        # Could be separate function. Here, due to import restrictions.
-                        # release all hardware, print sticker, etc...
-                        #######################
-                        for task_name in settings.critical_event_tasks:
-                            if settings.critical_event_tasks[task_name]:
-                                CustomTask = getattr(custom_tasks, task_name)
-                                try:
-                                    server.send_broadcast({"text": {"text": "Kritično izvajanje {}...\n" . format(settings.critical_event_tasks[task_name]['name']), "tag": "red"}})
-                                    module_logger.debug("Executing: %s ...", CustomTask)
-                                    custom_task = CustomTask()
-                                    result, end = custom_task._execute(config_loader.TEST_LEVEL)
+                        # If task error is fatal
+                        if result == Task.TASK_FAIL:
+                            # Could be separate function. Here, due to import restrictions.
+                            # release all hardware, print sticker, etc...
+                            #######################
+                            for task_name in settings.critical_event_tasks:
+                                if settings.critical_event_tasks[task_name]:
+                                    CustomTask = getattr(custom_tasks, task_name)
+                                    try:
+                                        server.send_broadcast({"text": {"text": "Kritično izvajanje {}...\n" . format(settings.critical_event_tasks[task_name]['name']), "tag": "red"}})
 
-                                    strips_tester.current_product.task_results.append(result)
-                                except Exception as ee:
-                                    raise "CRITICAL EVENT EXCEPTION"
-                        break
-                        ######################
+                                        custom_task = CustomTask()
+                                        result = custom_task._execute(config_loader.TEST_LEVEL)
+
+                                        task_results.append(result)
+                                    except Exception as ee:
+                                        raise "CRITICAL EVENT EXCEPTION"
+                            break
+                            ######################
                 # catch code exception and bugs. It shouldn't be for functional use
                 except Exception as e:
                     module_logger.error(str(e))
@@ -450,86 +538,88 @@ def run_custom_tasks():
     ## insert into DB
 
     # Are all task results True?
-    if all(strips_tester.current_product.task_results):
-        test_set_status = True
+    if any(task_results):
+        server.send_broadcast({"task_result": "fail"})
     else:
-        test_set_status = False
+        server.send_broadcast({"task_result": "ok"})
 
-    if test_set_status:
-        server.result = "ok"
-        module_logger.info('TEST USPEL\n\n')
-    else:
-        server.result = "fail"
-
-        module_logger.error('TEST NI USPEL\n\n')
-
-    server.send_broadcast({"task_result": server.result})
     server.result = "idle"
-    # TASKS ENDS
+
+    # Tasks ended
+
+    # Upload to DB
 
 
-    # UPLOAD TO DATABASE
 
+    
     # Get current date and time with right UTC timezone
     dateandtime = datetime.datetime.now() + datetime.timedelta(hours=2)
 
-    result = TestDevice.objects.using(server.DB).filter(name=settings.test_device_name).exists()
 
-    if result:
-        test_device_id = TestDevice.objects.using(server.DB).get(name=settings.test_device_name)
-    else:
-        test_device_id = TestDevice(name=settings.test_device_name,author="Spremeni",service=1000)
-        test_device_id.save()
-
-    # Make new Test query
-    test_device_test = TestDevice_Test(datetime=dateandtime,
-                                       serial=strips_tester.current_product.serial,
+    # Save new Test
+    test_device_test = TestDevice_Test(test_device_id=test_device.id,
+                                       datetime=dateandtime,
                                        employee=server.test_user_id,
                                        test_type=server.test_user_type,
-                                       result=test_set_status,
-                                       countgood=strips_tester.current_product.countgood,
-                                       countbad=strips_tester.current_product.countbad,
-                                       test_device_id=test_device_id.id,
-                                       data=json.dumps(strips_tester.current_product.tests['measurements'])
+                                       result=any(task_results)
                                        )
+
     test_device_test.save(using=server.DB)
 
+    # Save every ProductInfo which were tested in this Test
+    for current in range(test_device.nests):
+
+        # Check if product exists
+        if strips_tester.product[current].exist:
+            # Make new ProductInfo query
+            test_device_product = TestDevice_Product(
+                                            test_id=test_device_test.id,    # Store current test ID
+                                            serial=strips_tester.product[current].serial,
+                                            ok=strips_tester.product[current].ok,
+                                            nest=current,
+
+                                            measurements=json.dumps(strips_tester.product[current].measurements)
+                                            )
+
+            test_device_product.save(using=server.DB)
+
     # Lower service counter by one
-    service = TestDevice.objects.using(server.DB).get(name=settings.test_device_name).service - 1
+    service = test_device.service - 1
 
     if service < 0:
         service = 0
 
+    # Update service counter
     TestDevice.objects.using(server.DB).filter(name=settings.test_device_name).update(service=service)
 
-    # Get CountDate from DB
-    countdate = TestDevice.objects.using(server.DB).get(name=settings.test_device_name).countdate
+    # Get all tests with this TN
+    query = TestDevice_Test.objects.using(server.DB).filter(test_device_id=test_device.id, datetime__gte=test_device.countdate)
 
-    # Send statistics information
-    query = TestDevice_Test.objects.using(server.DB).filter(test_device_id=server.test_device_id, datetime__gte=countdate).distinct("id")
-    good1 = query.filter(countgood=1).count()
-    bad1 = query.filter(countbad=1).count()
-    good2 = query.filter(countgood=2).count()
-    bad2 = query.filter(countbad=2).count()
+    good = 0
+    bad = 0
+    for current_test in query:
+        # Send statistics information
+        good = good + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id,ok=True).count()
+        bad = bad + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id,ok=False).count()
 
-    good = good1 + good2 * 2
-    bad = bad1 + bad2 * 2
+    # Update connected clients
+    server.send_broadcast({"service": service})
 
     # Send count info for each client
     for client_number in range(server.num_of_clients):
         if server.clientdata[client_number]['connected']:
-            user_good1 = query.filter(countgood=1,employee=server.clientdata[client_number]['id']).count()
-            user_bad1 = query.filter(countbad=1,employee=server.clientdata[client_number]['id']).count()
-            user_good2 = query.filter(countgood=2,employee=server.clientdata[client_number]['id']).count()
-            user_bad2 = query.filter(countbad=2,employee=server.clientdata[client_number]['id']).count()
+            query_user = query.filter(employee=server.clientdata[client_number]['id'])
 
-            user_good = user_good1 + user_good2 * 2
-            user_bad = user_bad1 + user_bad2 * 2
+            user_good = 0
+            user_bad = 0
+            for current_test in query_user:
+                # Send statistics information
+                user_good = user_good + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id, ok=True).count()
+                user_bad = user_bad + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id, ok=False).count()
 
             server.send(client_number, {"count": {"good": user_good, "bad": user_bad, "good_global": good, "bad_global": bad}})
 
-    # update clients
-    server.send_broadcast({"service": service})
+
 
     if server.afterlock:
         if "LOCK" in settings.gpios: # Disable lock if it exists

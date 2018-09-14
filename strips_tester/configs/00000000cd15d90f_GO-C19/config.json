@@ -53,8 +53,6 @@
       ]
     },
 
-
-
     "VisualTest": {
       "name": "Vizualni pregled LED",
       "desc": "Meritev napetosti Hall senzorju",
@@ -64,84 +62,84 @@
           "name": "LED #1 - x",
           "slug": "led1_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 80,
+          "value": 126,
           "unit": "px"
         },
         {
           "name": "LED #1 - y",
           "slug": "led1_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 140,
+          "value": 116,
           "unit": "px"
         },
         {
           "name": "LED #2 - x",
           "slug": "led2_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 180,
+          "value": 360,
           "unit": "px"
         },
         {
           "name": "LED #2 - y",
           "slug": "led2_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 130,
+          "value": 120,
           "unit": "px"
         },
         {
           "name": "LED #3 - x",
           "slug": "led3_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 90,
+          "value": 542,
           "unit": "px"
         },
         {
           "name": "LED #3 - y",
           "slug": "led3_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 230,
+          "value": 122,
           "unit": "px"
         },
         {
           "name": "LED #4 - x",
           "slug": "led4_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 200,
+          "value": 126,
           "unit": "px"
         },
         {
           "name": "LED #4 - y",
           "slug": "led4_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 220,
+          "value": 290,
           "unit": "px"
         },
         {
           "name": "LED #5 - x",
           "slug": "led5_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 100,
+          "value": 356,
           "unit": "px"
         },
         {
           "name": "LED #5 - y",
           "slug": "led5_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 310,
+          "value": 302,
           "unit": "px"
         },
         {
           "name": "LED #6 - x",
           "slug": "led6_posx",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 200,
+          "value": 542,
           "unit": "px"
         },
         {
           "name": "LED #6 - y",
           "slug": "led6_posy",
           "desc": "Pozicija LED diode na sliki kamere",
-          "value": 300,
+          "value": 288,
           "unit": "px"
         },
         {
@@ -156,7 +154,7 @@
     "VoltageTest": {
       "name": "Meritev napetosti",
       "desc": "Meritev napetosti Hall senzorju",
-      "enable": 1,
+      "enable": 0,
       "definition": [
         {
           "name": "Minimalni prag",
@@ -185,7 +183,7 @@
     "EndProcedureTask": {
       "name": "Konec Testa",
       "desc": "Izvaja se konec testa",
-      "enable": 1
+      "enable": 0
     }
   },
 
@@ -197,12 +195,50 @@
       "function": 1,
       "pin": 7,
       "pull": 22
+    },
+
+    "FAZA": {
+      "function": 0,
+      "initial": 1,
+      "pin": 12
+    },
+    "NULA": {
+      "function": 0,
+      "initial": 1,
+      "pin": 16
+    },
+    "LOCK": {
+      "function": 0,
+      "initial": 1,
+      "pin": 18
+    },
+    "C19_GND": {
+      "function": 0,
+      "initial": 1,
+      "pin": 22
+    },
+    "C19_ALARM": {
+      "function": 0,
+      "initial": 1,
+      "pin": 11
+    },
+    "C19_SWIM": {
+      "function": 0,
+      "initial": 1,
+      "pin": 13
+    },
+    "C19_VCC": {
+      "function": 0,
+      "initial": 1,
+      "pin": 15
+    },
+    "C19_RESET": {
+      "function": 0,
+      "initial": 1,
+      "pin": 29
     }
+
   },
   "relay_settings": {
-    "4V": {
-      "initial": 0,
-      "pin": 2
-    }
   }
 }

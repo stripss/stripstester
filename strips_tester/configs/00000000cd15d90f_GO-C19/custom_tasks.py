@@ -36,64 +36,88 @@ class StartProcedureTask(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
-        self.i2c = self.use_device('light_panel')
-
         self.start_time = self.get_definition("start_time")
         self.end_time = self.get_definition("end_time")
+        '''
+        # Initialize NanoBoards
+        self.nanoboard = self.use_device('NanoBoard')
+        self.nanoboard_small = self.use_device('NanoBoardSmall')
 
+        # Initialize LightBoard
+        self.lightboard = self.use_device('LightBoard')
 
-    def run(self) -> (bool, str):
         time.sleep(self.start_time)
 
-        for i in range(50):
-            time.sleep(0.01)
-            self.i2c.set_led_status(0xFF)
-            time.sleep(0.01)
-            self.i2c.set_led_status(0x00)
+        for i in range(3):
+            time.sleep(0.1)
+            self.lightboard.set_led_status(0xFF)
+            time.sleep(0.1)
+            self.lightboard.set_led_status(0x00)
 
-            # Preklopi releje za sklenitev LED
-            # pripelji stepper za branje potenciometrov
-            # skleni napetost 230VAC (sklene se tudi 5V, jo tudi izmeri)
-            # pomeri se napetost 5V na obeh kosih (ce je uspesno se operacije nadaljujejo) to napetost si zapomni
-            # predpostavimo da je kos nesprogramiran (brez LED in podobno)
-            # preberi potenciometer (izmeri P1 prva plata)
-            # preberi potenciometer (izmeri P1 druga plata)
-            # izklopi 230VAC
+        self.nanoboard.test_float()
 
+        print("Float 3.66 sent.")
+        while True:
+            time.sleep(0.1)
+        '''
 
-            # ICT testi kar se tice upornosti
-            # upori - meritev padca napetosti skozi vsiljenih 5V
+        return Task.TASK_OK
 
+    def run(self) -> (bool, str):
+        # Razklenitev 230VAC
+        GPIO.output(gpios['FAZA'], True)
+        GPIO.output(gpios['NULA'], True)
 
-            ### MERITVE MED LIVE         POWER
-        # diode - meritev napetosti (0.7V da je ok)
-        # kondenzatorji - meritev napetosti
+        # Lock test device
+        GPIO.output(gpios['LOCK'], False)
 
-        # zapelji vodilni stepper gor
-        # obrni oba potenciometra na 0
-
-        # preklopi bremena za programiranje
-            # sprogramiraj prvi kos in nato drugega
-            # (kako skleniti vse 4 kontakte s programatorjem?)
-            # PROGRAMATOR JE LAHKO VES CAS PRIKLOPLJEN, SAJ JE OPTICNO IZOLIRAN
-
-            # (mogoce da ostane na 230VAC in se ga sprogramira vmes (programator pripelje SWIM in GND na test pinih)
-
-            # preklopi na bremena
-            # skleni 230VAC
-            # preglej s kamero ledice (obe tiskanine)
-            # ce uspe, zavrti potenciometra desno
-            # glej da vse ledice zasvetijo
-            # razkleni napetost
-            # zapelji stepper dol
-            # good / bad kos, buzzer
+        # BOARD DETECTION
 
 
+        # Measure R3 for board detection
+        resistance = self.nanoboard.probe(0)
 
-        return {"signal": [1, "ok", 5, "NA",""]}
+        # Resistance should be less than 60ohms (47E)
+        if resistance < 1000:
+            strips_tester.left.exist = True
+
+        resistance = self.nanoboard.probe(17)
+
+        # Resistance should be less than 60ohms (47E)
+        if resistance < 1000:
+            strips_tester.right.exist = True
+
+        # Probe POT1
+        if strips_tester.left.exist:
+            resistance = self.nanoboard.probe(5)
+
+            # Map left servo to resistance value
+            angle = 50
+            self.nanoboard_small.servo(1,angle)
+
+        # Probe POT1
+        if strips_tester.right.exist:
+            resistance = self.nanoboard.probe(23)
+
+            # Map left servo to resistance value
+            angle = 50
+            self.nanoboard_small.servo(2,angle)
+
+        # Lift servo platform
+        self.nanoboard_small.MoveStepper(5)
+
+        # Rotate potentiometers to zero
+        self.nanoboard_small.servo(1,0)
+        self.nanoboard_small.servo(2,0)
+
+        strips_tester.product.add_measurement("R3", True, resistance)
+
+        return Task.TASK_OK
 
     def tear_down(self):
         time.sleep(self.end_time)
+        print("LEFT Exist: {}".format(strips_tester.left.exist))
+        print("RIGHT Exist: {}".format(strips_tester.right.exist))
 
 
 
@@ -102,11 +126,10 @@ class EndProcedureTask(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
-        self.i2c = devices.MCP23017()
-        pass
+        # Initialize LightBoard
+        self.lightboard = self.use_device('LightBoard')
 
     def run(self) -> (bool, str):
-
 
         if strips_tester.current_product.countbad:
             GPIO.output(gpios["BUZZER"],False)
@@ -115,7 +138,7 @@ class EndProcedureTask(Task):
 
         self.i2c.set_led_status(0xff)
         time.sleep(1)
-        self.i2c.set_led_status(0x0f)
+        self.i2c.set_led_status(0x00)
 
         # 0 - off
         # 1 - red
@@ -136,9 +159,13 @@ class VisualTest(Task):
         self.mesurement_delay = 0.16
         self.measurement_results = {}
 
-        self.i2c = devices.MCP23017()
-
         self.camera = cv2.VideoCapture(0)  # video capture source camera
+        self.threshold = 150
+
+        self.roi_x = 80
+        self.roi_y = 80
+        self.roi_width = 490
+        self.roi_height = 280
 
         self.led = []
         for i in range(6):
@@ -146,27 +173,56 @@ class VisualTest(Task):
             self.led[-1]['x'] = self.get_definition("led{}_posx" . format(i + 1))
             self.led[-1]['y'] = self.get_definition("led{}_posy" . format(i + 1))
 
+
     def run(self) -> (bool, str):
+
+        time.sleep(1) # Wait camera to respond
+
+        # skleni L in N
+        # preveri sliko če svetijo led
+        # pocakaj 2 sekundi
+        # poglej ce so ugasnile ledice
+        # tlivke ne smejo svetiti
+        # zavrti potenciometre v drugo smer
+        # glej da vse tri svetijo
+        # izklopi L in N
+
+
         try:
-            for i in range(5):
-                ret, frame = self.camera.read()  # return a single frame in variable `frame`
+            # Sklenitev 230VAC
+            GPIO.output(gpios['FAZA'], False)
+            GPIO.output(gpios['NULA'], False)
 
-                roi = frame[50:400, 120: 440]
+            # Preveri da svetijo vse LED (brez tlivk?)
+            self.get_light_states()
 
-                # Convert image to grayscale
-                gs = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
+            if self.check_mask([1,1,1,1,1,1]):
+                print("Start OK")
+            else:
+                print("Start FAIL")
 
-                # Set threshold for binary
-                threshold = 240
+            time.sleep(5)
 
-                th, dst = cv2.threshold(gs, threshold, 255, cv2.THRESH_BINARY)
+            # Preveri da ugasnejo vse luci
+            self.get_light_states()
 
-                for i in range(6):
-                    self.led[i]['state'] = self.detect_led_state(dst, 80, 140, 5)
+            if self.check_mask([0,0,1,0,0,1]):
+                print("Mid OK")
+            else:
+                print("Mid FAIL")
 
-                print(self.led)
+            # Razklenitev 230VAC
+            GPIO.output(gpios['FAZA'], True)
+            GPIO.output(gpios['NULA'], True)
 
-                time.sleep(0.1)
+            # Preveri da ugasnejo vse luci
+            self.get_light_states()
+
+            if self.check_mask([0,0,0,0,0,0]):
+                print("End OK")
+            else:
+                print("End FAIL")
+
             #return self.measurement_results
             return {"signal": [1, "ok", 2, "NA",""]}
 
@@ -174,7 +230,39 @@ class VisualTest(Task):
             server.send_broadcast({"text": {"text": "Napaka interne kamere! {}\n".format(err), "tag": "red"}})
             return {"signal": [1, "fail", 2, "NA",""]}
 
+    def get_threshold_image(self):
+        # Update few frames to get accurate image
+        for refresh in range(5):
+            ret, frame = self.camera.read()  # return a single frame in variable `frame`
+
+        roi = frame[self.roi_y:self.roi_y + self.roi_height,self.roi_x:self.roi_width + self.roi_x] # Make region of interest
+        grayscale = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY) # Grayscale ROI
+
+        # Make binary image from grayscale ROI
+        th, dst = cv2.threshold(grayscale, self.threshold, 255, cv2.THRESH_BINARY)
+
+        return dst
+
+    def check_mask(self,mask):
+        result = True
+        for i in range(len(self.led)):
+            if self.led[i]['state'] != mask[i] and mask[i] != -1:
+                result = False
+                break
+
+        return result
+
+
+    def get_light_states(self):
+        img = self.get_threshold_image()
+
+        for i in range(len(self.led)):
+            self.led[i]['state'] = self.detect_led_state(img, int(self.led[i]['x']), int(self.led[i]['y']), 5)
+
     def detect_led_state(self, th, x, y, rng):
+        x = x - self.roi_x
+        y = y - self.roi_y
+
         state = False
 
         black = 0
@@ -196,6 +284,10 @@ class VisualTest(Task):
         return state
 
     def tear_down(self):
+        GPIO.output(gpios['FAZA'], True)
+        GPIO.output(gpios['NULA'], True)
+        # GPIO.output(gpios['LOCK'],True)
+
         self.camera.release()
 
 
@@ -208,13 +300,9 @@ class FlashMCU(Task):
     def set_up(self):
         self.measurement_results = {}
 
-        # custom variable init
-        for definition in settings.task_execution_order[type(self).__name__]['definition']:
-            if "file" in definition['slug']:
-                self.file = definition['value']
+        self.file = self.get_definition("file")
 
         # Segger serial communication configuration
-
         self.ser = serial.Serial(
             port='/dev/ttyUSB0',
             baudrate=9600,
@@ -225,6 +313,9 @@ class FlashMCU(Task):
 
 
     def run(self) -> (bool, str):
+        # Check if product exists
+        # Nalozi glede na to
+
         try:
             server.send_broadcast({"text": {"text": "Nalaganje programa '{}'.\n" . format(self.file), "tag": "black"}})
             result = False
@@ -298,94 +389,76 @@ class VoltageTest(Task):
         self.mesurement_delay = 0.16
         self.measurement_results = {}
 
-        #self.i2c = self.use_device('light_panel')
-        #self.stepper = self.use_device('stepper')
+        self.i2c = self.use_device('light_panel')
         self.voltmeter = self.use_device('voltmeter')
 
-        self.arduino = devices.Arduino(0x05)
+        # Measure order
+        # Expected values imported from definitions
+        # Position, Mode (0 - VOLT, 1 - OHM, EXPECTED)
+        self.measure_order = {
+            (0, 1, self.get_definition("R3")), # R3
+            (1, 1, self.get_definition("R4")), # R4
+            (2, 1, self.get_definition("R5")), # R5
+            (3, 0, self.get_definition("Z1")), # Z1
+            (4, 0, self.get_definition("D1")), # D1
+            (5, 1, self.get_definition("P1")), # P1
+            (6, 1, self.get_definition("R2")), # R2
+            (7, 0, self.get_definition("5V")), # 5V
+            (8, 1, self.get_definition("R1")), # R1
+            (9, 1, self.get_definition("R9")), # R9
+            (10,0, self.get_definition("Uvcap")), # Uvcap
+            (11,1, self.get_definition("R8")) # R8
+        }
+
+        self.tolerance = self.get_definition("tolerance")
+
+        self.arduino_big = devices.Arduino(0x04)
+        self.arduino_small = devices.Arduino(0x06)
 
 
 
     def run(self) -> (bool, str):
+        # Razklenitev L in N
+        GPIO.output(gpios['FAZA'], True)
+        GPIO.output(gpios['NULA'], True)
 
-        #for i in range(4):
-        #    self.arduino.moveStepper(2+i)
-        #    self.arduino.connect()
-        #    self.arduino.disconnect()
+        # POTREBNO DISCHARGATI VEZJE
 
-        self.arduino.calibrate()
+        self.arduino_big.calibrate()
 
-        #for i in range(100):
-        #    volt = self.voltmeter.read()
-
-        #    angle = self.valmap(volt, 0.0, 5.0, 0.0, 180.0)
-        #    print(volt)
-        #    print(angle)
-        #self.arduino.servo1(angle)
+        # for i in self.measure_order:
+        # check if measuring is 1 (ohmmeter)
+        # measure, check expected value
+        # append to measurement result
 
 
-        #self.arduino.disconnect()
+        # Sklenitev L in N
+        GPIO.output(gpios['FAZA'], False)
+        GPIO.output(gpios['NULA'], False)
 
-        '''
-        try:
+        # for i in self.measure_order:
+        # check if measuring is 0 (voltmeter)
+        # measure, check expected value
+        # append to measurement result
 
-            self.stepper.set_mode(1)
-            vin = self.voltmeter.read()
-            print("Input voltage: {}V".format(vin))
+        # Razklenitev L in N
+        GPIO.output(gpios['FAZA'], True)
+        GPIO.output(gpios['NULA'], True)
 
-            for i in range(3,10):
-                self.stepper.move(i)
-
-                self.stepper.connect()
-                volt = self.voltmeter.read()
-                print(volt)
-                r1 = 100.58
-                if volt:
-                    if vin == volt:
-                        r2 = 0
-                    else:
-                        r2 = r1 / ((vin / volt) - 1)
-                else:
-                    r2 = "inf"
-
-                #r1 = r2 * ((vin - volt) - 1)
-                #r2 = r1 * buffer
-                print("R = {}kohm" . format(r2))
-                self.stepper.disconnect()
-                #print(volt)
-
-            self.stepper.set_mode(0)
-
-            
-            for a in range(len(moves)):
-                self.stepper.set_mode(relay[a])
-                #print("Preklop na {}".format(relay[a]))
-                self.stepper.move(moves[a])
-                #print("Pomik na {}".format(moves[a]))
-
-                if relay[a]:
-                    time.sleep(0.06)
-                    self.i2c.set_led_status(0xFF)
-                    time.sleep(0.06)
-                    self.i2c.set_led_status(0x0F)
-
-                self.stepper.connect()
-                volt = self.voltmeter.read()
-                self.stepper.disconnect()
-                print(volt)
-            
-
-            return {"signal": [1, "ok", 2, "NA",""]}
-        except Exception:
-            return {"signal": [1, "fail", 2, "NA",""]}
-        '''
 
         return {"signal": [1, "ok", 2, "NA", ""]}
 
     def valmap(self,value, istart, istop, ostart, ostop):
         return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 
+    def measure(self,index,type):
+        self.arduino_big.MoveStepper(index)
+        self.arduino_big.connect()
+        measurement = self.arduino.measure()
+        self.arduino_big.disconnect()
+
+        return measurement
 
     def tear_down(self):
-        self.arduino.disconnect()
+        self.arduino_big.disconnect()
         pass

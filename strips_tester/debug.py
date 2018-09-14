@@ -5,56 +5,68 @@ from smbus2 import SMBusWrapper
 global img
 import random
 
+
 def show_webcam(mirror=False):
     cam = cv2.VideoCapture(0)
     global img
     while True:
         ret_val, img = cam.read()
 
-        roi = img[50:400, 120: 440]
+        roi_x = 80
+        roi_y = 80
+        roi_width = 490
+        roi_height = 280
+
+        roi = img[roi_y:roi_y + roi_height,roi_x:roi_width + roi_x]
+
+        #roi = img
         # Convert BGR to HSV
-        gs = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gs = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
 
         # Set threshold and maxValue
-        thresh = 240
+        thresh = 150
         maxValue = 255
-
 
         th, dst = cv2.threshold(gs, thresh, maxValue, cv2.THRESH_BINARY)
 
-        roi = img
         # Basic threshold example
         led = []
-        led.append(detect_led_state(roi,dst,80,140,5))
-        led.append(detect_led_state(roi,dst,180,130,5))
-        led.append(detect_led_state(roi,dst,90,230,5))
-        led.append(detect_led_state(roi,dst,200,220,5))
-        led.append(detect_led_state(roi,dst,100,310,5))
-        led.append(detect_led_state(roi,dst,200,300,5))
+        led.append(detect_led_state(dst,126,116,15))
+        led.append(detect_led_state(dst,360,120,15))
+        led.append(detect_led_state(dst,542,122,5))
+
+        led.append(detect_led_state(dst,126,290,15))
+        led.append(detect_led_state(dst,356,302,15))
+        led.append(detect_led_state(dst,542,288,5))
 
         print(led)
 
-        cv2.imshow('my thss', img)
-        cv2.imshow('my th', dst)
-        cv2.imshow('my ss', roi)
+        cv2.imshow('Threshold image', dst)
+        cv2.imshow('Region of interest', roi)
 
-        time.sleep(0.1)
+        #time.sleep(0.1)
         if cv2.waitKey(1) == 27:
             break  # esc to quit
     cv2.destroyAllWindows()
 
 
-def detect_led_state(img, th, x, y, rng):
+def detect_led_state(th, x, y, rng):
+
+    x = x - 80
+    y = y - 80
 
     state = False
 
     black = 0
     white = 0
 
-    cv2.circle(img, (x,y), rng, (0, 255, 0), 1)
+    cv2.circle(th, (x,y), rng-1, (255,255,255), 1)
+    cv2.circle(th, (x,y), rng+1, (0,0,0), 1)
 
     for yy in range(-rng,rng):
         for xx in range(-rng,rng):
+            #print(x+xx)
+            #print(y+yy)
             pixel = th[y+yy][x+xx] % 254
 
             if pixel:
@@ -184,8 +196,8 @@ def check_arduino():
 
     arduino.disconnect()
 def main():
-    check_arduino()
-    #show_webcam(mirror=True)
+    #check_arduino()
+    show_webcam(mirror=True)
 
 
     #img = cv2.imread("C:/Users/marcelj/Desktop/strips_tester_project_git/strips_tester/MVCTEMP/Picture1.jpg") # reads image as grayscale

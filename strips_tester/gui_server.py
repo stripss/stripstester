@@ -182,33 +182,33 @@ class Server():
 
                                             self.send(connection, {"definition": {"definition_task": task_name, "definition_name": p['name'], "definition_slug": p['slug'], "definition_desc": p['desc'], "definition_value": p['value'], "definition_unit": p['unit']}})
 
-                        # Send statistics information
-                        service = strips_tester.TestDevice.objects.using(strips_tester.DB).get(name=strips_tester.settings.test_device_name).service
-                        countdate = strips_tester.TestDevice.objects.using(strips_tester.DB).get(name=strips_tester.settings.test_device_name).countdate
-                        calibrationdate = strips_tester.TestDevice.objects.using(strips_tester.DB).get(name=strips_tester.settings.test_device_name).calibrationdate
-                        path_manual = strips_tester.TestDevice.objects.using(strips_tester.DB).get(name=strips_tester.settings.test_device_name).manual
-                        query = strips_tester.TestDevice_Test.objects.using(strips_tester.DB).filter(test_device_id=self.test_device_id,datetime__gte=countdate).distinct("id")
+                        query = strips_tester.TestDevice.objects.using(strips_tester.DB).get(name=strips_tester.settings.test_device_name)
 
-                        good1 = query.filter(countgood=1).count()
-                        bad1 = query.filter(countbad=1).count()
-                        good2 = query.filter(countgood=2).count()
-                        bad2 = query.filter(countbad=2).count()
+                        # Send statistics to newly connected user
 
-                        good = good1 + good2 * 2
-                        bad = bad1 + bad2 * 2
+                        # Get all tests with this TN
+                        count_query = strips_tester.TestDevice_Test.objects.using(strips_tester.DB).filter(test_device_id=query.id, datetime__gte=query.countdate)
 
-                        user_good1 = query.filter(countgood=1, employee=id).count()
-                        user_bad1 = query.filter(countbad=1, employee=id).count()
-                        user_good2 = query.filter(countgood=2, employee=id).count()
-                        user_bad2 = query.filter(countbad=2, employee=id).count()
+                        good = 0
+                        bad = 0
+                        for current_test in count_query:
+                            # Send statistics information
+                            good = good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(test_id=current_test.id, ok=True).count()
+                            bad = bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(test_id=current_test.id, ok=False).count()
 
-                        user_good = user_good1 + user_good2 * 2
-                        user_bad = user_bad1 + user_bad2 * 2
+                        count_query_user = count_query.filter(employee=id)
 
-                        self.send(connection,{"count": {"good": user_good, "bad": user_bad,"good_global": good, "bad_global": bad, "countdate": countdate}})
-                        self.send(connection,{"calibration": calibrationdate})
-                        self.send(connection,{"path_manual": path_manual})
-                        self.send(connection,{"service": service})
+                        user_good = 0
+                        user_bad = 0
+                        for current_test in count_query_user:
+                            # Send statistics information
+                            user_good = user_good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(test_id=current_test.id, ok=True).count()
+                            user_bad = user_bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(test_id=current_test.id, ok=False).count()
+
+                        self.send(connection,{"count": {"good": user_good, "bad": user_bad,"good_global": good, "bad_global": bad, "countdate": query.countdate}})
+                        self.send(connection,{"calibration": query.calibrationdate})
+                        self.send(connection,{"path_manual": query.manual})
+                        self.send(connection,{"service": query.service})
                         self.send(connection,{"task_result": self.result})
                         self.send(connection,{'esd': True})
                         self.send(connection,{'high_voltage': True})

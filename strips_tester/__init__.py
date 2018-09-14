@@ -97,6 +97,7 @@ def check_db_connection():
 logger = initialize_logging(logging.DEBUG)
 #logger_queue = set_queue_logger()
 current_product = None
+product = []
 
 server = Server()
 server.Daemon = True
