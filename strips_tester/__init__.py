@@ -2,13 +2,10 @@ import os
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-import sqlite3
-import json
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 from strips_tester import config_loader
-import strips_tester.gui_server
-from strips_tester.gui_server import Server
+
 settings = config_loader.Settings()
 
 VERSION = '0.0.1'
@@ -17,17 +14,17 @@ import multiprocessing
 import time
 import datetime
 
+# Initialize Django DB
 import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
 django.setup()
-import strips_tester.utils as utils
-# first time check & create admin user
 from django.contrib.auth.models import User, Group
 from web_project.web_app.models import *
 
+
+
+import strips_tester.utils as utils
 from strips_tester import presets  # ORM preset
-from web_project.web_app.models import *
-module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 
 # test levels == logging levels (ints)
 CRITICAL = logging.CRITICAL
@@ -38,7 +35,6 @@ DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
 # PACKAGE_NAME = __name__
-
 
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
@@ -67,11 +63,9 @@ def initialize_logging(level: int = logging.INFO):
     # db_handler = logging. # todo database logging handler
     return lgr
 
-
-
-
 def check_db_connection():
     DB = 'default'
+    return DB
     # with open(os.devnull, 'wb') as devnull:
     #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
     #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
@@ -93,14 +87,9 @@ def check_db_connection():
             raise 'Could not connect to default of local database'
     return DB
 
-
-logger = initialize_logging(logging.DEBUG)
+#logger = initialize_logging(logging.DEBUG)
 #logger_queue = set_queue_logger()
-current_product = None
 product = []
 
-server = Server()
-server.Daemon = True
-queue = multiprocessing.Queue(0)
 
 

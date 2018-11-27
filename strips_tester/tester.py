@@ -1,82 +1,82 @@
+#!/venv_strips_tester/bin/python
 import importlib
-import logging
 import os
-import datetime
 import sys
-# import wifi
 import RPi.GPIO as GPIO
 import time
-import shutil
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
-import strips_tester
-from strips_tester import settings,gui_server,current_product
 
+from strips_tester import settings
 
-import datetime
 import config_loader
-from strips_tester import utils
-
-
 import subprocess
 
-import serial
-import struct
-#import wifi
 import RPi.GPIO as GPIO
 import devices
-# sys.path.append("/strips_tester_project/garo/")
-# from strips_tester import *
-
+# Import Django models
 from web_project.web_app.models import *
+
+import gui_server
 import strips_tester
 import datetime
-import numpy as np
-from strips_tester import utils
-from dateutil import tz
+from dateutil import parser
 
-
-# name hardcoded, because program starts here so it would be "main" otherwise
-module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
-
-import multiprocessing
+import threading
 import json
 from collections import OrderedDict
+import pytz
 
 
-server = strips_tester.server
-queue = strips_tester.queue
+from django.db.models import F, Prefetch, Q
 
+
+# Server variable change (change server to self.server)!!!!!
 class Task:
     TASK_OK = 0
     TASK_WARNING = 1
     TASK_FAIL = 2
 
-    def __init__(self,level: int = logging.CRITICAL):
-        self.test_level = level
+    def __init__(self, test_device_handler):
         self.end = []
         self.passed = []
         self.result = None
-        # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
+        self.state = Task.TASK_OK
+        self.test_device = test_device_handler
+        self.server = self.test_device.server
 
-        self.device = settings.device_list
+        self.device = self.test_device.settings.device_list
 
-    def use_device(self,device):
+    def use_device(self, device):
 
         # Check if device is loaded from beginning
-        if settings.is_device_loaded(device):
+        if self.test_device.settings.is_device_loaded(device):
 
-            return settings.device_list[device]
+            return self.test_device.settings.device_list[device]
         else:
             raise Exception("Device {} does not exist!" . format(device))
 
     # Get definition value from slug
     def get_definition(self,slug):
-        for definition in settings.task_execution_order[type(self).__name__]['definition']:
+        return self.test_device.settings.get_definition(type(self).__name__,slug)
+
+    # Get definition value from slug
+    def get_external_definition(self, task_name, slug):
+        return self.test_device.settings.get_definition(task_name, slug)
+
+    # Get definition value from slug
+    def get_definition_unit(self,slug):
+        for definition in self.test_device.settings.task_execution_order[type(self).__name__]['definition']:
             if slug in definition['slug']:
-                return definition['value']
+                return definition['unit']
 
         raise ValueError("Slug {} does not exist in {} definitions!" . format(slug,type(self).__name__))
+
+    def is_unit_percent(self,unit):
+        if unit == "%":
+            return True
+        else:
+            return False
 
     def set_up(self):
         """Used for environment initial_setup"""
@@ -90,42 +90,44 @@ class Task:
         """Clean up after task, close_relay connections etc..."""
         pass
 
-    def _execute(self,test_level: int):
+    def _execute(self):
         ret = Task.TASK_OK
 
         # Task set_up program
         try:
             self.set_up()
-        
+
         except Exception as ee:
             # Setup procedure is for test device
             # If error happen, it is critical
             print("[Task set_up]: {}".format(ee))
+            self.server.send_broadcast({"command": "text", "text": "Napaka v set_up: {}\n" . format(ee), "tag": "red"})
             ret = Task.TASK_FAIL
+
+
 
         # If set_up succeeded
         if ret != Task.TASK_FAIL:
             try:
-                # Task run program (return task name)
-                task_ret = self.run()
+                # Task run program (return task name and task_state)
+                task_name = self.run()
 
-                # Loop through nests and see if all tasks succeeded
+
+                # Loop through nests and see if all measurements succeeded
                 for current in range(len(strips_tester.product)):
                     if strips_tester.product[current].ok: # If some of products are not ok, inspect at which task
-                        print("Product {} FAIL".format(current))
-                        if task_ret in strips_tester.product[current].measurements:
-                            print("Return: {}".format(task_ret))
-                            print(len(strips_tester.product[current].measurements[task_ret]))
-                            for i in range(len(strips_tester.product[current].measurements[task_ret])):
-                                if strips_tester.product[current].measurements[task_ret][i]['ok']: # If any of values are fail, inspect
-                                    ret = strips_tester.product[current].measurements[task_ret][i]['ok']
+                        #print("Product {} FAIL".format(current))
+                        if task_name in strips_tester.product[current].measurements: # Check if current task is in measurements (could have no measurements)
+                            #print("Return: {}".format(task_name))
+                            #print(len(strips_tester.product[current].measurements[task_ret]))
+                            for i in range(len(strips_tester.product[current].measurements[task_name])): # Loop through measurements of this task
+                                if strips_tester.product[current].measurements[task_name][i]['ok']: # If any of values are fail, inspect
+                                    ret = strips_tester.product[current].measurements[task_name][i]['ok']
 
                                     break
 
                             if ret == Task.TASK_FAIL:
                                 break
-                    else:
-                        print("Product {} OK".format(current))
 
             # Return task name
                 # Check all products if exists and fail at that task
@@ -135,42 +137,14 @@ class Task:
                 # Setup procedure is for test device
                 # If error happen, it is critical
                 print("[Task run]: {}".format(ee))
+                self.server.send_broadcast({"command": "text", "text": "Napaka v run: {}\n" . format(ee), "tag": "red"})
                 ret = Task.TASK_FAIL
 
 
         # Task tear_down program
         self.tear_down()
 
-        '''
-        for keys, values in ret.items():
-            if keys == "signal":
-                if values[1] == "fail" and values[2] > 3:
-                    self.end.append(True)
-                    self.passed.append(False)
-                elif values[1] == "ok":
-                    self.passed.append(True)
-                else:
-                    self.passed.append(False)
-                    ###########################################################################
-            else:
-                strips_tester.current_product.tests[keys] = values # insert test to be written to server.DB
-
-                if values[1] == "fail" and values[2] > 3:
-                    self.end.append(True)
-                    self.passed.append(False)
-                elif values[1] == 'ok':
-                    self.passed.append(True)
-                else:
-                    self.passed.append(False)
-                    ##########################################################################
-        # normal flow when task is not critical
-        '''
-        print("RET: {}" . format(ret))
         return ret
-
-    def set_level(self, level: int):
-        self.test_level = level
-
 
 # Define testing product information, which stores info through test
 class ProductInfo:
@@ -195,132 +169,394 @@ class ProductInfo:
         self.measurements[task][-1]['ok'] = state
         self.measurements[task][-1]['value'] = value
 
-        if state: # If some measurement fail, make product fail
+        if state != Task.TASK_OK: # If some measurement fail, make product fail
             self.ok = state
 
         return
 
-def test_device_state(boot):
-    i2c = settings.device_list['LightBoard']
+    # Determine if product is ok
+    def is_ok(self):
+        if self.ok == Task.TASK_OK:
+            return True
+        else:
+            return False
 
-    if boot:
-        # Boot state until someone connects
-        freq = 0.1
+class Device:
+    STATUS_NO_CLIENTS = 0
+    STATUS_START = 1
+    STATUS_IDLE = 2
 
-        while server.num_of_clients == 0:
-            i2c.set_led_status(0x14)
-            time.sleep(freq)
-            i2c.set_led_status(0x00)
-            time.sleep(freq)
-    else:
-        # Shutdown state
-        for i in range(10):
-            i2c.set_led_status(0x0A)
-            time.sleep(0.1)
-            i2c.set_led_status(0x00)
-            time.sleep(0.1)
+    def __init__(self):
+        # Prepare test device for use
+        self.settings = settings
+        self.db = strips_tester.check_db_connection()  # Django DB instance
 
-def start_test_device():
-    global custom_tasks
+        self.initialize_gpios()
 
-    ### one time tasks
-    initialize_gpios()
-    settings.load_devices()
-    server.start()
+        self.settings.load_devices()
 
-    # If LightBoard is accessible, signal test device state
-    if settings.is_device_loaded("LightBoard"):
-        test_device_state(True)
+        # Load latest custom tasks from file
+        self.custom_tasks = importlib.import_module("configs." + self.settings.get_setting_file_name() + ".custom_tasks")
 
-    # Initialize good and bad tests from server.DB
+        # Create test device images folder for storing camera-related test data. Usually we save only the last one.
+        if not os.path.exists(self.settings.test_dir + "/images/"):
+            try:
+                os.makedirs(self.settings.test_dir + "/images/")
+            except OSError:
+                print("[StripsTester] ERROR: Cannot make 'images' folder.")
 
-    start_msg = True
-    spam = False
+        # Check if TN exists in DB
+        result = TestDevice.objects.using(self.db).filter(name=self.settings.test_device_name).exists()
 
-    custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
+        if result:
+            self.message("Test device '{}' found in DB. Loading data..." . format(self.settings.test_device_name))
+
+            # Get test device data from DB
+            query = TestDevice.objects.using(self.db).get(name=self.settings.test_device_name)
+        else:
+            date = pytz.utc.localize(datetime.datetime.utcnow())
+
+            # If test device is not found, create one
+            query = TestDevice(
+                name=self.settings.test_device_name,
+                author="Spremeni",
+                service=1000,
+                manual="",
+                countdate=date,
+                calibrationdate=date,
+                nests=1).save(using=self.db)
+
+            self.message("Device {} added to DB. Change its attributes." . format(self.settings.test_device_name))
+
+        # Store more info about test device into variables for further usage
+        self.id = query.id
+        self.nests = query.nests
+        self.countdate = pytz.utc.localize(parser.parse(query.countdate))
+        self.calibrationdate = pytz.utc.localize(parser.parse(query.calibrationdate))
+        self.service = query.service
+        self.manual = query.manual
+        self.author = query.author
+
+        self.maintenance = None
+        self.status = self.STATUS_NO_CLIENTS
+        self.result = "idle"
+        self.test_type = None
+        self.test_id = None
+        self.master_test_type = None
+        self.master_test_id = None
+        self.start_test = None
+        self.end_test = None
+
+        self.initialize_server()
+
+        # Test device prepared, go to loop
+        self.test_device_loop()
+
+    def initialize_gpios(self):
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
+
+        for gpio in self.settings.gpios_settings.values():
+            if gpio.get("function") == config_loader.G_INPUT:
+                GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull"))
+            elif gpio.get("function") == config_loader.G_OUTPUT:
+                GPIO.setup(gpio.get("pin"), gpio.get("function"))
+                GPIO.output(gpio.get("pin"), gpio.get("initial"))
+
+    def initialize_server(self):
+        self.server = gui_server.Server(self)
+
+        # Start the server
+        server_thread = threading.Thread(target=self.server.start)
+        server_thread.setDaemon(True)
+        server_thread.start()
+
+    def test_device_state(self, boot):
+        found_i2c = False
+        period = 0.1
+
+        if self.settings.is_device_loaded("LightBoard"):
+            i2c = self.settings.device_list['LightBoard']
+            found_i2c = True
+        else:
+            # Old LightBoard support (GO-HA)
+            try:
+                i2c = devices.MCP23017(0x20)
+                found_i2c = True
+            except:
+                pass
+
+        if found_i2c:
+            if boot:
+                # Boot state until someone connects
+
+                while server.num_of_clients == 0:
+                    i2c.set_led_status(0x14)
+                    time.sleep(period)
+                    i2c.set_led_status(0x00)
+                    time.sleep(period)
+            else:
+                # Shutdown state
+                for i in range(10):
+                    i2c.set_led_status(0x0A)
+                    time.sleep(period)
+                    i2c.set_led_status(0x00)
+                    time.sleep(period)
+        else:
+            # Searching for LIGHT_GREEN and LIGHT_RED pin definition
+            if boot:
+                if "LIGHT_GREEN" in strips_tester.settings.gpios:
+                    if "LIGHT_RED" in strips_tester.settings.gpios:
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_RED"], False)
+
+                    while server.status == server.STATUS_NOCLIENTS:
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_GREEN"], True)
+                        time.sleep(period)
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_GREEN"], False)
+                        time.sleep(period)
+            else:
+                if "LIGHT_RED" in strips_tester.settings.gpios:
+                    if "LIGHT_GREEN" in strips_tester.settings.gpios:
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_GREEN"], False)
+
+                    # Shutdown state
+                    for i in range(10):
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_RED"], True)
+                        time.sleep(period)
+                        GPIO.output(strips_tester.settings.gpios["LIGHT_RED"], False)
+                        time.sleep(period)
+
+    def shutdown(self):
+        # Perform test device shutdown
+        self.test_device_state(False)  # Signal TN shutdown
+        subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
+
+    def run_custom_tasks(self):
+        strips_tester.product = []
+        self.task_results = []
+
+        # TASKS
+        #################################################################################
+
+        # Initialize ProductInfo object for all nests
+        for nest in range(self.nests):
+            strips_tester.product.append(ProductInfo())
+
+        # Reload custom tasks (may be updated)
+        importlib.reload(self.custom_tasks)
+
+        # Reload config.json file (may be updated)
+        settings.reload_tasks(settings.config_file, settings.custom_config_file)
+
+        # Set server status on WORK
+        self.result = "work"
+        self.start_test = pytz.utc.localize(datetime.datetime.utcnow())
+        self.end_test = None
+
+        self.server.send_broadcast({"command": "task_result", "result": self.result})
+        self.server.send_broadcast({"command": "test_time", "start_test": self.start_test.isoformat(), "end_test": self.end_test})
+        self.server.send_broadcast({"command": "text", "text": "Začetek testa\n", "tag": "purple"})
+
+        # Update GUI - Reset tasks status to idle
+        for task_name in self.settings.task_execution_order:
+            self.server.send_broadcast({"command": "task_update", "update": {"slug": task_name, "state": "idle"}})
+
+        for task in self.settings.task_execution_order:
+            if self.settings.task_execution_order[task]:
 
 
+                # Check if task is enabled
+                if self.settings.task_execution_order[task]['enable']:
+                    CustomTask = getattr(self.custom_tasks, task)
 
+                    try:
+                        self.server.send_broadcast({"command": "text", "text": "Izvajanje naloge '{}'...\n" . format(self.settings.task_execution_order[task]['name']), "tag": "blue"})
+                        self.server.send_broadcast({"command": "task_update", "update": {"slug": task, "state": "work"}})
 
-    while True:
-        while server.startt == False:
-            # Test not initialized, can apply settings here.
-            #st_state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-            if "MANUAL_LOCK" in strips_tester.settings.gpios:
-                state = GPIO.input(strips_tester.settings.gpios.get("MANUAL_LOCK"))
+                        # Make custom_task instance
+                        custom_task = CustomTask(self)
 
-                if not state:
-                    GPIO.output(strips_tester.settings.gpios.get("LOCK"),False)
-                else:
-                    GPIO.output(strips_tester.settings.gpios.get("LOCK"),True)
+                        # Run custom task
+                        result = custom_task._execute()
 
-            if "START_SWITCH" in strips_tester.settings.gpios:
-                if start_msg:
-                    server.send_broadcast({"text": {"text": "Za začetek testa zapri pokrov.\n", "tag": "black"}})
-                    start_msg = False
+                        # Store task result into list for final decision
+                        self.task_results.append(result)
 
-                start = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-
-                if not start:
-                    if server.master:
-                        server.test_user_id = server.master_id
-                        server.test_user_type = server.master_test_type
-
-                        if server.maintenance == -1:
-                            server.startt = True
-
-                            # Assign which user is making a test
-                            server.test_user_id = server.master_id
-                            server.test_user_type = server.master_test_type
+                        if result == Task.TASK_OK:
+                            self.server.send_broadcast({"command": "task_update", "update": {"slug": task, "state": "ok"}})
                         else:
-                            if not spam:
-                                spam = True
+                            self.server.send_broadcast({"command": "task_update", "update": {"slug": task, "state": "fail"}})
 
-                                server.send(server.get_connection_by_id(server.master_id),{"text": {"text": "Naprava je v vzdrževalnem načinu.\n", "tag": "yellow"}})
+                            # If task error is fatal
+                            if result == Task.TASK_FAIL:
+                                # Could be separate function. Here, due to import restrictions.
+                                # release all hardware, print sticker, etc...
+                                #######################
+
+                                # Execute critical tasks
+                                # Can be done only task_name['name']?
+                                for task in self.settings.critical_event_tasks:
+                                    if self.settings.critical_event_tasks[task]:
+                                        CustomTask = getattr(self.custom_tasks, task)
+
+                                        self.server.send_broadcast({"command": "text", "text": "Kritično izvajanje naloge '{}'...\n" . format(self.settings.task_execution_order[task]['name']), "tag": "red"})
+
+                                        try:
+
+                                            custom_task = CustomTask(self)
+                                            result = custom_task._execute()
+
+                                            self.task_results.append(result)
+                                        except Exception as ee:
+                                            raise "CRITICAL EVENT EXCEPTION"
+                                break
+                                ######################
+                    # catch code exception and bugs. It shouldn't be for functional use
+                    except Exception as e:
+                        self.message("Code error: {}" . format(e))
                 else:
-                    spam = False
+                    self.server.send_broadcast({"command": "text", "text": "Preskok naloge '{}'...\n" . format(self.settings.task_execution_order[task]['name']), "tag": "grey"})
 
-            if not queue.empty():  # something is in the queue
-                msg = queue.get()
+        # Broadcast task result to GUI
+        if any(self.task_results):
+            self.server.send_broadcast({"command": "task_result", "result": "fail"})
+        else:
+            self.server.send_broadcast({"command": "task_result", "result": "ok"})
 
-                if "shutdown" in msg:  # Update server.DB
+        # Set server status on IDLE
+        self.result = "idle"
+        self.start_test = None
+        self.end_test = pytz.utc.localize(datetime.datetime.utcnow())
 
-                    test_device_state(False) # Signal TN shutdown
-                    command = "/usr/bin/sudo /sbin/shutdown -h now"
-                    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+        self.server.send_broadcast({"command": "test_time", "start_test": self.start_test, "end_test": self.end_test.isoformat()})
+        self.server.send_broadcast({"command": "text", "text": "Konec testa\n", "tag": "purple"})
+        # Tasks ended
 
-                if "service" in msg:  # Update server.DB
-                    TestDevice.objects.filter(name=settings.test_device_name).update(service=msg['service'])
+        # Store results in DB
+        self.save_to_db()
 
-                if "calibration" in msg:  # Update server.DB
-                    TestDevice.objects.filter(name=settings.test_device_name).update(calibrationdate=msg['calibration'])
 
-                if "factory_reset" in msg:  # Factory reset of TN
+    def save_to_db(self):
+        # Upload to DB
+        self.message("Saving results into database...")
 
-                    if os.path.exists(strips_tester.settings.config_file):
-                        # remove config.json file and replace it with new (updated) one.
-                        try:
-                            os.remove(strips_tester.settings.custom_config_file)
-                        except OSError:
-                            pass
-                        try:
-                            # Copy clean config.json to custom_config.json
-                            shutil.copy2(strips_tester.settings.config_file,strips_tester.settings.custom_config_file)
+        # Save new Test
+        test_device_test = TestDevice_Test(
+            test_device_id=self.id,
+            datetime=self.end_test,
+            employee=self.test_id,  # Get user_num from factory
+            test_type=self.test_type,
+            result=any(self.task_results)
+        )
 
-                            server.send(msg['factory_reset'], {"factory_reset": True})
+        test_device_test.save(using=self.db)
 
-                        except Exception as err:
-                            print("[StripsError]: {}" . format(err))
-                            server.send(msg['factory_reset'], {"factory_reset": False})
+        # Save every ProductInfo which were tested in this Test
+        for current in range(self.nests):
+            # Check if product exists
+            if strips_tester.product[current].exist:
+                self.message("Product {} exist.. Saving into TestDevice_Product" . format(current))
 
+                # Make new ProductInfo query
+                TestDevice_Product(
+                    test_id=test_device_test.id,    # Store current test ID
+                    serial=strips_tester.product[current].serial,
+                    ok=strips_tester.product[current].ok,
+                    nest=current,
+                    measurements=json.dumps(strips_tester.product[current].measurements)
+                ).save(using=self.db)
+
+                self.message("Done.")
+        # Decrease service counter
+        self.service = self.service - 1
+
+        if self.service < 0:
+            self.service = 0
+
+        # Update service counter
+        TestDevice.objects.using(self.db).filter(id=self.id).update(service=self.service)
+
+        # Update connected clients
+        self.server.send_broadcast({"command": "service", "data": self.service})
+
+        count_query = TestDevice_Test.objects.using(self.db).filter(test_device_id=self.id, datetime__gte=self.countdate).values('id')
+        count_good = TestDevice_Product.objects.using(self.db).filter(test_id__in=count_query, ok=0).count()
+        count_bad = TestDevice_Product.objects.using(self.db).filter(test_id__in=count_query, ok__gt=0).count()
+
+        # Send count info for each client
+        for user in self.server.factory.users:
+            count_query = TestDevice_Test.objects.using(self.db).filter(test_device_id=self.id, datetime__gte=self.countdate, employee=self.server.factory.users[user].id).values('id')
+
+            user_count_good = TestDevice_Product.objects.using(self.db).filter(test_id__in=count_query, ok=0).count()
+            user_count_bad = TestDevice_Product.objects.using(self.db).filter(test_id__in=count_query, ok__gt=0).count()
+
+            try:
+                # Send count to each user connected
+                self.server.factory.users[user].send({"command": "count", "date": self.countdate.isoformat(), "good": user_count_good, "bad": user_count_bad, "good_global": count_good, "bad_global": count_bad})
+            except KeyError:
+                pass  # Pass error if client disconnects right here
+
+        time.sleep(1)
+        return
+
+    def message(self, message):
+        print("[StripsTester] {}" . format(message))
+
+    def test_device_loop(self):
+        # Inifinity loop - keep test device alive forever
+        while True:
+            self.start_message = False
+
+            # Initiate ready state for test device while no clients are connected
+            while self.status == self.STATUS_NO_CLIENTS:
+                time.sleep(0.5)
+                self.message("Waiting for clients...")
+                #self.test_device_state(True)
+
+            # Wait until start test is not received (maybe update db meanwhile?)
+            while self.status != self.STATUS_START:
+                if self.status == self.STATUS_NO_CLIENTS: # If last client disconnects, return to first mode
+                    break
+
+                if self.maintenance is None and self.test_id is not None:
+                    # Check if START SWITCH exist on test device
+                    if "START_SWITCH" in self.settings.gpios:
+                        if not self.start_message:
+                            self.server.send_broadcast({"command": "text", "text": "Za začetek testa zapri pokrov ali pritisni gumb START.\n", "tag": "black"})
+                            self.start_message = True
+
+                        start_switch = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
+
+                        if start_switch:  # Start test with master client
+                            self.test_id = self.master_test_id
+                            self.test_type = self.master_test_type
+
+                            self.status = self.STATUS_START
+                else:  # Wait for maintenance to drop or new master arrive
+                    time.sleep(0.1)
+
+            # This condition must be here, so NO_CLIENTS can pass it
+            if self.status == self.STATUS_START:
+                # Check maintenance mode
+
+                if self.maintenance is None:
+                    if self.test_id is not None:
+                        self.run_custom_tasks()
+
+                        self.start_message = False
                     else:
-                        # Missing file!
-                        print("Datoteke 'config.json' ni mogoce najti!")
+                        # Send only to master num
+                        self.server.send_broadcast({"command": "text", "text": "Glavni delavec ni določen. Če začnete testirati in prevzeti testno napravo, kliknite gumb START.\n", "tag": "yellow"})
+                else:
+                    # Send only to master num
+                    self.server.send_broadcast({"command": "text", "text": "Naprava je v vzdrževalnem načinu.\n", "tag": "yellow"})
 
-                    settings.reload_tasks(settings.config_file, settings.custom_config_file)
+                # Successfully ended test
+                if self.status == self.STATUS_START:
+                    self.status = self.STATUS_IDLE
 
-                    for task_name in settings.task_execution_order:
-                        server.send_broadcast({"task_update": {"task_slug": task_name, "task_enable": settings.task_execution_order[task_name]['enable']}})
+'''
+def start_test_device():
 
 
                 if "make_log" in msg:
@@ -346,288 +582,7 @@ def start_test_device():
 
                     # Send log file to requested client
                     server.send(msg['make_log']['id'], {"log_file": log})
-
-                # Client triggers new series
-                if "set_count" in msg:
-                    # Strip time from string
-                    countdate = datetime.datetime.strptime(msg['set_count'], '%Y-%m-%d %H:%M:%S')
-
-                    # Update CountDate to DB
-                    TestDevice.objects.filter(name=settings.test_device_name).update(countdate=countdate)
-
-
-                    query = strips_tester.TestDevice.objects.using(strips_tester.DB).get(
-                        name=strips_tester.settings.test_device_name)
-
-                    # Send statistics to newly connected user
-
-                    # Get all tests with this TN
-                    count_query = strips_tester.TestDevice_Test.objects.using(strips_tester.DB).filter(
-                        test_device_id=query.id, datetime__gte=query.countdate)
-
-                    good = 0
-                    bad = 0
-                    for current_test in count_query:
-                        # Send statistics information
-                        good = good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
-                            test_id=current_test.id, ok=True).count()
-                        bad = bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
-                            test_id=current_test.id, ok=False).count()
-
-                    # Send count info for each client
-                    for client_number in range(server.num_of_clients):
-                        if server.clientdata[client_number]['connected']:
-                            count_query_user = count_query.filter(employee=server.clientdata[client_number]['id'])
-
-                            user_good = 0
-                            user_bad = 0
-                            for current_test in count_query_user:
-                                # Send statistics information
-                                user_good = user_good + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
-                                    test_id=current_test.id, ok=True).count()
-                                user_bad = user_bad + strips_tester.TestDevice_Product.objects.using(strips_tester.DB).filter(
-                                    test_id=current_test.id, ok=False).count()
-
-                                server.send(client_number, {"count": {"good": user_good, "bad": user_bad, "good_global": good, "bad_global": bad, "countdate": countdate}})
-
-                    # Update counts for all clients!
-
-                    # Send log file to requested client
-                    #server.send(msg['make_log']['id'], {"log_file": log})
-
-            time.sleep(0.1)
-
-        try:
-            global task_results
-            # strips_tester.current_product.task_results = run_custom_tasks()
-
-            run_custom_tasks()
-
-        except Exception as e:
-            module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
-            raise e
-
-        finally:
-            start_msg = True
-            server.startt = False
-
-
-
-
-
-def initialize_gpios():
-    # GPIO.cleanup()
-    GPIO.setmode(GPIO.BOARD)
-    # GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    for gpio in settings.gpios_settings.values():
-        if gpio.get("function") == config_loader.G_INPUT:
-            GPIO.setup(gpio.get("pin"), gpio.get("function"),pull_up_down=gpio.get("pull"))
-        elif gpio.get("function") == config_loader.G_OUTPUT:
-            GPIO.setup(gpio.get("pin"), gpio.get("function"))
-            GPIO.output(gpio.get("pin"), gpio.get("initial"))
-        else:
-            module_logger.critical("Not implemented gpio function")
-
-    st_state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-
-
-def run_custom_tasks():
-    global custom_tasks
-
-    strips_tester.product = []
-    task_results = []
-
-    # TASKS
-    #################################################################################
-
-
-    # Check if TN exists in DB
-    result = TestDevice.objects.using(server.DB).filter(name=settings.test_device_name).exists()
-
-    if result:
-        # Get test device class
-        test_device = TestDevice.objects.using(server.DB).get(name=settings.test_device_name)
-    else:
-        date = datetime.datetime.now() + datetime.timedelta(hours=2)
-
-
-        # If test device is not found, create one
-        test_device = TestDevice(name=settings.test_device_name,
-                                 author="Spremeni",
-                                 service=1000,
-                                 manual="",
-                                 countdate=date,
-                                 calibrationdate=date,
-                                 nests=1)
-        test_device.save()
-
-
-    for i in range(test_device.nests):
-        # Initialize ProductInfo object for all products
-        strips_tester.product.append(ProductInfo())
-        print("New product {} created." . format(i))
-
-    importlib.reload(custom_tasks)
-
-    settings.reload_tasks(settings.config_file,settings.custom_config_file)
-
-    server.result = "work"
-
-    server.send_broadcast({"task_result": server.result})
-    server.send_broadcast({"text": {"text": "Začetek testa\n", "tag": "purple"}})
-
-    # Reset tasks status to idle
-    for task_name in settings.task_execution_order:
-        server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "idle", "task_info": ""}})
-
-
-
-
-    for task_name in settings.task_execution_order:
-        if settings.task_execution_order[task_name]:
-
-            # is task enabled?
-            if settings.task_execution_order[task_name]['enable']:
-                CustomTask = getattr(custom_tasks, task_name)
-
-                try:
-                    server.send_broadcast({"text": {"text": "Izvajanje naloge '{}'...\n" . format(settings.task_execution_order[task_name]['name']), "tag": "blue"}})
-                    server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "work"}})
-                    custom_task = CustomTask()
-
-                    # Run custom task
-                    result = custom_task._execute(config_loader.TEST_LEVEL)
-
-                    # Store task result into list for final decision
-                    task_results.append(result)
-
-                    if result == Task.TASK_OK:
-                        server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "ok"}})
-                    else:
-                        server.send_broadcast({"task_update": {"task_slug": task_name, "task_state": "fail"}})
-
-                        # If task error is fatal
-                        if result == Task.TASK_FAIL:
-                            # Could be separate function. Here, due to import restrictions.
-                            # release all hardware, print sticker, etc...
-                            #######################
-                            for task_name in settings.critical_event_tasks:
-                                if settings.critical_event_tasks[task_name]:
-                                    CustomTask = getattr(custom_tasks, task_name)
-                                    try:
-                                        server.send_broadcast({"text": {"text": "Kritično izvajanje {}...\n" . format(settings.critical_event_tasks[task_name]['name']), "tag": "red"}})
-
-                                        custom_task = CustomTask()
-                                        result = custom_task._execute(config_loader.TEST_LEVEL)
-
-                                        task_results.append(result)
-                                    except Exception as ee:
-                                        raise "CRITICAL EVENT EXCEPTION"
-                            break
-                            ######################
-                # catch code exception and bugs. It shouldn't be for functional use
-                except Exception as e:
-                    module_logger.error(str(e))
-                    module_logger.exception("Code error -> REMOVE THE BUG")
-            else:
-                server.send_broadcast({"text": {"text": "Preskok naloge '{}'...\n" . format(settings.task_execution_order[task_name]['name']), "tag": "grey"}})
-                module_logger.debug("Task %s ignored", task_name)
-
-    server.send_broadcast({"text": {"text": "Konec testa\n\n", "tag": "purple"}})
-    ## insert into DB
-
-    # Are all task results True?
-    if any(task_results):
-        server.send_broadcast({"task_result": "fail"})
-    else:
-        server.send_broadcast({"task_result": "ok"})
-
-    server.result = "idle"
-
-    # Tasks ended
-
-    # Upload to DB
-
-
-
-    
-    # Get current date and time with right UTC timezone
-    dateandtime = datetime.datetime.now() + datetime.timedelta(hours=2)
-
-
-    # Save new Test
-    test_device_test = TestDevice_Test(test_device_id=test_device.id,
-                                       datetime=dateandtime,
-                                       employee=server.test_user_id,
-                                       test_type=server.test_user_type,
-                                       result=any(task_results)
-                                       )
-
-    test_device_test.save(using=server.DB)
-
-    # Save every ProductInfo which were tested in this Test
-    for current in range(test_device.nests):
-
-        # Check if product exists
-        if strips_tester.product[current].exist:
-            # Make new ProductInfo query
-            test_device_product = TestDevice_Product(
-                                            test_id=test_device_test.id,    # Store current test ID
-                                            serial=strips_tester.product[current].serial,
-                                            ok=strips_tester.product[current].ok,
-                                            nest=current,
-
-                                            measurements=json.dumps(strips_tester.product[current].measurements)
-                                            )
-
-            test_device_product.save(using=server.DB)
-
-    # Lower service counter by one
-    service = test_device.service - 1
-
-    if service < 0:
-        service = 0
-
-    # Update service counter
-    TestDevice.objects.using(server.DB).filter(name=settings.test_device_name).update(service=service)
-
-    # Get all tests with this TN
-    query = TestDevice_Test.objects.using(server.DB).filter(test_device_id=test_device.id, datetime__gte=test_device.countdate)
-
-    good = 0
-    bad = 0
-    for current_test in query:
-        # Send statistics information
-        good = good + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id,ok=True).count()
-        bad = bad + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id,ok=False).count()
-
-    # Update connected clients
-    server.send_broadcast({"service": service})
-
-    # Send count info for each client
-    for client_number in range(server.num_of_clients):
-        if server.clientdata[client_number]['connected']:
-            query_user = query.filter(employee=server.clientdata[client_number]['id'])
-
-            user_good = 0
-            user_bad = 0
-            for current_test in query_user:
-                # Send statistics information
-                user_good = user_good + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id, ok=True).count()
-                user_bad = user_bad + TestDevice_Product.objects.using(server.DB).filter(test_id=current_test.id, ok=False).count()
-
-            server.send(client_number, {"count": {"good": user_good, "bad": user_bad, "good_global": good, "bad_global": bad}})
-
-
-
-    if server.afterlock:
-        if "LOCK" in settings.gpios: # Disable lock if it exists
-            GPIO.output(strips_tester.settings.gpios.get("LOCK"),False)
-
-            time.sleep(server.afterlock)
-
-            GPIO.output(strips_tester.settings.gpios.get("LOCK"),True)
+'''
 
 def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
     module_logger.warning('DATABASE SYNCRONIZATION %s', time.time())
@@ -718,18 +673,29 @@ def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
     tests.using(from_db).delete()
     local.using(from_db).delete()
     settings.sync_db = False
-    module_logger.info('DATABASE SYNCRONIZATION DONE %s', time.time())
-
-
-
-
 
 if __name__ == "__main__":
-    # parameter = str(sys.argv[1])
-    module_logger.info("Starting tester ...")
+    wifi_found = False
 
+    while not wifi_found:
+        wifi = subprocess.check_output(['iwgetid']).decode()
 
-    start_test_device()
-    module_logger.error('ZNOVA ZAŽENI PROGRAM!!!')
+        if "StripsTester" in wifi:
+            # TN is running in production mode
+            print("Production mode (Found StripsTester)")
+            wifi_found = True
+
+            # Check if strips tester is running
+        elif "LabTest" in wifi:
+            # TN is running in debug mode
+            print("Debug mode (Found LabTest)")
+            wifi_found = True
+        else:
+            print("Debug mode")
+            break
+            #time.sleep(5)
+
+    test_device = Device()
+
     while True:
         time.sleep(1)

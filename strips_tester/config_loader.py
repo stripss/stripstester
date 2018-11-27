@@ -31,6 +31,7 @@ class Settings:
         self.cpu_serial = utils.get_cpu_serial()
         self.gpios = None
         self.relays = None
+        self.test_dir = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name())
         self.config_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "config.json")
         self.custom_config_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "custom_config.json")
         self.devices_file = os.path.join(os.path.dirname(__file__), "configs", self.get_setting_file_name(), "devices.json")
@@ -52,14 +53,7 @@ class Settings:
                 data = json.load(f,object_pairs_hook=OrderedDict)
                 self.gpios_settings = data['gpio_settings']
                 self.relays_settings = data['relay_settings']
-                self.product_name = data['product_name']
-                self.product_type = data['product_type']
-                self.product_variant = data['product_variant']
-                self.product_hw_release = data['product_hw_release']
-                self.product_description = data['product_description']
-                self.product_notes = data['product_notes']
                 self.test_device_name = data['test_device_name']
-                self.test_device_employee = data['test_device_employee']
                 self.central_db_host = data['central_db_host']
                 self.local_db_host = data['local_db_host']
                 self.task_execution_order = data['task_execution_order']
@@ -112,14 +106,22 @@ class Settings:
 
 
 
+    # Get definition value from slug
+    def get_definition(self,task,slug):
+        for definition in self.task_execution_order[task]['definition']:
+            if slug == definition['slug']:
+                return definition['value']
+
+        raise ValueError("Slug {} does not exist in {} definitions!" . format(slug,task))
+
 
     def reload_tasks(self,file_path, custom_file_path):
         if os.path.exists(file_path):
-            print("CLASSIC MODE")
+            #print("CLASSIC MODE")
             # Override file_path
             if os.path.exists(custom_file_path):
                 file_path = custom_file_path
-                print("CUSTOM MODE")
+                #print("CUSTOM MODE")
 
             with open(file_path, 'r') as f:
                 data = json.load(f,object_pairs_hook=OrderedDict)

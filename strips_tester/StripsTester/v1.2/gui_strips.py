@@ -856,6 +856,11 @@ class PropertiesPage(Frame):
 
             self.show_tasks()
 
+            self.sep[task_number]['frame'] = Frame(self.test_device_frame_inner)
+            self.sep[task_number]['frame'].grid(row=task_number + 1, column=0, pady=5, padx=5,sticky="we")
+            self.sep[task_number]['frame'].columnconfigure(3,weight=1)
+            self.sep[task_number]['frame'].rowconfigure(task_number + 1,weight=1)
+
 
             # show only if tasks are there
             self.save_task_settings_button = Button(self.test_device_frame, text="Shrani nastavitve nalog", command=self.save_task_settings)
@@ -1951,6 +1956,10 @@ class Client:
                         if self.controller.current_frame == "TesterPage":
                             self.controller.userdata.tester_queue.put(msg)
 
+
+
+
+
                     if "test_time" in msg:  # update text
                         if "start_test" in msg['test_time']:
                             #print("I got {}" . format(msg['test_time']['start_test']))
@@ -2143,7 +2152,7 @@ class Client:
 
         self.controller.userdata.num_of_messager = self.controller.userdata.num_of_messager + 1
 
-    def add_task(self,task_name,task_slug,task_state,task_description,task_enable,task_info):
+    def add_task(self, task_name, task_slug, task_state, task_description, task_enable, task_info):
         self.controller.userdata.task[self.controller.userdata.num_of_tasks] = {}
 
         self.controller.userdata.task[self.controller.userdata.num_of_tasks]['task_name'] = task_name

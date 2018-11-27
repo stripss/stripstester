@@ -18,6 +18,7 @@ class AbstractVoltMeter:
 
     def read(self):
         time.sleep(self.delay)
+
         return self.get_voltage()
 
     def in_range(self, min, max):

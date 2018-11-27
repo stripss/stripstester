@@ -115,12 +115,14 @@ def preset_tables_from_db(from_db: str='central', to_db: str='local', flag: bool
 
 for db in databases:
     try:
-        preset_tables(db, True)
+        pass
+        #preset_tables(db, True)
     except Exception as ee:
         module_logger.info("Notification sended")
         #utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(),ee))
     try:
-        preset_tables_from_db('default', 'local', False)
+        pass
+        #preset_tables_from_db('default', 'local', False)
     except Exception as ee:
         utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), ee))
         module_logger.warning("Central database not available, changes have not been made to local database")

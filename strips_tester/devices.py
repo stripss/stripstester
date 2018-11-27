@@ -9,7 +9,6 @@ import hid
 from time import sleep
 from datetime import datetime
 import picamera.array
-#from matplotlib import pyplot as pp
 import time
 import json
 import picamera
@@ -19,13 +18,8 @@ from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
 from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor, AbstractBarCodeScanner
-#from matplotlib import pyplot as pp
 from collections import OrderedDict
-#from smbus2 import SMBus, i2c_msg
-from smbus2 import SMBusWrapper
-#import wifi
 import collections
-from ina219 import INA219
 import RPi.GPIO as GPIO
 import struct
 
@@ -210,7 +204,7 @@ class DigitalMultiMeter:
 
     bytes_per_read = 14
 
-    def __init__(self, port='/dev/ttyUSB0', retries=3, timeout=3.0):
+    def __init__(self, port='/dev/ttyUSB0', retries=5, timeout=3.0):
         self.logger = logging.getLogger(__name__)
         self.ser = serial.Serial(
             port=port,
@@ -221,7 +215,7 @@ class DigitalMultiMeter:
             timeout=timeout,
             dsrdtr=False,
             rtscts=False,
-            xonxoff=False, )
+            xonxoff=False)
         self.retries = retries  # the number of times it's allowed to retry to get a valid 14 byte read
         self.ser.dtr = True
         self.ser.rts = False
@@ -676,31 +670,47 @@ class YoctoVoltageMeter(AbstractSensor):
         errmsg = None
         if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
             module_logger.error("Can't load yocto API : %s", errmsg)
-            print("poasidjaspiodj")
             raise "Can't load yocto API"
 
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
-        #sensor = YVoltage.FirstVoltage()
+        #self.sensor = YVoltage.FirstVoltage()
 
-        self.sensor = YVoltage.FindVoltage(device_name)
+        # Initialize sensor (more common than YVoltage)
+        self.sensor = YSensor.FindSensor(device_name)
+        self.sensor.set_resolution(0.001)
+        self.sensor.set_logFrequency("25/s")
+        self.sensor.get_module().saveToFlash()
+
+
         if (self.sensor == None):
-            raise ("No yocto device is connected")
-        m = self.sensor.get_module()
-        target = m.get_serialNumber()
+            raise ("No YoctoVolt is connected")
+        self.m = self.sensor.get_module()
+        target = self.m.get_serialNumber()
 
-        module_logger.debug("Module %s found with serial number %s", m, target);
+
+        #module_logger.debug("Module %s found with serial number %s", m, target);
         if not (self.sensor.isOnline()):
             raise ('yocto volt is not on')
-        module_logger.debug("Yocto-volt init done")
 
+        #if not (self.sensor2.isOnline()):
+        #raise ('yocto volt2 is not on')
+        #module_logger.debug("Yocto-volt init done")
 
     def get_value(self):
+        #self.sensor.set_resolution(0.001)
+        #self.sensor.set_logFrequency("OFF")
 
         return self.sensor.get_currentValue()
 
+
+    def get_highest_value(self):
+        #self.sensor.set_resolution(0.001)
+        #self.sensor.set_logFrequency("OFF")
+
+        return self.sensor.get_highestValue()
+
     def close(self):
         YAPI.FreeAPI()
-
 
 class CameraDevice:
     def __init__(self, Xres: int, Yres: int):
@@ -764,9 +774,11 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(file_path)
 
-    def save_all_imgs_to_file(self):
+    def save_all_imgs_to_file(self,qr=""):
+        cas = time.time()
+
         for i in range(self.img_count):
-            self.imSaveRaw3d('/strips_tester_project/logs/Camera/Picture{}.jpg'.format(i), self.img[i,::,::,::])
+            self.imSaveRaw3d('/strips_tester_project/logs/Camera/{}_{}_Picture{}.jpg'.format(cas,qr,i), self.img[i,::,::,::])
 
     def imSaveRaw3d(self, fid, data):
         data.tofile(fid)
@@ -889,10 +901,12 @@ class Arduino:
 
         self.ping()
 
+        self.resistance = -1
+
     def ping(self):
         try:
             self.send_command(110)
-        except Exception:
+        except Exception as ee:
             raise IOError("Device did not respond.")
 
     # Ping MCP23017 to see if address is valid
@@ -906,12 +920,14 @@ class Arduino:
         self.send_command(103)
 
     # Available only in NanoBoard
-    def probe(self,index):
+    def probe(self,index,waiting = 0):
         resistance = -1
 
         self.relay(1)  # Ohmmeter mode
         self.send_command(100,index)
+
         self.connect()
+        time.sleep(waiting)
         resistance = self.measure()
         self.disconnect()
 
@@ -924,9 +940,10 @@ class Arduino:
             # Try to send bytes 20 times
             for i in range(20):
                 try:
-                    bus.write_byte(self.addr, 200)
 
+                    bus.write_i2c_block_data(self.addr,0,(200,10))
                     ba = bytearray(struct.pack("f", 3.66))
+
                     bus.write_i2c_block_data(self.addr,0,ba)
 
                     result = True
@@ -953,8 +970,6 @@ class Arduino:
         # If state == 1 OHMMETER
         # if state == 0 VOLTMETER
 
-        self.ready = 0
-
         if state < 0 or state > 1:
             return
 
@@ -969,65 +984,211 @@ class Arduino:
         if number < 1 or number > 2:
             return
 
-        if angle < 0 or angle > 180:
+        if angle < 0 or angle > 270:
             return
 
         self.send_command(104 + number,angle)
 
-    def send_command(self,command,value = 10):
+    def send_command(self,command,values = 10):
+        #print("Sending command {} with value {}" . format(command,values))
         # Join i2c line as master
+        self.ready = 0
         with SMBusWrapper(1) as bus:
             result = False
 
             # Try to send bytes 20 times
-            for i in range(20):
+            for i in range(50):
                 try:
-                    bus.write_byte(self.addr, command)
-                    bus.write_byte(self.addr, value)
+                    #print("Writting")
+                    bus.write_i2c_block_data(self.addr,0,(command,values))
 
                     result = True
                     break
-                except OSError:
+                except OSError as err:
                     time.sleep(0.1)
+                    print("Error writing block data: {} retrying" .format(err))
 
             if not result:
                 raise Exception
 
-            # Wait for response
-            self.wait_for_response(bus)
+            if command != 107:
+                # Wait for response
+                self.wait_for_response(bus)
+            else:
+                self.wait_for_response(bus)
+                self.wait_for_measurement(bus)
+
+        return
 
     def wait_for_response(self,bus):
+        #print("Ready: {}" . format(self.ready))
         while not self.ready:
             try:
                 self.ready = bus.read_byte(self.addr)
+                #print("Waiting")
+                time.sleep(0.1)
+
+            except OSError:
+                time.sleep(0.1)
+
+    def wait_for_measurement(self,bus):
+        self.resistance = -1
+        self.ready = 0
+        print("Waiting for measurement")
+
+        while not self.ready:
+            try:
+                data = []
+
+                for i in range(4):
+                    bb = bus.read_byte(self.addr)
+                    time.sleep(0.1)
+
+                    data.append(bb)
+
+                print(data)
+
+                b = []
+                for item in data:
+                    b.append(hex(item))
+                #print(b)
+
+                vstr = ''
+                for item in b:
+                    if len(item) == 4:
+                        vstr = vstr + item[2:] + " "
+                    else:
+                        vstr = vstr + "0" + item[2:] + " "
+                #print(vstr)
+                e = bytearray.fromhex(vstr)
+
+                self.resistance = struct.unpack('<f', e)[0]
+
+                #self.resistance = self.get_float(data,0)
+                self.ready = 1
+
                 break
             except OSError:
                 time.sleep(0.1)
 
-    '''
+
     def measure(self):
-        self.ready = 1
-        self.send_command(107)
-        self.ready = 0
+        multi = DigitalMultiMeter("/dev/ohmmeter")
+        #self.send_command(107)
+        for i in range(5):
+            self.resistance = multi.read().numeric_val
+            self.new_resistance = multi.read().numeric_val
 
-            while not self.ready:
-                try:
-                    # Read block of 4 bytes (float) via i2c
-                    data = bus.read_i2c_block_data(self.addr,0x00,4)
-                    print(data)
-                    self.resistance = self.get_float(data,0)
-                    print("Recieved float: {}".format(self.resistance))
-                    self.ready = 1
+        diff = 1 # dummy diff
+        while diff < 0.80:
+            self.resistance = multi.read().numeric_val
+            self.new_resistance = multi.read().numeric_val
 
-                except OSError:
-                    print("Read OS Error")
-                    time.sleep(0.1)
+            # Is difference bigger than 5%?
+            if self.new_resistance and self.resistance:
+                diff = self.new_resistance / self.resistance
+
+                if diff > 1:
+                    diff = self.resistance / self.new_resistance
+            else:
+                break
+
+        # Apply newest measurement
+        self.resistance = self.new_resistance
+        print("Resistance: {}" . format(self.resistance))
+        return self.resistance
 
     def get_float(self, data, index):
         bytes1 = data[4 * index:4 * (index + 1)]
-        print("DATA: {}".format(bytes1))
+        print("DATA: {}".format(data))
         return struct.unpack('f', ''.join(map(chr, bytes1)))
-    '''
+
+
+class Segger:
+    def __init__(self, port='/dev/ttyUSB1', retries=3, timeout=3.0):
+        try:
+            # Segger serial communication configuration
+            self.ser = serial.Serial(
+                port=port,
+                baudrate=9600,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                timeout=timeout
+            )
+
+        except Exception:
+            raise
+
+    def status(self):
+        reply = self.send_command("STATUS")
+
+        if 'STATUS:READY' in reply:
+            return True
+        else:
+            return False
+
+    def select_file(self,file):
+        # Both flashing files are uploaded to:
+        #   S001.dat
+        #   S001.cfg
+
+        #   S002.dat
+        #   S002.cfg
+
+        # we need just to replace Flasher.ini file
+        # To do that, we use SELECT command (see 5.3.4 in segger user guide)
+
+
+        self.send_command("SELECT {}" . format(file))
+
+        return
+
+    # Get response from Segger programmer
+    def get_response(self):
+        out = ''
+
+        while self.ser.inWaiting():
+            out += (self.ser.read(size=1)).decode()
+
+        result = out.split("#")
+        result = [x.replace("\r\n", "") for x in result]
+        result.pop(0)
+
+        return result
+
+    # Get response from Segger programmer via RS232
+    def send_command(self,cmd):
+        cmd = '#' + cmd + '\r'
+        # eliminate OK from SELECT command
+        self.ser.write(cmd.encode("ascii"))
+
+        # Sleep for half a second to send serial commands and get answer
+        time.sleep(0.5)
+
+        response = self.get_response()
+        return response
+
+    def download(self):
+        result = False
+
+        for i in range(10):
+            response = self.send_command("AUTO NOINFO")
+            #print(response)
+
+            if "NACK:ERR008" in response:  #  Flashing success
+                result = True
+                break
+
+            if "ERR255:Failed to open config file" in response:  #  Flashing success
+                result = False
+                print("File not found on Segger!")
+                break
+
+        return result
+
+    def close(self):
+        self.ser.close()
 
 
 class MCP23017:
@@ -1038,18 +1199,15 @@ class MCP23017:
     OLATA = 0x14
     OLATB = 0x15
 
-    LEFT_BLANK = 0x00
-    LEFT_RED = 0x20
-    LEFT_GREEN = 0x40
-    LEFT_YELLOW = 0x60
+    LEFT_RED = 0x08
+    LEFT_GREEN = 0x10
+    LEFT_YELLOW = 0x18
 
-    RIGHT_BLANK = 0x00
-    RIGHT_RED = 0x20
-    RIGHT_GREEN = 0x40
-    RIGHT_YELLOW = 0x60
+    RIGHT_RED = 0x02
+    RIGHT_GREEN = 0x04
+    RIGHT_YELLOW = 0x06
 
-    BUZZER_ON = 0x30
-    BUZZER_OFF = 0x35
+    BUZZER = 0x01
 
     def __init__(self,address = 0x20):
         if isinstance(address, str):
@@ -1057,6 +1215,7 @@ class MCP23017:
 
         self.addr = address
         self.ping()
+        self.current_mask = 0x00
 
     # Ping MCP23017 to see if address is valid
     def ping(self):
@@ -1109,9 +1268,6 @@ class MCP23017:
 
 
     def test_one_led(self,lednum):
-        self.lednum = lednum
-        module_logger.debug("Starting led test in %s",__name__)
-
         with SMBusWrapper(1) as bus:
             # set GPIOB to output
             data = 0x00
@@ -1134,14 +1290,14 @@ class MCP23017:
 
     def turn_heater_on(self):
         with SMBusWrapper(1) as bus:
-        # set GPIOA 7 to output
+            # set GPIOA 7 to output
             data = 0x00
             bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
             time.sleep(0.05)
 
             data = 0x01 << 7
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
-        module_logger.debug("Heater on")
+
 
     def turn_heater_off(self):
         with SMBusWrapper(1) as bus:
@@ -1152,8 +1308,27 @@ class MCP23017:
 
             data = 0x00 << 7
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
-        module_logger.debug("Heater off")
 
+    def apply_mask(self):
+        with SMBusWrapper(1) as bus:
+            try:
+                # set GPIOB to output
+                data = 0x00
+                bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
+                bus.write_byte_data(self.addr, MCP23017.OLATA, self.current_mask)
+            except OSError as err:
+                time.sleep(0.1)
+                print("IO Error MCP23017! {}" . format(err))
+
+    def set_bit(self, mask):
+        self.current_mask = self.current_mask | mask
+        self.apply_mask()
+        return
+
+    def clear_bit(self, mask):
+        self.current_mask = self.current_mask & ~mask
+        self.apply_mask()
+        return
 
 class LM75A(AbstractSensor):
     TEMP_REG = 0x00

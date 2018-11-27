@@ -494,7 +494,7 @@ class InternalTest(Task):
                 pic_start_time = time.time()
                 self.camera_device.take_picture()
                 module_logger.debug('Took picture %s at %s s, %s', i, pic_start_time - self.start_t, time.time() - pic_start_time)
-            self.camera_device.save_all_imgs_to_file()
+            self.camera_device.save_all_imgs_to_file(qr=strips_tester.current_product.raw_scanned_string)
 
             camera_result = self.camera_algorithm.run(self.camera_device.img, self.meshloader.indices, self.meshloader.indices_length, 14)
             if camera_result == True:

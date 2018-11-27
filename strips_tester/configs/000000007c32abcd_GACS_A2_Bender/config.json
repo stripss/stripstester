@@ -1,0 +1,440 @@
+{
+  "test_device_name": "GACS A2 Bender",
+  "central_db_host": "none",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+
+
+    "StartProcedureTask": {
+      "name": "Start Testa",
+      "desc": "Izvaja se start testa",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Začetni čas",
+          "slug": "start_time",
+          "desc": "Začetni čakalni čas",
+          "value": 0,
+          "unit": "s"
+        },
+        {
+          "name": "Končni čas",
+          "slug": "end_time",
+          "desc": "Končni čakalni čas",
+          "value": 0,
+          "unit": "s"
+        }
+      ]
+    },
+
+    "ReadSerial": {
+      "name": "Branje QR kode",
+      "desc": "Branje QR kode s pomočjo kamere.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Ime datoteke",
+          "slug": "image_name",
+          "desc": "Ime datoteke, ki shranjuje QR sliko zadnjega testiranega modula",
+          "value": "datamatrix",
+          "unit": ".jpg"
+        }
+      ]
+    },
+
+    "VoltageTest": {
+      "name": "Meritev napetosti",
+      "desc": "Izvaja se meritev referenčnih napetosti",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Referenca 12V",
+          "slug": "ref_12v",
+          "desc": "Napajalna napetost 12V",
+          "value": 12,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "reftol_12v",
+          "desc": "Toleranca referenčne napetosti 12v",
+          "value": 10,
+          "unit": "%"
+        },
+        {
+          "name": "Referenca 3.3V",
+          "slug": "ref_3v3",
+          "desc": "Napajalna napetost mikrokontrolerjev 3.3V",
+          "value": 3.3,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca",
+          "slug": "reftol_3v3",
+          "desc": "Toleranca referenčne napetosti 3.3V",
+          "value": 10,
+          "unit": "%"
+        }
+      ]
+    },
+
+    "I2C_Communication": {
+      "name": "I2C komunikacija",
+      "desc": "Pregled komunikacijskega kanala I2C tiskanine.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Shunt upor",
+          "slug": "shunt",
+          "desc": "Upornost shunt upora na tiskanini, ki služi za merjenje toka LED diod.",
+          "value": 1,
+          "unit": "ohm"
+        },
+        {
+          "name": "Tok rdeče LED",
+          "slug": "red_current",
+          "desc": "Tok skozi rdeče LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Tok zelene LED",
+          "slug": "green_current",
+          "desc": "Tok skozi zelene LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Tok modre LED",
+          "slug": "blue_current",
+          "desc": "Tok skozi modre LED diode",
+          "value": 40,
+          "unit": "mA"
+        },
+        {
+          "name": "Tok bele LED",
+          "slug": "white_current",
+          "desc": "Tok skozi bele LED diode",
+          "value": 120,
+          "unit": "mA"
+        },
+        {
+          "name": "Toleranca LED",
+          "slug": "current_tolerance",
+          "desc": "Toleranca toka LED diod",
+          "value": 20,
+          "unit": "%"
+        },
+        {
+          "name": "Grelec - izklopljen",
+          "slug": "heater_off_voltage",
+          "desc": "Napetost izklopljenega grelca",
+          "value": 12,
+          "unit": "V"
+        },
+        {
+          "name": "Grelec - vklopljen",
+          "slug": "heater_on_voltage",
+          "desc": "Napetost vklopljenega grelca",
+          "value": 0,
+          "unit": "V"
+        },
+        {
+          "name": "Toleranca grelca",
+          "slug": "heater_tolerance",
+          "desc": "Toleranca grelca",
+          "value": 2,
+          "unit": "V"
+        },
+        {
+          "name": "Temperatura",
+          "slug": "temperature",
+          "desc": "Željena merjena temperatura",
+          "value": 25,
+          "unit": "°C"
+        },
+        {
+          "name": "Toleranca temperature",
+          "slug": "temp_tolerance",
+          "desc": "Toleranca pri meritve temperature",
+          "value": 10,
+          "unit": "°C"
+        }
+      ]
+    },
+
+    "LockSimulator": {
+      "name": "Simulator zaklepa",
+      "desc": "Simulator zaklepa ključavnice.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "Čas polnenja",
+          "slug": "charging_time",
+          "desc": "Čas polnenja kondenzatorjev na modulu",
+          "value": 10,
+          "unit": "s"
+        }
+        ]
+    },
+
+    "VisualTest": {
+      "name": "Vizualni pregled LED",
+      "desc": "Vizualni pregled LED diod.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "LED #1 - x",
+          "slug": "led1_posx",
+          "desc": "Pozicija zelene leve LED diode na sliki kamere",
+          "value": 138,
+          "unit": "px"
+        },
+        {
+          "name": "LED #1 - y",
+          "slug": "led1_posy",
+          "desc": "Pozicija zelene leve LED diode na sliki kamere",
+          "value": 111,
+          "unit": "px"
+        },
+        {
+          "name": "LED #2 - x",
+          "slug": "led2_posx",
+          "desc": "Pozicija zelene desne LED diode na sliki kamere",
+          "value": 369,
+          "unit": "px"
+        },
+        {
+          "name": "LED #2 - y",
+          "slug": "led2_posy",
+          "desc": "Pozicija zelene desne LED diode na sliki kamere",
+          "value": 110,
+          "unit": "px"
+        },
+                {
+          "name": "LED #3 - x",
+          "slug": "led3_posx",
+          "desc": "Pozicija rdeče leve LED diode na sliki kamere",
+          "value": 182,
+          "unit": "px"
+        },
+        {
+          "name": "LED #3 - y",
+          "slug": "led3_posy",
+          "desc": "Pozicija rdeče leve LED diode na sliki kamere",
+          "value": 110,
+          "unit": "px"
+        },
+        {
+          "name": "LED #4 - x",
+          "slug": "led4_posx",
+          "desc": "Pozicija rdeče desne LED diode na sliki kamere",
+          "value": 320,
+          "unit": "px"
+        },
+        {
+          "name": "LED #4 - y",
+          "slug": "led4_posy",
+          "desc": "Pozicija rdeče desne LED diode na sliki kamere",
+          "value": 106,
+          "unit": "px"
+        },
+        {
+          "name": "Zelena LED - meja svetilnosti",
+          "slug": "green_led_threshold",
+          "desc": "Meja svetilnosti zelene LED diode za generacijo binarne maske.",
+          "value": 70,
+          "unit": ""
+        },
+        {
+          "name": "Rdeča LED - meja svetilnosti ",
+          "slug": "red_led_threshold",
+          "desc": "Meja svetilnosti rdeče LED diode za generacijo binarne maske.",
+          "value": 230,
+          "unit": ""
+        }
+      ]
+    },
+
+    "RCTest": {
+      "name": "RC Test",
+      "desc": "Test RC vezja.",
+      "enable": 1,
+      "definition": [
+        {
+          "name": "RC Čas",
+          "slug": "rc_time",
+          "desc": "Čas preverbe RC člena",
+          "value": 5,
+          "unit": "s"
+        },
+        {
+          "name": "RC Napetost",
+          "slug": "rc_voltage",
+          "desc": "Napetost RC člena po določenem času",
+          "value": 6,
+          "unit": "V"
+        },
+        {
+          "name": "Čas bremena",
+          "slug": "discharge_time",
+          "desc": "Čas vklopa bremena za praznenje kondenzatorjev",
+          "value": 12,
+          "unit": "s"
+        }
+        ]
+    },
+    "EndProcedureTask": {
+      "name": "Konec Testa",
+      "desc": "Izvaja se konec testa",
+      "enable": 1
+    }
+  },
+
+  "critical_event_tasks": {
+    "EndProcedureTask": {
+      "name": "Konec Testa",
+      "desc": "Izvaja se konec testa",
+      "enable": 1
+    }
+  },
+
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 31,
+      "pull": 21
+    },
+    "DETECT_PRODUCT": {
+      "function": 1,
+      "pin": 37,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 33,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 35,
+      "initial": 0
+    },
+    "BUZZER": {
+      "function": 0,
+      "pin": 18,
+      "initial": 0
+    },
+    "LOCK": {
+      "function": 0,
+      "pin": 7,
+      "initial": 1
+    },
+    "INTERIOR_LED": {
+      "function": 0,
+      "pin": 11,
+      "initial": 1
+    },
+    "In1+": {
+      "function": 0,
+      "pin": 22,
+      "initial": 1
+    },
+    "In1-": {
+      "function": 0,
+      "pin": 16,
+      "initial": 1
+    },
+    "In2+": {
+      "function": 0,
+      "pin": 15,
+      "initial": 1
+    },
+    "In2-": {
+      "function": 0,
+      "pin": 13,
+      "initial": 1
+    },
+    "Discharge1": {
+      "function": 0,
+      "pin": 29,
+      "initial": 1
+    },
+    "Discharge2": {
+      "function": 0,
+      "pin": 24,
+      "initial": 1
+    }
+  },
+  "relay_settings": {
+    "Heater": {
+      "initial": 0,
+      "pin": 1
+    },
+    "Vcc2": {
+      "initial": 0,
+      "pin": 2
+    },
+    "Vcc1": {
+      "initial": 0,
+      "pin": 3
+    },
+    "12V": {
+      "initial": 0,
+      "pin": 4
+    },
+    "3V3": {
+      "initial": 0,
+      "pin": 5
+    },
+    "Yocto_plus": {
+      "initial": 0,
+      "pin": 6
+    },
+    "Yocto_minus": {
+      "initial": 0,
+      "pin": 7
+    },
+    "Power": {
+      "initial": 0,
+      "pin": 8
+    },
+    "LED_Red2": {
+      "initial": 0,
+      "pin": 9
+    },
+    "LED_Red1": {
+      "initial": 0,
+      "pin": 10
+    },
+    "LED_Green2": {
+      "initial": 0,
+      "pin": 11
+    },
+    "LED_Green1": {
+      "initial": 0,
+      "pin": 12
+    },
+    "Out2-": {
+      "initial": 0,
+      "pin": 13
+    },
+    "Out2+": {
+      "initial": 0,
+      "pin": 14
+    },
+    "Out1-": {
+      "initial": 0,
+      "pin": 15
+    },
+    "Out1+": {
+      "initial": 0,
+      "pin": 16
+    }
+  }
+}
+
+
+

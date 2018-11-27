@@ -100,7 +100,8 @@
     "START_SWITCH": {
       "function": 1,
       "pin": 18,
-      "pull": 22
+      "pull": 22,
+      "invert": 1
     },
     "SERVO": {
       "function": 0,

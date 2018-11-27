@@ -18,14 +18,14 @@ class TestDevice(StrModel):
     author = models.TextField(max_length=64, null=True, blank=True)
     service = models.IntegerField(null=True, blank=True)
     manual = models.TextField(max_length=256, null=True, blank=True)
-    countdate = models.TextField(max_length=32, null=True, blank=True)
-    calibrationdate = models.TextField(max_length=32, null=True, blank=True)
+    countdate = models.DateTimeField(auto_now_add=False)
+    calibrationdate = models.DateTimeField(auto_now_add=False)
     nests = models.IntegerField(null=True, blank=True)
 
 
 # Stores log data of individual test
 class TestDevice_Test(StrModel):
-    test_device_id = models.IntegerField(null=True, blank=True) # Which TN
+    test_device_id = models.IntegerField(null=True, blank=True)  # Which TN
     datetime = models.DateTimeField(auto_now_add=False)
     employee = models.IntegerField(null=True, blank=True)
     test_type = models.TextField(max_length=32, null=True, blank=True)
