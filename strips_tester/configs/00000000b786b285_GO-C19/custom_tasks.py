@@ -358,7 +358,7 @@ class InitialTest(Task):
                 self.measurement_results["trimmer_right"] = [angle, "fail", 5, "deg"]
                 stop = True
         else:
-            gui_web.send({"command": "semafor", "which": 2, "value": (0, 0,0)})
+            gui_web.send({"command": "semafor", "which": 2, "value": (0, 0, 0)})
 
         gui_web.send({"command": "status", "value": "Kalibracija..."})
 
