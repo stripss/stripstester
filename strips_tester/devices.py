@@ -13,7 +13,8 @@ import time
 import json
 import picamera
 from picamera import PiCamera
-sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))),]
+
+sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
@@ -22,14 +23,16 @@ from collections import OrderedDict
 import collections
 import RPi.GPIO as GPIO
 import struct
+from smbus2 import SMBusWrapper
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
+from ina219 import INA219
 
 
 class Honeywell1400gHID(AbstractBarCodeScanner):
     def __init__(self, vid, pid):
         super().__init__(type(self).__name__)
-        if vid==None or pid==None:
+        if vid == None or pid == None:
             raise 'Not anough init parameters for {}'.format(type(self).__name__)
         self.vid = vid
         self.pid = pid
@@ -67,7 +70,7 @@ class Honeywell1400gHID(AbstractBarCodeScanner):
             raw_data = self.device.read(128)
             if raw_data:
                 while raw_data[byte] != 0x00:
-                    #print(chr(raw_data[byte]))
+                    # print(chr(raw_data[byte]))
                     str_data += (chr(raw_data[byte]))
                     byte += 1
                 break
@@ -76,6 +79,7 @@ class Honeywell1400gHID(AbstractBarCodeScanner):
     def close_scanner(self):
         self.device.close()
 
+
 class Honeywell1400:
     hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
                   17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
@@ -83,7 +87,7 @@ class Honeywell1400:
                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
     def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
-        if path==None and (vid==None and pid==None):
+        if path == None and (vid == None and pid == None):
             raise 'Not anough init parameters for Honeywell1400'
         self.vid = vid
         self.pid = pid
@@ -123,8 +127,6 @@ class Honeywell1400:
         except Exception as ex:
             self.logger.exception("Reading stream Honeywell1400 Exception %s", ex)
 
-
-
             # def wait_for_read_hid(self, scan_length: int = 29):
             #     device = hid.device()
             #     device.open_relay(self.vendor_id, self.product_id)
@@ -135,7 +137,6 @@ class Honeywell1400:
             #         line = device.read(64)
             #         chars.append(line[2])
             #     return "".join((hid_lookup.get(c) if 3 < c < 57 else "?" for c in chars))
-
 
 
 class DigitalMultiMeter:
@@ -226,7 +227,6 @@ class DigitalMultiMeter:
         self.ser.read(1)
 
         self._synchronize()
-
 
     def close(self):
         """Close the serial port connection."""
@@ -508,7 +508,7 @@ class SainBoard16:
     OPEN_CMD = (0xD2, 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x48, 0x49, 0x44, 0x43, 0x80, 0x02, 0x00, 0x00)
     CLOSE_CMD = (0x71, 0x0E, 0x71, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x48, 0x49, 0x44, 0x43, 0x2A, 0x02, 0x00, 0x00)
 
-    def __init__(self, vid: int, pid, path: str = None, initial_status=None, number_of_relays: int = 16,ribbon=False):
+    def __init__(self, vid: int, pid, path: str = None, initial_status=None, number_of_relays: int = 16, ribbon=False):
         self.vid = vid
         self.pid = pid
         self.path = path
@@ -578,7 +578,7 @@ class SainBoard16:
 
     def open_relay(self, relay_number: int):
         """ Opens relay by its number """
-        #print("Relay '{}' opened.".format(relay_number))
+        # print("Relay '{}' opened.".format(relay_number))
         if 1 <= relay_number <= self.number_of_relays:
             if self.ribbon:
                 relay_number = self.ribbon_cable(relay_number)
@@ -589,7 +589,7 @@ class SainBoard16:
         self.logger.debug("Relay %s OPENED", relay_number)
 
     def close_relay(self, relay_number: int):
-        #print("Relay '{}' closed.".format(relay_number))
+        # print("Relay '{}' closed.".format(relay_number))
         if self.ribbon:
             relay_number = self.ribbon_cable(relay_number)
 
@@ -622,7 +622,7 @@ class SainBoard16:
         #         new = original | mask  # If value was True, set the bit indicated by the mask.
         #     return new
 
-    def ribbon_cable(self,relay_number):
+    def ribbon_cable(self, relay_number):
         # return swapped pin number because of ribbon cable which invert pins
 
         result = (relay_number - 1) - (2 * -(relay_number % 2))
@@ -630,21 +630,24 @@ class SainBoard16:
         return result
 
 
-class INA219a(AbstractSensor):
+class INA219:
     ADDR = 0x40
     SHUNT_OHMS = 0.1
     MAX_EXPECTED_AMPS = 0.2
 
     def __init__(self):
-        self.ina = INA219(INA219a.SHUNT_OHMS, INA219a.MAX_EXPECTED_AMPS, INA219a.ADDR)
+        self.ina = INA219(INA219.SHUNT_OHMS, INA219.MAX_EXPECTED_AMPS, INA219.ADDR)
         self.ina.configure(self.ina.RANGE_16V, self.ina.GAIN_1_40MV)
 
     def get_voltage(self):
         with SMBusWrapper(1) as bus:
-            hibyte = bus.read_byte_data(INA219a.ADDR, 0x02)
-            result = (hibyte << 8) + bus.read_byte_data(INA219a.ADDR, 0x02 + 1)
+            hibyte = bus.read_byte_data(INA219.ADDR, 0x02)
+            result = (hibyte << 8) + bus.read_byte_data(INA219.ADDR, 0x02 + 1)
 
         return (result >> 3) * 4
+
+    def voltage(self):
+        return self.get_voltage()
 
     def voltmeter(self):
         try:
@@ -662,9 +665,82 @@ class INA219a(AbstractSensor):
 
         return voltage
 
+
+class TI74HC595:
+    def __init__(self, datapin, latchpin, clockpin, oepin):
+        self.datapin = datapin
+        self.latchpin = latchpin
+        self.clockpin = clockpin
+        self.oepin = oepin
+
+        self.dataa = []
+
+        for i in range(48):
+            self.dataa.append(0)
+
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
+
+        GPIO.setup(self.datapin, GPIO.OUT)
+        GPIO.setup(self.latchpin, GPIO.OUT)
+        GPIO.setup(self.clockpin, GPIO.OUT)
+        GPIO.setup(self.oepin, GPIO.OUT)
+
+    def reset(self):
+        for bit in range(48):
+            self.dataa[bit] = 0
+
+        # print("RST", end='')
+        self.invertShiftOut()
+
+    def writeraw(self, raw):
+        for i in range(48):
+            self.dataa[bit] = raw[i]
+
+        # print("RAW", end='')
+        self.invertShiftOut()
+
+    def set(self, position, state):
+        if position[0] == 'K':
+            series = 0
+        elif position[0] == 'M':
+            series = 1
+        elif position[0] == 'L':
+            series = 2
+        else:
+            raise Exception("Unknown series on relay board.")
+            return
+
+        ordered = [1, 3, 5, 7, 9, 11, 13, 15, 16, 14, 12, 10, 8, 6, 4, 2]
+        index = series * 16 + ordered.index(int(position[1:]))
+
+        # index = - (2 * -(index % 2))
+
+        self.dataa[index] = state * 1
+
+        # self.invertShiftOut()
+        return
+
+    def invertShiftOut(self):  # Data is 48-bit number
+
+        for bit in range(48):
+            # print(self.data[bit], end='')
+            GPIO.output(self.datapin, self.dataa[bit])
+
+            GPIO.output(self.clockpin, GPIO.HIGH)
+            GPIO.output(self.clockpin, GPIO.LOW)
+
+        GPIO.output(self.latchpin, GPIO.HIGH)
+        GPIO.output(self.latchpin, GPIO.LOW)
+
+        GPIO.output(self.oepin, GPIO.HIGH)
+
+        return
+
+
 class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, device_name, delay: int = 1):
-        super().__init__(delay,"Voltage", "V")
+        super().__init__(delay, "Voltage", "V")
         self.sensor = None
 
         errmsg = None
@@ -673,7 +749,7 @@ class YoctoVoltageMeter(AbstractSensor):
             raise "Can't load yocto API"
 
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
-        #self.sensor = YVoltage.FirstVoltage()
+        # self.sensor = YVoltage.FirstVoltage()
 
         # Initialize sensor (more common than YVoltage)
         self.sensor = YSensor.FindSensor(device_name)
@@ -681,43 +757,41 @@ class YoctoVoltageMeter(AbstractSensor):
         self.sensor.set_logFrequency("25/s")
         self.sensor.get_module().saveToFlash()
 
-
         if (self.sensor == None):
             raise ("No YoctoVolt is connected")
         self.m = self.sensor.get_module()
         target = self.m.get_serialNumber()
 
-
-        #module_logger.debug("Module %s found with serial number %s", m, target);
+        # module_logger.debug("Module %s found with serial number %s", m, target);
         if not (self.sensor.isOnline()):
             raise ('yocto volt is not on')
 
-        #if not (self.sensor2.isOnline()):
-        #raise ('yocto volt2 is not on')
-        #module_logger.debug("Yocto-volt init done")
+        # if not (self.sensor2.isOnline()):
+        # raise ('yocto volt2 is not on')
+        # module_logger.debug("Yocto-volt init done")
 
     def get_value(self):
-        #self.sensor.set_resolution(0.001)
-        #self.sensor.set_logFrequency("OFF")
+        # self.sensor.set_resolution(0.001)
+        # self.sensor.set_logFrequency("OFF")
 
         return self.sensor.get_currentValue()
 
-
     def get_highest_value(self):
-        #self.sensor.set_resolution(0.001)
-        #self.sensor.set_logFrequency("OFF")
+        # self.sensor.set_resolution(0.001)
+        # self.sensor.set_logFrequency("OFF")
 
         return self.sensor.get_highestValue()
 
     def close(self):
         YAPI.FreeAPI()
 
+
 class CameraDevice:
     def __init__(self, Xres: int, Yres: int):
         self.Xres = Xres
         self.Yres = Yres
         self.img_count = 0
-        #max 20 pictures
+        # max 20 pictures
         self.img = np.empty((20, self.Yres, self.Xres, 3), dtype=np.uint8)
 
         self.camera = picamera.PiCamera()
@@ -739,7 +813,7 @@ class CameraDevice:
             self.camera.framerate = 80
             self.camera.brightness = 30
             time.sleep(2)
-            self.camera.iso = 1 # change accordingly
+            self.camera.iso = 1  # change accordingly
             time.sleep(1)
             self.camera.shutter_speed = self.camera.exposure_speed * 3
             self.camera.exposure_mode = 'off'
@@ -755,15 +829,15 @@ class CameraDevice:
             time.sleep(1)
 
     def take_picture(self):
-        self.camera.capture(self.img[self.img_count,::,::,::], 'rgb', use_video_port=True)
+        self.camera.capture(self.img[self.img_count, ::, ::, ::], 'rgb', use_video_port=True)
         self.img_count += 1
 
     def take_one_picture(self):
         self.take_picture()
-        return self.img[self.img_count-1,::,::,::]
+        return self.img[self.img_count - 1, ::, ::, ::]
 
     def get_picture(self, Idx=0):
-        return self.img[Idx,::,::,::]
+        return self.img[Idx, ::, ::, ::]
 
     def take_img_to_array_RGB(self, xres=128, yres=80, RGB=0):
         slika = np.empty([xres, yres, 3], dtype=np.uint8)
@@ -774,31 +848,30 @@ class CameraDevice:
         time.sleep(1)
         self.camera.capture(file_path)
 
-    def save_all_imgs_to_file(self,qr=""):
+    def save_all_imgs_to_file(self, qr=""):
         cas = time.time()
 
         for i in range(self.img_count):
-            self.imSaveRaw3d('/strips_tester_project/logs/Camera/{}_{}_Picture{}.jpg'.format(cas,qr,i), self.img[i,::,::,::])
+            self.imSaveRaw3d('/strips_tester_project/logs/Camera/{}_{}_Picture{}.jpg'.format(cas, qr, i), self.img[i, ::, ::, ::])
 
     def imSaveRaw3d(self, fid, data):
         data.tofile(fid)
 
 
-
 # Algorithms
 ##################################################################################################################
 class CompareAlgorithm:
-    def __init__(self, span: int=2):
+    def __init__(self, span: int = 2):
         '''
         :param span: area on each size of index to check
         '''
         self.span = np.arange(-span, span)
-        self.color_edge = 0.2*3*255
-        #tx = [0, 1, 2, -1, -2]
-        #ty = [0, 1, 2, -1, -2]
-        #self.Tx, self.Ty = np.meshgrid(tx,ty)
-        #self.Tx = self.Tx.flatten()
-        #self.Ty = self.Ty.flatten()
+        self.color_edge = 0.2 * 3 * 255
+        # tx = [0, 1, 2, -1, -2]
+        # ty = [0, 1, 2, -1, -2]
+        # self.Tx, self.Ty = np.meshgrid(tx,ty)
+        # self.Tx = self.Tx.flatten()
+        # self.Ty = self.Ty.flatten()
         ''' check only cross of pixels to speed up camera test i.e.
                     *
                     *
@@ -806,27 +879,27 @@ class CompareAlgorithm:
                     *
                     *
         '''
-        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], np.multiply([0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4],2)
-        #self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 3
-        #self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
+        self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, -4, 4, 0, 0, 0, 0, 0, 0, 0, 0], np.multiply([0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -4, 4], 2)
+        # self.Tx, self.Ty = [0, -1, 1, -2, 2, -3, 3, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, -1, 1, -2, 2, -3, 3] * 3
+        # self.Tx, self.Ty = [0, -1, 1, -2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 1, -2, 2]
 
     def run(self, images, masks, mask_indices_len, masks_length):
         images = images.astype(np.int16)
         for j in range(masks_length):
-            for i in range(mask_indices_len[j]): # indices_length[j] number of indices to check
-                #mask_num x 50 x 5(x,y,R,G,B)
-                x = masks[j,i,0]
-                y = masks[j,i,1]
-                RGB = masks[j,i,2:]
-                if not self.compare_check_cross(x, y, images[j,::,::], RGB):
-                    module_logger.error("Failed at picture {} (x:{} y:{}) and index  {} with image RGB {} and mesh RGB {}".format(j, x, y, i, images[j,y,x], RGB))
+            for i in range(mask_indices_len[j]):  # indices_length[j] number of indices to check
+                # mask_num x 50 x 5(x,y,R,G,B)
+                x = masks[j, i, 0]
+                y = masks[j, i, 1]
+                RGB = masks[j, i, 2:]
+                if not self.compare_check_cross(x, y, images[j, ::, ::], RGB):
+                    module_logger.error("Failed at picture {} (x:{} y:{}) and index  {} with image RGB {} and mesh RGB {}".format(j, x, y, i, images[j, y, x], RGB))
                     return False
         return True
 
     def compare_forloop(self, x, y, img1, img2):
         for j in self.span:
             for i in self.span:
-                if self.colors_in_range(img1[y-j,x-i,:], img2):
+                if self.colors_in_range(img1[y - j, x - i, :], img2):
                     return True
         return False
 
@@ -843,16 +916,17 @@ class CompareAlgorithm:
         return False
 
     def colors_in_range(self, RGB1, RGB2):
-        #if np.sum(RGB1 - RGB2) < 75:
-        #if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
-        if (np.abs(RGB1[0]-RGB2[0]))<100:
+        # if np.sum(RGB1 - RGB2) < 75:
+        # if (np.abs(RGB1[0]-RGB2[0])+np.abs(RGB1[1]-RGB2[1])+np.abs(RGB1[2]-RGB2[2]))<60:
+        if (np.abs(RGB1[0] - RGB2[0])) < 100:
             return True
         return False
+
 
 class MeshLoaderToList:
     def __init__(self, config_file: str):
         self.config_file = config_file
-        self.indices_length=[]
+        self.indices_length = []
         self.mesh_count = None
         self.matrix_code_location = None
         self.load()
@@ -860,13 +934,13 @@ class MeshLoaderToList:
     def load(self):
         if os.path.exists(self.config_file):
             with open(self.config_file, 'r') as f:
-                data = json.load(f,object_pairs_hook=OrderedDict)
+                data = json.load(f, object_pairs_hook=OrderedDict)
                 self.meshes_dict = data['Meshes']
                 self.span = data['span']
                 self.Xres = data['Xres']
                 self.Yres = data['Yres']
                 self.matrix_code_location = data['Data matrix']
-                #self.data_matrix_location = data["Data matrix"]
+                # self.data_matrix_location = data["Data matrix"]
                 self.construct_mask_array()
         else:
             module_logger.error("Mesh file does not exist")
@@ -884,17 +958,46 @@ class MeshLoaderToList:
                 R = temp_mesh[i]['R']
                 G = temp_mesh[i]['G']
                 B = temp_mesh[i]['B']
-                self.indices[j,i,:] = [x_loc,y_loc,R,G,B]
+                self.indices[j, i, :] = [x_loc, y_loc, R, G, B]
             self.indices_length.append(len(temp_mesh))
 
 
+class ArduinoSerial:
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600, retries=5, timeout=3.0):
+        try:
+            self.ser = serial.Serial(
+                port=port,
+                baudrate=baudrate,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                timeout=timeout
+            )
 
+        except Exception:
+            raise
+
+    def write(self, command):
+        string = command + "\r\n"
+        self.ser.write(string.encode())
+        # self.ser.flushInput()
+        self.wait_for_response()
+
+    def wait_for_response(self):
+        while True:
+            response = str(self.ser.readline())
+            # print("Arduino: {}".format(response))
+            if "ok" in response:
+                break
+
+    def close(self):
+        self.ser.close()
 
 
 class Arduino:
-    def __init__(self,address = 0x04):
+    def __init__(self, address=0x04):
         if isinstance(address, str):
-            address = int(address,16)
+            address = int(address, 16)
 
         self.addr = address
         self.ready = 0
@@ -910,21 +1013,21 @@ class Arduino:
             raise IOError("Device did not respond.")
 
     # Ping MCP23017 to see if address is valid
-    def moveStepper(self,index):
+    def moveStepper(self, index):
         if index < 0 or index > 40:
             return
 
-        self.send_command(100,index)
+        self.send_command(100, index)
 
     def calibrate(self):
         self.send_command(103)
 
     # Available only in NanoBoard
-    def probe(self,index,waiting = 0):
+    def probe(self, index, waiting=0):
         resistance = -1
 
         self.relay(1)  # Ohmmeter mode
-        self.send_command(100,index)
+        self.send_command(100, index)
 
         self.connect()
         time.sleep(waiting)
@@ -941,10 +1044,10 @@ class Arduino:
             for i in range(20):
                 try:
 
-                    bus.write_i2c_block_data(self.addr,0,(200,10))
+                    bus.write_i2c_block_data(self.addr, 0, (200, 10))
                     ba = bytearray(struct.pack("f", 3.66))
 
-                    bus.write_i2c_block_data(self.addr,0,ba)
+                    bus.write_i2c_block_data(self.addr, 0, ba)
 
                     result = True
                     break
@@ -955,27 +1058,26 @@ class Arduino:
                 raise Exception
 
             # Wait for response
-            #self.wait_for_response(bus)
-
+            # self.wait_for_response(bus)
 
     # Connect probes to pogoBoard
     def connect(self):
-        self.servo(1,130)
+        self.servo(1, 130)
 
     # Disconnect probes from pogoBoard
     def disconnect(self):
-        self.servo(1,60)
+        self.servo(1, 60)
 
-    def relay(self,state):
+    def relay(self, state):
         # If state == 1 OHMMETER
         # if state == 0 VOLTMETER
 
         if state < 0 or state > 1:
             return
 
-        self.send_command(104,state)
+        self.send_command(104, state)
 
-    def servo(self,number,angle):
+    def servo(self, number, angle):
         # If state == 1 OHMMETER
         # if state == 0 VOLTMETER
 
@@ -987,10 +1089,10 @@ class Arduino:
         if angle < 0 or angle > 270:
             return
 
-        self.send_command(104 + number,angle)
+        self.send_command(104 + number, angle)
 
-    def send_command(self,command,values = 10):
-        #print("Sending command {} with value {}" . format(command,values))
+    def send_command(self, command, values=10):
+        # print("Sending command {} with value {}" . format(command,values))
         # Join i2c line as master
         self.ready = 0
         with SMBusWrapper(1) as bus:
@@ -999,14 +1101,14 @@ class Arduino:
             # Try to send bytes 20 times
             for i in range(50):
                 try:
-                    #print("Writting")
-                    bus.write_i2c_block_data(self.addr,0,(command,values))
+                    # print("Writting")
+                    bus.write_i2c_block_data(self.addr, 0, (command, values))
 
                     result = True
                     break
                 except OSError as err:
                     time.sleep(0.1)
-                    print("Error writing block data: {} retrying" .format(err))
+                    print("Error writing block data: {} retrying".format(err))
 
             if not result:
                 raise Exception
@@ -1020,18 +1122,18 @@ class Arduino:
 
         return
 
-    def wait_for_response(self,bus):
-        #print("Ready: {}" . format(self.ready))
+    def wait_for_response(self, bus):
+        # print("Ready: {}" . format(self.ready))
         while not self.ready:
             try:
                 self.ready = bus.read_byte(self.addr)
-                #print("Waiting")
+                # print("Waiting")
                 time.sleep(0.1)
 
             except OSError:
                 time.sleep(0.1)
 
-    def wait_for_measurement(self,bus):
+    def wait_for_measurement(self, bus):
         self.resistance = -1
         self.ready = 0
         print("Waiting for measurement")
@@ -1051,7 +1153,7 @@ class Arduino:
                 b = []
                 for item in data:
                     b.append(hex(item))
-                #print(b)
+                # print(b)
 
                 vstr = ''
                 for item in b:
@@ -1059,27 +1161,26 @@ class Arduino:
                         vstr = vstr + item[2:] + " "
                     else:
                         vstr = vstr + "0" + item[2:] + " "
-                #print(vstr)
+                # print(vstr)
                 e = bytearray.fromhex(vstr)
 
                 self.resistance = struct.unpack('<f', e)[0]
 
-                #self.resistance = self.get_float(data,0)
+                # self.resistance = self.get_float(data,0)
                 self.ready = 1
 
                 break
             except OSError:
                 time.sleep(0.1)
 
-
     def measure(self):
         multi = DigitalMultiMeter("/dev/ohmmeter")
-        #self.send_command(107)
+        # self.send_command(107)
         for i in range(5):
             self.resistance = multi.read().numeric_val
             self.new_resistance = multi.read().numeric_val
 
-        diff = 1 # dummy diff
+        diff = 1  # dummy diff
         while diff < 0.80:
             self.resistance = multi.read().numeric_val
             self.new_resistance = multi.read().numeric_val
@@ -1095,7 +1196,7 @@ class Arduino:
 
         # Apply newest measurement
         self.resistance = self.new_resistance
-        print("Resistance: {}" . format(self.resistance))
+        print("Resistance: {}".format(self.resistance))
         return self.resistance
 
     def get_float(self, data, index):
@@ -1105,7 +1206,7 @@ class Arduino:
 
 
 class Segger:
-    def __init__(self, port='/dev/ttyUSB1', retries=3, timeout=3.0):
+    def __init__(self, port='/dev/ttyUSB1', retries=5, timeout=3.0):
         try:
             # Segger serial communication configuration
             self.ser = serial.Serial(
@@ -1128,7 +1229,7 @@ class Segger:
         else:
             return False
 
-    def select_file(self,file):
+    def select_file(self, file):
         # Both flashing files are uploaded to:
         #   S001.dat
         #   S001.cfg
@@ -1139,8 +1240,7 @@ class Segger:
         # we need just to replace Flasher.ini file
         # To do that, we use SELECT command (see 5.3.4 in segger user guide)
 
-
-        self.send_command("SELECT {}" . format(file))
+        self.send_command("SELECT {}".format(file))
 
         return
 
@@ -1158,7 +1258,7 @@ class Segger:
         return result
 
     # Get response from Segger programmer via RS232
-    def send_command(self,cmd):
+    def send_command(self, cmd):
         cmd = '#' + cmd + '\r'
         # eliminate OK from SELECT command
         self.ser.write(cmd.encode("ascii"))
@@ -1174,13 +1274,12 @@ class Segger:
 
         for i in range(10):
             response = self.send_command("AUTO NOINFO")
-            #print(response)
-
-            if "NACK:ERR008" in response:  #  Flashing success
+            print(response)
+            if "NACK:ERR008" in response:  # Flashing success
                 result = True
                 break
 
-            if "ERR255:Failed to open config file" in response:  #  Flashing success
+            if "ERR255:Failed to open config file" in response:  # Flashing success
                 result = False
                 print("File not found on Segger!")
                 break
@@ -1209,9 +1308,9 @@ class MCP23017:
 
     BUZZER = 0x01
 
-    def __init__(self,address = 0x20):
+    def __init__(self, address=0x20):
         if isinstance(address, str):
-            address = int(address,16)
+            address = int(address, 16)
 
         self.addr = address
         self.ping()
@@ -1227,8 +1326,8 @@ class MCP23017:
         except OSError:
             raise
 
-    def set_led_status(self,status):
-        module_logger.debug("Starting led test in %s",__name__)
+    def set_led_status(self, status):
+        module_logger.debug("Starting led test in %s", __name__)
 
         with SMBusWrapper(1) as bus:
             # 0x01 - zelena leva
@@ -1237,7 +1336,6 @@ class MCP23017:
             # 0x04 - zelena desna
             # 0x08 - rdeca desna
 
-
             # Set port A as output
             data = 0x00
             bus.write_byte_data(self.addr, MCP23017.IODIRA, data)
@@ -1245,9 +1343,8 @@ class MCP23017:
             data = status
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
 
-
     def test_led(self):
-        module_logger.debug("Starting led test in %s",__name__)
+        module_logger.debug("Starting led test in %s", __name__)
 
         with SMBusWrapper(1) as bus:
             # set GPIOB to output
@@ -1264,10 +1361,7 @@ class MCP23017:
             data = 0x00
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
 
-
-
-
-    def test_one_led(self,lednum):
+    def test_one_led(self, lednum):
         with SMBusWrapper(1) as bus:
             # set GPIOB to output
             data = 0x00
@@ -1279,14 +1373,13 @@ class MCP23017:
             time.sleep(0.05)
 
             # turn off
-            #data = 0x00
-            #bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
+            # data = 0x00
+            # bus.write_byte_data(MCP23017.ADDR, MCP23017.OLATA, data)
 
     def manual_off(self):
         with SMBusWrapper(1) as bus:
             data = 0x00
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
-
 
     def turn_heater_on(self):
         with SMBusWrapper(1) as bus:
@@ -1297,7 +1390,6 @@ class MCP23017:
 
             data = 0x01 << 7
             bus.write_byte_data(self.addr, MCP23017.OLATA, data)
-
 
     def turn_heater_off(self):
         with SMBusWrapper(1) as bus:
@@ -1318,7 +1410,7 @@ class MCP23017:
                 bus.write_byte_data(self.addr, MCP23017.OLATA, self.current_mask)
             except OSError as err:
                 time.sleep(0.1)
-                print("IO Error MCP23017! {}" . format(err))
+                print("IO Error MCP23017! {}".format(err))
 
     def set_bit(self, mask):
         self.current_mask = self.current_mask | mask
@@ -1330,13 +1422,15 @@ class MCP23017:
         self.apply_mask()
         return
 
+
 class LM75A(AbstractSensor):
     TEMP_REG = 0x00
     ID_REG = 0x07
 
     ADDR = 0x4b
+
     def __init__(self, delay: int = 1):
-        super().__init__(delay, "Temperature", "°C")
+        super().__init__(delay, "Temperature", "Â°C")
         self.sensor = None
 
     def get_value(self):
@@ -1346,7 +1440,7 @@ class LM75A(AbstractSensor):
 
         nine_biter = (block[1] >> 7 | block[0] << 1) & 0xFF
         temperatura = nine_biter / 2
-        if(block[0] & 0x80) == 0x01:
+        if (block[0] & 0x80) == 0x01:
             temperatura = -temperatura
 
         return temperatura
@@ -1354,25 +1448,26 @@ class LM75A(AbstractSensor):
     def close(self):
         pass
 
+
 class IRTemperatureSensor(AbstractSensor):
     MLX90615_I2C_ADDR = 0x5B
     MLX90615_REG_TEMP_AMBIENT = 0x26
     MLX90615_REG_TEMP_OBJECT = 0x27
 
     def __init__(self, delay: int):
-        super().__init__(delay, "Temperature", "°C")
+        super().__init__(delay, "Temperature", "Â°C")
         self.sensor = None
 
     def get_value(self):
         with SMBusWrapper(1) as bus:
             block = bus.read_i2c_block_data(IRTemperatureSensor.MLX90615_I2C_ADDR,
-                                                 IRTemperatureSensor.MLX90615_REG_TEMP_OBJECT,
-                                                 2)
+                                            IRTemperatureSensor.MLX90615_REG_TEMP_OBJECT,
+                                            2)
         temperature = (block[0] | block[1] << 8) * 0.02 - 273.15
         return temperature
 
     def close(self):
-        #self.bus.close()
+        # self.bus.close()
         pass
 
 
@@ -1393,7 +1488,6 @@ class Wifi:
     head += 'update_config=1\n'
     head += 'country=GB\n\n'
 
-
     def __init__(self, interface):
         self.iface = interface
         self.network = collections.OrderedDict()
@@ -1410,7 +1504,6 @@ class Wifi:
         scheme_str += '}\n'
         return scheme_str
 
-
     def format_file(self, network_dict):
         str_config = ''
         str_config += Wifi.head
@@ -1420,7 +1513,7 @@ class Wifi:
         str_config += '}\n'
         return str_config
 
-    def save(self, ssid, psk, encryption_type = 'WPA2-PSK', options = None):
+    def save(self, ssid, psk, encryption_type='WPA2-PSK', options=None):
         if psk == '':
             self.network['ssid'] = '"' + ssid + '"'
             self.network['key_mgmt'] = 'NONE'

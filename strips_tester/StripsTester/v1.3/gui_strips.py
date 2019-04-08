@@ -1,9 +1,10 @@
-
+## !/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 
 '''
 
-CE JE CONNECTAN in gre nato na LoginPage in se še enkrat prijavi, window freezes
+CE JE CONNECTAN in gre nato na LoginPage in se se enkrat prijavi, window freezes
 delete tasks when reconnect
 
 
@@ -58,7 +59,7 @@ class LoginPage(Frame):
         #self.show_test_device_info()
 
     def on_show_frame(self, event):
-        print("You got to LoginPage")
+        #print("You got to LoginPage")
         self.update_test_devices()
 
     def show_title(self):
@@ -198,8 +199,9 @@ class LoginPage(Frame):
         ip = self.controller.userdata.test_devices[self.controller.userdata.test_device]['ip']
         port = int(self.controller.userdata.test_devices[self.controller.userdata.test_device]['port'])
 
+        #  Solve message 'disconnected' with deferred? When successful closed, fire deferred to connect
         if self.controller.userdata.connected:
-            self.controller.userdata.protocol.transport.loseConnection()
+            self.controller.userdata.protocol.close()
 
         self.controller.userdata.protocol = reactor.connectTCP(ip, port, clientfactory(self.controller), 3)
 
@@ -227,7 +229,7 @@ class TesterPage(Frame):
         self.make_stats_frame()
 
     def on_show_frame(self, event):
-        print("You got to TesterPage")
+        #print("You got to TesterPage")
 
         self.display_info_frame()
         self.reset_test_count_label.grid_forget()
@@ -248,13 +250,29 @@ class TesterPage(Frame):
 
     def make_task_frame(self):
         self.task_frame = Frame(self)
-        self.task_frame.columnconfigure(0,weight=1)
-        self.task_frame.rowconfigure(1,weight=1)
+        self.task_frame.columnconfigure(0, weight=1)
+        self.task_frame.rowconfigure(1, weight=1)
 
         self.task_title = Label(self.task_frame, text="FAZA TESTIRANJA", font=self.controller.subtitle_font)
 
         self.test_task_frame = Frame(self.task_frame)
-        self.test_task_frame.columnconfigure(0,weight=1)
+        self.test_task_frame.config(borderwidth=2, relief="groove")
+
+        self.canvas = Canvas(self.test_task_frame)
+        #self.canvas.columnconfigure(0, weight=1)
+
+        self.canvas_frame = Frame(self.canvas)
+        #self.canvas_frame.columnconfigure(0, weight=1)
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.canvas_frame, anchor="nw")
+
+        self.test_task_frame_inner = Frame(self.canvas_frame)
+        self.test_task_frame_inner.columnconfigure(0,weight=1)
+
+        self.task_scrollbar = Scrollbar(self.canvas, orient="vertical", command=self.canvas.yview)
+        self.canvas['yscrollcommand'] = self.task_scrollbar.set
+
+        self.canvas_frame.bind("<Configure>", self.on_frame_configure)
+        self.canvas.bind("<Configure>", self.frame_width)
 
         self.task_result = Label(self.task_frame, text="PRIPRAVLJEN", borderwidth=2, relief="groove", justify="center", padding=(20, 10, 20, 10), background="gray")
 
@@ -267,18 +285,56 @@ class TesterPage(Frame):
         self.manual_stop_button = Button(self.manual_test_frame, text="STOP", command=self.stop_test_device, style="style1.TButton")
         self.manual_start_button = Button(self.manual_test_frame, text="START", command=self.start_test_device, style="style1.TButton")
 
+
+
+    def frame_width(self, event):
+        canvas_width = event.width
+        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+
+    def on_frame_configure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def on_mouse_wheel(self, event):
+        if event.num == 4:
+            self.canvas.yview('scroll', -1, 'units')
+        elif event.num == 5:
+            self.canvas.yview('scroll', 1, 'units')
+
+    def on_mouse_wheel_bind(self, event):
+        self.canvas.bind_all('<MouseWheel>', self.rollWheel)
+
+    def on_mouse_wheel_unbind(self, event):
+        self.canvas.unbind_all('<MouseWheel>')
+
+    def rollWheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+
+
+
     def display_task_frame(self):
         self.task_frame.grid(row=3, column=0, sticky="news")
         self.task_title.grid(row=0, column=0, sticky="nw", pady=10)
 
-        self.test_task_frame.grid(row=1,column=0, pady=5, sticky="news")
 
-        self.task_result.grid(row=2,column=0, pady=5, padx=5, sticky="wes")
 
         self.manual_test_frame.grid(row=3,column=0,sticky="wes")
         self.test_time_label.grid(row=0,column=0, pady=5, padx=10, sticky="we", columnspan=2)
         self.manual_stop_button.grid(row=1, column=0, pady=10, padx=10, sticky="we")
         self.manual_start_button.grid(row=1, column=1, pady=10, padx=10, sticky="we")
+
+        self.test_task_frame.grid(row=1,column=0, pady=5, sticky="news")
+        self.canvas.grid(row=0, column=0, sticky="news")
+        self.test_task_frame_inner.grid(row=0, column=0, sticky="news")
+        #self.task_scrollbar.pack(side=RIGHT, fill=Y)
+        self.task_result.grid(row=2, column=0, pady=5, padx=5, sticky="wes")
+
+        # Bind canvas window to react to scrollbar
+        self.canvas.bind('<Enter>', self.on_mouse_wheel_bind)
+        self.canvas.bind('<Leave>', self.on_mouse_wheel_unbind)
+
+
+
 
     def hide_task_frame(self):
         self.task_frame.grid_forget()
@@ -288,6 +344,9 @@ class TesterPage(Frame):
 
         if self.controller.userdata.start_test is not None:
             test_time = pytz.utc.localize(datetime.datetime.utcnow()) - self.controller.userdata.start_test
+
+            # Removes the bug, where time is negative due to RPi and PC clock difference (-1day 23:59:59)
+            #if test_time >= datetime.timedelta(0):
             self.test_time_label.config(text="Čas testiranja: {}" . format(str(test_time)[:-7]))  # Strip off miliseconds
 
             self.time_update = self.after(1000, self.update_time_label)
@@ -365,6 +424,8 @@ class TesterPage(Frame):
         self.safety_frame = Frame(self.stats_frame)
         # Add ESD, HV...
 
+        self.make_manual_frame()
+
     def display_stats_frame(self):
         self.stats_frame.grid(row=3, column=2, sticky="nw")
         self.stats_title.grid(row=0, column=0, sticky="nw", pady=10)
@@ -412,13 +473,14 @@ class TesterPage(Frame):
             bg_color_list = {"fail": "#e01a00", "ok": "#00ba06", "work": "#0059ea", "idle": "gray"}
             fg_color = "black"
 
-            if task['enable'] == True:
+            if task['enable']:
                 bg_color = bg_color_list[task['state']]  # Take color from colorlist
             else:
                 bg_color = "#cccccc"
                 fg_color = "gray"
 
-            self.test_task[-1]['frame'] = Frame(self.test_task_frame)
+            self.test_task[-1]['slug'] = task['slug']
+            self.test_task[-1]['frame'] = Frame(self.test_task_frame_inner)
             self.test_task[-1]['frame'].columnconfigure(0, weight=1)
             self.test_task[-1]['label'] = Label(self.test_task[-1]['frame'], text=task['name'], borderwidth=2, relief="groove", justify="center", padding=(30, 10, 30, 10), background=bg_color, foreground=fg_color)
             self.test_task[-1]['info'] = Label(self.test_task[-1]['frame'], text="")
@@ -430,10 +492,6 @@ class TesterPage(Frame):
 
                 for definition in task['definition']:
                     self.test_task[-1]['definition'].append({})
-
-                    
-
-
             
             extra_info = ""
             for definition_number in range(self.controller.userdata.num_of_definitions):
@@ -471,21 +529,23 @@ class TesterPage(Frame):
 
     def display_tasks(self):
         for task_number in range(len(self.controller.userdata.task)):
-            self.test_task[task_number]['frame'].grid(row = task_number, column=0, padx=5,sticky="new")
+            self.test_task[task_number]['frame'].grid(row=1+task_number, column=0, padx=5,sticky="new")
             self.test_task[task_number]['label'].grid(row=0, column=0,sticky="we",pady=5)
             #self.test_task[task_number]['info'].grid(row=1, column=0,sticky="we",padx=10)
 
     def delete_tasks(self):
         # Destroy task widgets
-        for task_number in range(len(self.controller.userdata.task)):
-            if self.test_task[task_number]['frame'].winfo_exists():
-                # Destroy all children widgets of current task frame
-                for child in self.test_task[task_number]['frame'].winfo_children():
-                    child.destroy()
+        if len(self.controller.userdata.task):  # Check if any tasks have been made
+            for task_number in range(len(self.test_task)):
+                if self.test_task[task_number]['frame'].winfo_exists():
+                    # Destroy all children widgets of current task frame
+                    for child in self.test_task[task_number]['frame'].winfo_children():
+                        child.destroy()
 
-                # Destroy parent frame
-                self.test_task[task_number]['frame'].destroy()
+                    # Destroy parent frame
+                    self.test_task[task_number]['frame'].destroy()
 
+                self.test_task[task_number].clear()
 
 
 
@@ -500,12 +560,35 @@ class TesterPage(Frame):
 
     def reset_test_count(self):
         # Set count date to current date
-        utc_date = pytz.utc.localize(datetime.datetime.utcnow())
+        utc_date = pytz.utc.localize(datetime.datetime.utcnow()) + self.controller.userdata.timedif
 
         self.controller.userdata.protocol.send({"command": "count", "date": utc_date.isoformat()})
 
         self.reset_test_count_label.config(text="Ponastavljeno.", foreground="green")
         self.reset_test_count_label.grid(row=7, column=0, sticky="w", padx=5, pady=(0,5))
+
+
+    # Manual Frame
+    def make_manual_frame(self):
+        self.manual_frame = Frame(self.stats_frame)
+        self.manual_title = Label(self.manual_frame, text="NAVODILA ZA UPORABO", font=self.controller.subtitle_font)
+
+        self.manual_text = Label(self.manual_frame, text="")
+        self.manual_link = Label(self.manual_frame, text="", foreground="blue", cursor="hand2")
+
+        self.manual_link.bind("<Button-1>", self.show_manual)
+
+    def display_manual_frame(self):
+        self.manual_frame.grid(row=5, column=0, sticky="news")
+        self.manual_title.grid(row=0, column=0, sticky="nw", pady=10)
+        self.manual_text.config(text="Navodila za uporabo testne naprave\n{} so dostopna na spodnji povezavi:" . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']))
+        self.manual_link.config(text="Navodila za uporabo {}" . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']))
+
+        self.manual_text.grid(row=1, column=0, sticky="w", pady=5)
+        self.manual_link.grid(row=2, column=0, pady=5, sticky="w")
+
+    def show_manual(self, event):  # Open test device manual (preffered in PDF)
+        webbrowser.open(self.controller.userdata.path_manual)
 
     '''
     def display_custom_attr(self):
@@ -546,17 +629,6 @@ class TesterPage(Frame):
         self.log_link = Label(self.manual_frame, text="Navodila za uporabo {}" . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']), foreground="blue", cursor="hand2")
         self.log_link.bind("<Button-1>", self.show_manual)
         self.log_link.grid(row=2, column=0, sticky="w", pady=5)
-
-
-    def reset_test_count(self):
-        # send server to reset counter
-        countdate = datetime.datetime.utcnow()
-
-        self.controller.client.send({'set_count': countdate})
-
-        #self.test_count_reset_label.config(text="Ponastavljeno.", foreground="green")
-        #self.test_count_reset_label.grid(row=4, column=0, sticky="w", padx=10,columnspan=5)
-
 
     def update_task(self,task_slug):  # Update task when GUI active
         self.task_number = self.get_task_number(task_slug)
@@ -600,22 +672,6 @@ class TesterPage(Frame):
             self.sep[self.task_number]['info'].grid_forget()
             
 
-    # Check after je uporabljen za posodobitev live testerja
-    def check_after(self):
-        self.after(10,self.check_after)
-
-        #print(self.queue.qsize())
-        if not self.queue.empty(): # something is in the queue
-            msg = self.queue.get()
-
-            if "tester_init" in msg: #enable tester page -> controlled by client (TN)!
-                id = msg['tester_init']['id']
-
-                if id == -1:
-                    print("DUPLICATE with id: {}" . format(self.controller.userdata.id_num))
-                else:
-                    self.show_gui()
-
             if "text" in msg: # new text
                 self.make_message(msg['text']['text_number'])
 
@@ -645,81 +701,13 @@ class TesterPage(Frame):
                 elif self.controller.userdata.result == "work":
                     self.task_result.config(text="TESTIRANJE V TEKU",background="#0059ea")
                 elif self.controller.userdata.result == "maintenance":
-                    self.task_result.config(text="VZDRŽEVANJE",background="#e2df00")
+                    self.task_result.config(text="VZDRzEVANJE",background="#e2df00")
                 else:
                     self.task_result.config(text="PRIPRAVLJEN",background="grey")
 
 
-            if "count" in msg:
-                if "countdate" in msg["count"]:
-                    countdate = parser.parse(msg['count']['countdate'])
-                    localdate = pytz.utc.localize(countdate).astimezone(pytz.timezone('Europe/Ljubljana'))
-                    print("Countdate: {}" . format(countdate))
-                    print("Local: {}" . format(localdate))
-                    self.sublabelframe_countdate.config(text="Serija: {}".format(datetime.datetime.strftime(localdate,"%d.%m.%Y ob %H:%M:%S")))
-
-                self.good_local_label.config(text="Dobri: {}".format(msg['count']['good']))
-                self.bad_local_label.config(text="Slabi: {}".format(msg['count']['bad']))
-                self.sum_local_label.config(text="Skupaj: {}".format(msg['count']['good'] + msg['count']['bad']))
-
-                if msg['count']['good'] or msg['count']['bad']:
-                    success = (msg['count']['good'] / (msg['count']['bad'] + msg['count']['good'])) * 100
-                    self.success_local = "Uspešnost: {0:.1f}%".format(success)
-
-                    if success > 95:
-                        bg_color = "green"
-                    elif success > 90:
-                        bg_color = "#c99c22"
-                    else:
-                        bg_color = "red"
-                else:
-                    self.success_local = "Uspešnost: N/A"
-                    bg_color = "black"
-
-                self.suc_local_label.config(text=self.success_local, foreground=bg_color)
-
-                self.good_global_label.config(text="Dobri: {}".format(msg['count']['good_global']))
-                self.bad_global_label.config(text="Slabi: {}".format(msg['count']['bad_global']))
-                self.sum_global_label.config(text="Skupaj: {}".format(msg['count']['good_global'] + msg['count']['bad_global']))
-
-
-                if msg['count']['good_global'] or msg['count']['bad_global']:
-                    success = (msg['count']['good_global'] / (msg['count']['bad_global'] + msg['count']['good_global'])) * 100
-                    self.success_global = "Uspešnost: {0:.1f}%".format(success)
-
-                    if success > 95:
-                        bg_color = "green"
-                    elif success > 90:
-                        bg_color = "#c99c22"
-                    else:
-                        bg_color = "red"
-                else:
-                    self.success_global = "Uspešnost: N/A"
-                    bg_color = "black"
-
-                self.suc_global_label.config(text=self.success_global, foreground=bg_color)
-
-
-            if "service" in msg:
-                self.lbl8.config(text="Št. ciklov do servisa: {}".format(self.controller.userdata.service))
-
-            if "calibration" in msg:
-                calibrationdate = datetime.datetime.strptime(msg['calibration'], "%Y-%m-%d %H:%M:%S")
-                self.cal_label.config(text="Kalibracija: {}".format(datetime.datetime.strftime(calibrationdate, "%d.%m.%Y")))
-
             if "esd" in msg or "high_voltage" in msg:
                 self.display_custom_attr()
-
-            if "ping_answer" in msg:
-                self.ping_text.config(text="{}ms" . format(int(self.controller.userdata.ping)))
-
-                # Test time implementation
-                if self.controller.userdata.test_time_enable:
-                    print("BEFORE")
-                    test_time = datetime.datetime.utcnow() - self.controller.userdata.start_test_time
-                    print("AFTER")
-                    self.test_time_label.config(text="Čas testiranja: {}s" . format(str(test_time)[:-7]))
-
 '''
 
 class PropertiesPage(Frame):
@@ -749,7 +737,7 @@ class PropertiesPage(Frame):
 
 
     def on_show_frame(self, event):
-        print("You got to PropertiesPage")
+        #print("You got to PropertiesPage")
 
         # Hide all temporary messages
         self.login_text_label.grid_forget()
@@ -1077,9 +1065,9 @@ class PropertiesPage(Frame):
                 '''
                 if "log_file" in msg:
                     if msg['log_file']:
-                        self.log_info_label = Label(self.log_frame, text="Zapisnik uspešno prenešen.",foreground="green")
+                        self.log_info_label = Label(self.log_frame, text="Zapisnik uspesno prenesen.",foreground="green")
                     else:
-                        self.log_info_label = Label(self.log_frame, text="Napaka pri prenašanju zapisnika.", foreground="red")
+                        self.log_info_label = Label(self.log_frame, text="Napaka pri prenasanju zapisnika.", foreground="red")
     
                     self.log_info_label.grid(row=5, column=0, sticky="w", pady=5, columnspan=5)
                 '''
@@ -1097,7 +1085,6 @@ class PropertiesPage(Frame):
 
     # Manual Frame
     def make_manual_frame(self):
-        # Logout frame
         self.manual_frame = Frame(self.left_frame)
         self.manual_title = Label(self.manual_frame, text="NAVODILA ZA UPORABO", font=self.controller.subtitle_font)
 
@@ -1218,6 +1205,7 @@ class PropertiesPage(Frame):
         self.test_task = []
         for task in self.controller.userdata.task:
             self.test_task.append({})  # Append dictionary to test task
+            self.test_task[-1]['slug'] = task['slug']
 
             self.test_task[-1]['frame'] = Frame(self.canvas_frame)
             self.test_task[-1]['frame'].columnconfigure(3, weight=1)
@@ -1236,9 +1224,14 @@ class PropertiesPage(Frame):
 
                 for definition in task['definition']:
                     self.test_task[-1]['definition'].append({})
+                    self.test_task[-1]['definition'][-1]['slug'] = definition['slug']
 
                     # Make StringVar for entry handler
-                    self.test_task[-1]['definition'][-1]['entry_var'] = StringVar()
+                    if type(definition['value']) == str:
+                        self.test_task[-1]['definition'][-1]['entry_var'] = StringVar()
+                    else:
+                        self.test_task[-1]['definition'][-1]['entry_var'] = IntVar()
+
                     self.test_task[-1]['definition'][-1]['entry_var'].set(definition['value'])
 
                     self.test_task[-1]['definition'][-1]['label'] = Label(self.test_task[-1]['frame'], text="{}:" . format(definition['name']))
@@ -1262,18 +1255,42 @@ class PropertiesPage(Frame):
 
     def delete_tasks(self):
         # Destroy task widgets
-        for task_number in range(len(self.controller.userdata.task)):
-            if self.test_task[task_number]['frame'].winfo_exists():
-                # Destroy all children widgets of current task frame
-                for child in self.test_task[task_number]['frame'].winfo_children():
-                    child.destroy()
+        if len(self.controller.userdata.task):  # Check if any tasks have been made
+            for task_number in range(len(self.test_task)):
+                if self.test_task[task_number]['frame'].winfo_exists():
+                    # Destroy all children widgets of current task frame
+                    for child in self.test_task[task_number]['frame'].winfo_children():
+                        child.destroy()
 
-                # Destroy parent frame
-                self.test_task[task_number]['frame'].destroy()
+                    # Destroy parent frame
+                    self.test_task[task_number]['frame'].destroy()
+
+                self.test_task[task_number].clear()
 
     def save_tasks(self):
+
+        # Change task data.... server also sends task_update so it will remain the same
+
+        for task in self.controller.userdata.task:  # Loop through all tasks in settings
+            for task_number in range(len(self.controller.userdata.task)):
+                if self.test_task[task_number]['slug'] == task['slug']:
+                    task_index = self.controller.userdata.task.index(task)  # Get index in task list by slug
+
+                    # Change task enable
+                    self.controller.userdata.task[task_index]['enable'] = self.test_task[task_number]['checkbutton_var'].get()
+
+                    if 'definition' in task.keys():
+                        for definition in task['definition']:
+                            for definition_number in range(len(self.test_task[task_index]['definition'])):
+                                if self.test_task[task_number]['definition'][definition_number]['slug'] == definition['slug']:
+                                    definition_index = self.controller.userdata.task[task_index]['definition'].index(definition)  # Get index in task list by slug
+
+                                    # Change definition value
+                                    self.controller.userdata.task[task_index]['definition'][definition_index]['value'] = self.test_task[task_number]['definition'][definition_number]['entry_var'].get()
+
+
         # Send to server updated task data
-        self.controller.userdata.protocol.send({"command": "tasks", "tasks": self.controller.userdata.task})
+        self.controller.userdata.protocol.send({"command": "task_update", "update": self.controller.userdata.task})
 
         self.save_task_settings_label.config(text="Shranjeno!", foreground="green")
         self.save_task_settings_label.grid(row=4, column=0, sticky="w")
@@ -1381,8 +1398,8 @@ class PropertiesPage(Frame):
         self.count_reset_button.grid(row=3, column=0, padx=10, pady=5, sticky="w",columnspan=5)
 
         self.service_frame.grid(row=2, column=0, sticky="we", padx=5, pady=10)
-        self.service_label.grid(row=0, column=0, sticky="we", padx=5, pady=10)
-        self.service_entry.grid(row=0, column=1, sticky="w", padx=10)
+        self.service_label.grid(row=0, column=0, sticky="we", padx=5, pady=10, columnspan=2)
+        self.service_entry.grid(row=0, column=2, sticky="w", padx=10)
         self.service_button.grid(row=1, column=0, sticky="w", padx=5, pady=5, columnspan=2)
 
         self.calibration_label.grid(row=3, column=0, sticky="nw", padx=10, pady=5, columnspan=3)
@@ -1413,7 +1430,7 @@ class PropertiesPage(Frame):
     # Set test device test counter
     def reset_test_count(self):
         # Set count date to current date
-        utc_date = pytz.utc.localize(datetime.datetime.utcnow())
+        utc_date = pytz.utc.localize(datetime.datetime.utcnow()) + self.controller.userdata.timedif
 
         self.controller.userdata.protocol.send({"command": "count", "date": utc_date.isoformat()})
 
@@ -1433,6 +1450,7 @@ class PropertiesPage(Frame):
             raise
             self.count_reset_label.config(text="Datum štetja je neveljaven.", foreground="red")
         else:
+            date = date + self.controller.userdata.timedif
             # Convert local time to UTC
             utcdate = pytz.timezone('Europe/Ljubljana').localize(date,is_dst=None).astimezone(pytz.utc)
 
@@ -1466,6 +1484,7 @@ class PropertiesPage(Frame):
         except ValueError:  # Invalid date applied
             self.cal_apply_label.config(text="Datum kalibracije je neveljaven.", foreground="red")
         else:
+            date = date + self.controller.userdata.timedif
             # Convert local time to UTC
             utcdate = pytz.timezone('Europe/Ljubljana').localize(date,is_dst=None).astimezone(pytz.utc)
 
@@ -1595,7 +1614,7 @@ class SplashScreen(Frame):
         self.place(x=-2,y=-2)  # Offset window so the border disappear
 
         self.play_animation()
-        print("You got to SplashScreen")
+        #print("You got to SplashScreen")
 
     def end(self):
         # Make application fullscreen
@@ -1647,6 +1666,9 @@ class UserData():
         self.task = []
         self.definition = {}
 
+        self.timedif = None  # Saves time difference between UTC GUI and UTC Rpi
+        self.path_manual = None
+
     def delete_data(self):
         self.result = "idle"
 
@@ -1683,17 +1705,23 @@ class ClientProtocol(LineReceiver):
         self.buffer = None
 
     def sendData(self, data):
-        print("sending %s...." % data)
+        #print("sending %s...." % data)
         self.sendLine(data.encode('utf-8'))
 
     def lineReceived(self, line):
+        #print("MESSAGE: {}" . format(line))
         # Recieve JSON message in ordered format
-        message = json.loads(line.decode(), object_pairs_hook=OrderedDict)
+        #print("DEC: {}" . format(line.decode('utf-8')))
+        message = json.loads(line.decode('utf-8'), object_pairs_hook=OrderedDict)
         command = message['command']
 
-        print("RECIEVED: {}" . format(message))
+        #print("RECIEVED: {}" . format(message))
 
         if command == "welcome":  # GUI accepted by server
+            self.controller.userdata.timedif = parser.parse(message['utc']) - pytz.utc.localize(datetime.datetime.utcnow())
+
+            #print("Time difference between RPi and GUI: {}" . format(self.controller.userdata.timedif))
+
             # Close only on login page, change title in case of reconnect
             self.controller.title("StripsTester v{} [{}]".format(self.controller.userdata.version, self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']))
 
@@ -1705,18 +1733,30 @@ class ClientProtocol(LineReceiver):
             # Close the connection
             self.close()
 
+        elif command == "ping":
+            latency = message['latency'] * 1000
+
+            self.controller.title("StripsTester v{} [{}] - {}ms".format(self.controller.userdata.version, self.controller.userdata.test_devices[self.controller.userdata.test_device]['name'],int(latency)))
+
+            # Send pong back to server
+            self.send({"command": "ping", "ping": (pytz.utc.localize(datetime.datetime.utcnow()) + self.controller.userdata.timedif).isoformat()})
+
         elif command == "text":
             text = message['text']
             tag = message['tag']
 
-            self.controller.get_frame("TesterPage").add_message(text,tag)
-
+            self.controller.get_frame("TesterPage").add_message(text, tag)
 
         elif command == "tasks":
-            self.controller.get_frame("TesterPage").delete_tasks()
+            if len(self.controller.userdata.task):
+                self.controller.get_frame("TesterPage").delete_tasks()
+                self.controller.get_frame("PropertiesPage").delete_tasks()
+
+                # Clear global task variable
+                self.controller.userdata.task.clear()
 
             for task in message['tasks']:  # Loop through tasks, which are OrderedDict
-                self.controller.userdata.task.append(message['tasks'][task])  # Store task data into global variable
+                self.controller.userdata.task.append(message['tasks'][task])  # Store task data into global variable (append dict to list)
                 self.controller.userdata.task[-1]['slug'] = task  # Apply slug to task data
                 self.controller.userdata.task[-1]['state'] = "idle"  # Apply slug to task data
 
@@ -1727,24 +1767,34 @@ class ClientProtocol(LineReceiver):
             self.controller.get_frame("PropertiesPage").display_tasks()  # Make task blocks in PropertiesPage
 
         elif command == "task_update":
-            for task in self.controller.userdata.task:
-                if message['update']['slug'] == task['slug']:
-                    task_number = self.controller.userdata.task.index(task)  # Get index in task list by slug
-                    self.controller.userdata.task[task_number].update(message['update'])  # Update task data
+            # Update all test_tasks
+            #print("UPD: {}" . format(message['update']))
+            for task in message['update']:  # Loop through all tasks in settings
+                #print(task)
 
-                    bg_color_list = {"fail": "#e01a00", "ok": "#00ba06", "work": "#0059ea", "idle": "gray"}
-                    fg_color = "black"
+                for task_index in range(len(self.controller.userdata.task)):
+                    if self.controller.userdata.task[task_index]['slug'] == task['slug']:  # Get the right task_index from userdata.tasks
+                        self.controller.userdata.task[task_index].update(task)  # Update task dict
 
-                    if task['enable']:
-                        bg_color = bg_color_list[task['state']]  # Take color from colorlist
-                    else:
-                        bg_color = "#cccccc"
-                        fg_color = "gray"
+                        break
 
-                    # Update labels, and states
-                    self.controller.get_frame("TesterPage").test_task[task_number]['label'].config(text=task['name'],background=bg_color,foreground=fg_color)
+                for task_number in range(len(self.controller.get_frame("TesterPage").test_task)):
+                    if self.controller.get_frame("TesterPage").test_task[task_number]['slug'] == task['slug']:
+                        # MUST DO (Update all properties page entries)
 
-                    break
+                        bg_color_list = {"fail": "#e01a00", "ok": "#00ba06", "work": "#0059ea", "idle": "gray"}
+                        fg_color = "black"
+
+                        if self.controller.userdata.task[task_index]['enable']:
+                            bg_color = bg_color_list[self.controller.userdata.task[task_index]['state']]  # Take color from colorlist
+                        else:
+                            bg_color = "#cccccc"
+                            fg_color = "gray"
+
+                        # Update labels, and states
+                        self.controller.get_frame("TesterPage").test_task[task_number]['label'].config(background=bg_color, foreground=fg_color)
+
+                        break
 
         elif command == "task_result":
             result = message['result']
@@ -1766,13 +1816,15 @@ class ClientProtocol(LineReceiver):
         elif command == "maintenance":
             status = message['status']
 
-            if status == "ok":  # Maintenance mode as master
+            if status == "ok":  # Maintenance mode as master (Gets into PropertiesPage)
                 self.controller.get_frame("PropertiesPage").hide_login_frame()
 
                 self.controller.get_frame("PropertiesPage").display_left_frame()
                 self.controller.get_frame("PropertiesPage").display_log_frame()
                 self.controller.get_frame("PropertiesPage").display_shutdown_frame()
-                self.controller.get_frame("PropertiesPage").display_manual_frame()
+
+                if self.controller.userdata.path_manual is not None:
+                    self.controller.get_frame("PropertiesPage").display_manual_frame()
 
                 self.controller.get_frame("PropertiesPage").display_center_frame()
 
@@ -1798,6 +1850,8 @@ class ClientProtocol(LineReceiver):
 
         elif command == "count":
             utc_date = parser.parse(message['date'])  # Parse datetime string to datetime
+
+            utc_date = utc_date - self.controller.userdata.timedif
 
             # Localize UTC date
             date = utc_date.astimezone(pytz.timezone('Europe/Ljubljana'))
@@ -1842,6 +1896,7 @@ class ClientProtocol(LineReceiver):
 
         elif command == "calibration":
             utc_date = parser.parse(message['date'])  # Parse datetime string to datetime
+            utc_date = utc_date - self.controller.userdata.timedif  # Synchronize time with GUI
 
             # Localize UTC date
             date = utc_date.astimezone(pytz.timezone('Europe/Ljubljana'))
@@ -1861,9 +1916,17 @@ class ClientProtocol(LineReceiver):
                 self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Nastavitve uspešno povrnjene", foreground="green")
 
             elif status == "fail":
-                self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Napaka pri povrnitvi nastavitev.", foreground="red")
+                self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Nastavitve so že povrnjene.", foreground="red")
+
+            elif status == "testing":
+                self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Test se ne sme izvajati.", foreground="red")
 
             self.controller.get_frame("PropertiesPage").factory_info_label.grid(row=4, column=0, sticky="w", pady=5, columnspan=2)
+
+        elif command == "path_manual":
+            self.controller.userdata.path_manual = message['path']
+
+            self.controller.get_frame("TesterPage").display_manual_frame()
 
         elif command == "file":
             mode = message['mode']
@@ -1878,7 +1941,7 @@ class ClientProtocol(LineReceiver):
             end_test = message['end_test']
 
             if start_test is not None:  # Test is in progress
-                self.controller.userdata.start_test = parser.parse(message['start_test'])
+                self.controller.userdata.start_test = parser.parse(message['start_test']) - self.controller.userdata.timedif
 
                 self.controller.get_frame("TesterPage").time_update = self.controller.after(1000, self.controller.get_frame("TesterPage").update_time_label)
 
@@ -1886,7 +1949,7 @@ class ClientProtocol(LineReceiver):
                 self.controller.get_frame("TesterPage").update_time_label()
 
             elif end_test is not None:  # Means that the test was finished
-                end_test = parser.parse(message['end_test'])
+                end_test = parser.parse(message['end_test']) - self.controller.userdata.timedif
 
                 # Localize UTC date
                 end_test = end_test.astimezone(pytz.timezone('Europe/Ljubljana'))
@@ -1915,13 +1978,13 @@ class ClientProtocol(LineReceiver):
         self.remain = self.remain - len(data)  # Reduce remaining size
         self.buffer = self.buffer + data
 
-        print(data)
+        #print(data)
 
         if not self.remain:
             self.remain = None
-            print("File sent successfully!")
+            #print("File sent successfully!")
 
-            print(buffer)
+            #print(buffer)
             self.setLineMode()  # Set mode back to normal
 
 
@@ -1947,8 +2010,8 @@ class ClientProtocol(LineReceiver):
 
     # Send data as JSON object
     def send(self,message):
-        print("SEND: {}" . format(message))
-        self.sendLine(json.dumps(message).encode())
+        #print("SEND: {}" . format(message))
+        self.sendLine(json.dumps(message, ensure_ascii=False).encode("utf-8"))
 
 # Factory for client (handling connection status)
 class clientfactory(protocol.ClientFactory):
@@ -2013,8 +2076,7 @@ class clientfactory(protocol.ClientFactory):
         self.controller.title("StripsTester v{}" . format(self.controller.userdata.version))
 
         if reason.type == error.ConnectionDone:  # Connection was closed cleanly
-            print("Connection DONE")
-            pass
+            self.controller.get_frame("LoginPage").login_status_label.config(text="Povezava s testno napravo {} zaustavljena." . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']), foreground="red")
 
         elif reason.type == error.ConnectionLost:  # Connection lost (attempt reconnect?)
             self.controller.get_frame("LoginPage").login_status_label.config(text="Prekinjena povezava s testno napravo {}." . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']), foreground="red")

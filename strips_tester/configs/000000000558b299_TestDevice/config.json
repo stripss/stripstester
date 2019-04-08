@@ -189,7 +189,7 @@
   "gpio_settings": {
     "START_SWITCH": {
       "function": 1,
-      "pin": 7,
+      "pin": 11,
       "pull": 22
     },
 

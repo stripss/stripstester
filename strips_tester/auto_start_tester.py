@@ -22,7 +22,7 @@ while not wifi_found:
         wifi_found = True
 
     if "LabTest1" in wifi:
-        print("Debug mode (Found StripsTester)")
+        print("Debug mode (Found LabTest1)")
         wifi_found = True
 
     time.sleep(3)

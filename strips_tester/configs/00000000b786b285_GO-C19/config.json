@@ -1,0 +1,44 @@
+{
+  "product_name": "GO-C19",
+  "product_type": 2,
+  "product_variant": "basic",
+  "product_hw_release": "1.5",
+  "product_description": "c19 module for GARO",
+  "product_notes": "nothing so say",
+  "test_device_name": "GO-C19",
+  "test_device_employee": "employee1",
+  "central_db_host": "192.168.11.50",
+  "local_db_host": "localhost",
+  "sync_db": 0,
+
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "InitialTest": 1,
+    "ICT_ResistanceTest": 1,
+    "ICT_VoltageVisualTest": 1,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1,
+    "PrintSticker": 1
+  },
+
+  "critical_event_tasks": {
+    "FinishProcedureTask": 1,
+    "PrintSticker": 1
+  },
+
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 32,
+      "pull": 22
+    },
+    "POWER": {
+      "function": 0,
+      "initial": 0,
+      "pin": 19
+    }
+  },
+  "relay_settings": {
+
+  }
+}

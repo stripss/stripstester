@@ -1,4 +1,5 @@
 
+## -*- coding: utf-8 -*-
 import importlib
 import logging
 import sys
@@ -31,18 +32,16 @@ class StartProcedureTask(Task):
 
         for current in range(2):
             strips_tester.product[current].exist = True
-            strips_tester.product[current].add_measurement
             strips_tester.product[current].serial = self.configure_serial(current)
 
         for i in range(10):
             self.server.send_broadcast({"command": "text", "text": "Test poteka...\n", "tag": "black"})
-            time.sleep(1)
+            time.sleep(0.2)
 
         return type(self).__name__
 
 
     def tear_down(self):
-
         time.sleep(self.get_definition("end_time"))
 
     def is_lid_closed(self):
