@@ -149,11 +149,13 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "blink", "which": i + 1, "value": (0, 0, 0)})
                 gui_web.send({"command": "semafor", "which": i + 1, "value": (0, 1, 0)})
 
+            '''
             for i in range(3):
                 self.lightboard.set_bit(self.lightboard.BUZZER)
                 time.sleep(0.1)
                 self.lightboard.clear_bit(self.lightboard.BUZZER)
                 time.sleep(0.1)
+            '''
         else:
             module_logger.info("START_SWITCH not defined in config_loader.py!")
         return {"signal": [1, "ok", 5, "NA"]}
@@ -168,30 +170,37 @@ class InitialTest(Task):
 
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)
-        self.shifter = devices.TI74HC595(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
+        self.segger_found = False
         for i in range(10):
             try:
                 self.segger = devices.Segger("/dev/segger")
+                self.segger_found = True
                 break
             except Exception:
                 time.sleep(0.2)
 
-        self.segger.select_file(get_program_number())  # Select S001 binary file
-
         self.measurement_results = {}
 
     def run(self) -> (bool, str):
+
+        #if not self.segger_found:
+        #    gui_web.send({"command": "error", "value": "Programatorja ni mogoče najti!"})
+        #   return {"signal": [0, "fail", 5, "NA"]}
+
+        #self.segger.select_file(get_program_number())  # Select S001 binary file
+
         self.shifter.reset()
 
-        if not lid_closed():
-            gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
-
-            return {"signal": [0, "fail", 5, "NA"]}
+        #if not lid_closed():
+        #    gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
+        #
+        #    return {"signal": [0, "fail", 5, "NA"]}
 
         # Lock test device
-        self.shifter.set("K9", False)
+        self.shifter.set("K9", True)
         self.shifter.invertShiftOut()
 
         flip_left = False
@@ -234,7 +243,7 @@ class InitialTest(Task):
                 if angle > 95:
                     flip_left = True
 
-                self.flash_process.start()
+                #self.flash_process.start()
 
                 capacitor_left = self.measure_voltage("M7", "M1")
                 if self.in_range(capacitor_left, 1.8, 10):
@@ -273,7 +282,7 @@ class InitialTest(Task):
                     stop = True  # Can't determine trimmer position
 
                 # Wait flashing to be done.
-                self.flash_process.join()
+                #self.flash_process.join()
             else:
                 strips_tester.data['status_left'] = 0
                 module_logger.error("left trimmer not in end position! ({}%)".format(angle))
@@ -282,8 +291,9 @@ class InitialTest(Task):
                 stop = True
         else:
             gui_web.send({"command": "semafor", "which": 1, "value": (0, 0, 0)})
+
         # Make process for right side programming
-        self.flash_process = multiprocessing.Process(target=self.flashMCU)
+        #self.flash_process = multiprocessing.Process(target=self.flashMCU)
 
         # 5V right
         self.shifter.set("K10", True)  # Segger SWIM Right
@@ -310,7 +320,7 @@ class InitialTest(Task):
                 if angle > 95:
                     flip_right = True
 
-                self.flash_process.start()
+                #self.flash_process.start()
 
                 capacitor_right = self.measure_voltage("L5", "L11")
                 if self.in_range(capacitor_right, 1.8, 10):
@@ -350,7 +360,7 @@ class InitialTest(Task):
                     stop = True  # Can't determine trimmer position
 
                 # Wait flashing to be done.
-                self.flash_process.join()
+                #self.flash_process.join()
             else:
                 strips_tester.data['status_right'] = 0
                 module_logger.error("right trimmer not in end position! ({}%)".format(angle))
@@ -398,7 +408,7 @@ class InitialTest(Task):
             self.nanoboard_small.servo(2, int(angle))
         '''
 
-        # UpoÅ¡tevaj flip! (zato se servo ne obrne desni!) (ce je angle  vecji 50)
+        # Upoštevaj flip! (zato se servo ne obrne desni!) (ce je angle  vecji 50)
         # Platforma naj ostane gor
 
         return self.measurement_results
@@ -454,9 +464,12 @@ class InitialTest(Task):
         return status
 
     def tear_down(self):
-        self.voltmeter.close()
-        self.segger.close()
-        self.nanoboard_small.close()
+        try:
+            self.voltmeter.close()
+            self.segger.close()
+            self.nanoboard_small.close()
+        except AttributeError:
+            pass
 
 # Perform resistance test and trimmer zeroing
 class ICT_ResistanceTest(Task):
@@ -464,7 +477,7 @@ class ICT_ResistanceTest(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
-        self.shifter = devices.TI74HC595(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         for i in range(10):
@@ -543,7 +556,7 @@ class ICT_ResistanceTest(Task):
                 strips_tester.data['status_left'] = 0
 
         gui_web.send({"command": "progress", "value": "25"})
-        # self.servo_thread.join()  # Wait until trimmers are zeroed
+        self.servo_thread.join()  # Wait until trimmers are zeroed
 
         return self.measurement_results
 
@@ -639,7 +652,7 @@ class ICT_VoltageVisualTest(Task):
 
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)  # Rectified DC Voltage
-        self.shifter = devices.TI74HC595(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         self.measurement_results = {}
@@ -816,10 +829,13 @@ class ICT_VoltageVisualTest(Task):
             for current in range(len(self.led_gpio)):
                 state_list.append(GPIO.input(self.led_gpio[current]))
 
-                # print("{} -> [{}] {}".format(current, mask[current], state_list[-1]))
+                #print("{} -> [{}] {}".format(current, mask[current], state_list[-1]))
 
-            # print(mask)
-            # print(state_list)
+            '''
+            print(state_list, end='')
+            print(" should be ", end='')
+            print(mask)
+            '''
             time.sleep(0.05)
 
             result = [not strips_tester.data['exist_left'], not strips_tester.data['exist_right']]
@@ -926,7 +942,7 @@ class FinishProcedureTask(Task):
     def set_up(self):
         module_logger.debug("FinishProcedureTask init")
 
-        self.shifter = devices.TI74HC595(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
         self.lightboard = devices.MCP23017(0x25)
 
     def run(self):
@@ -984,14 +1000,8 @@ class PrintSticker(Task):
         super().__init__(strips_tester.ERROR)
 
     def set_up(self):
-        for i in range(10):
-            try:
-                self.godex = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
-                break
-            except Exception:
-                time.sleep(0.2)
-
-        self.shifter = devices.TI74HC595(13, 15, 7, 11)
+        self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
+        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
 
     def run(self):
         # Unlock test device
@@ -1058,27 +1068,27 @@ class PrintSticker(Task):
         else:
             qc = ""
 
-        label = ('^Q9,3\r'
-                 '^W21\r'
+        label = ('^Q9,3\n'
+                 '^W21\n'
                  '{}'
-                 '^P1\r'
-                 '^S2\r'
-                 '^AD\r'
-                 '^C1\r'
-                 '^R12\r'
-                 '~Q+0\r'
-                 '^O0\r'
-                 '^D0\r'
-                 '^E12\r'
-                 '~R200\r'
-                 '^XSET,ROTATION,0\r'
+                 '^P1\n'
+                 '^S2\n'
+                 '^AD\n'
+                 '^C1\n'
+                 '^R12\n'
+                 '~Q+0\n'
+                 '^O0\n'
+                 '^D0\n'
+                 '^E12\n'
+                 '~R200\n'
+                 '^XSET,ROTATION,0\n'
                  '{}'
-                 'Dy2-me-dd\r'
-                 'Th:m:s\r'
-                 'AA,8,10,1,1,0,0E,ID:{}     {}\r'
-                 'AA,8,29,1,1,0,0E,C-19_PL_UF_{}\r'
-                 'AA,8,48,1,1,0,0E,{}  {}\r'
-                 'E\r').format(darkness, inverse, code[program], " ", program, date, qc)
+                 'Dy2-me-dd\n'
+                 'Th:m:s\n'
+                 'AA,8,10,1,1,0,0E,ID:{}     {}\n'
+                 'AA,8,29,1,1,0,0E,C-19_PL_UF_{}\n'
+                 'AA,8,48,1,1,0,0E,{}  {}\n'
+                 'E\n').format(darkness, inverse, code[program], " ", program, date, qc)
 
         self.godex.send_to_printer(label)
         time.sleep(1)

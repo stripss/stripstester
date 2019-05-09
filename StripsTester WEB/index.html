@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="/icon.ico">
+    <title>StripsTester</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity
+    "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <style>
+        h1 {
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .inline {
+            display: inline-block;
+        }
+
+        .larger {
+            font-size: 30px;
+        }
+
+        .semaphore {
+            border-radius: 6px 6px 6px 6px;
+            -moz-border-radius: 6px 6px 6px 6px;
+            -webkit-border-radius: 6px 6px 6px 6px;
+            border: 5px solid black;
+        }
+
+        .progress {
+            height: 50px;
+            margin-top: 50px;
+            margin-bottom: 50px;
+        }
+
+        .semaphore .tile {
+            width: 120px;
+            height: 120px;
+            border: 5px solid black;
+        }
+
+        #good_count_text p {
+            font-size: 60px;
+        }
+
+        #good_count_today {
+            font-size: 60px;
+        }
+
+        #bad_count_text p {
+            font-size: 60px;
+        }
+
+        #bad_count_today {
+            font-size: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .semaphore .tile {
+                width: 50px;
+                height: 50px;
+            }
+
+            h1 {
+                font-size: 25px;
+                maring-top: 0px;
+                margin-bottom: 0px;
+            }
+
+            h2 {
+                font-size: 18px;
+                maring-top: 0px;
+                margin-bottom: 0px;
+            }
+
+            .card-header {
+                padding: 5px;
+            }
+
+            h5 .card-title {
+                font-size: 20px;
+            }
+
+            .progress {
+                height: 30px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+
+            #good_count_text p {
+                font-size: 20px;
+            }
+
+            #good_count_today {
+                font-size: 20px;
+            }
+
+            #bad_count_text p {
+                font-size: 20px;
+            }
+
+            #bad_count_today {
+                font-size: 20px;
+            }
+
+            .card-header .bg-danger {
+                margin-top: 0px;
+                margin-bottom: 0px;
+            }
+
+            .display-4 {
+                font-size: 2.5rem;
+            }
+
+            .table td {
+                padding: 5px;
+            }
+
+
+            .semaphore {
+                border-radius: 6px 6px 6px 6px;
+                -moz-border-radius: 6px 6px 6px 6px;
+                -webkit-border-radius: 6px 6px 6px 6px;
+                border: 3px solid black;
+            }
+
+            .semaphore .tile {
+                border: 2px solid black;
+            }
+
+        }
+
+        .semaphore .red-on {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#ff1414+0,ff2626+100 */
+            background: #ff1414; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #ff1414 0%, #ff2626 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff1414', endColorstr='#ff2626', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .semaphore .red-off {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#2a0000+0,2c0000+100 */
+            background: #2a0000; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #2a0000 0%,#2c0000 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #2a0000 0%,#2c0000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#2a0000', endColorstr='#2c0000',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .semaphore .yellow-on {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#fff719+0,ffbb00+100 */
+            background: #fff719; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #fff719 0%, #ffbb00 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff719', endColorstr='#ffbb00', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .semaphore .yellow-off {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#6e6a00+0,644900+100 */
+            background: #6e6a00; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #6e6a00 0%, #644900 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#6e6a00', endColorstr='#644900', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .semaphore .green-on {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#4cff00+0,48ad05+100 */
+            background: #4cff00; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #4cff00 0%, #48ad05 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#4cff00', endColorstr='#48ad05', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .semaphore .green-off {
+            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#195400+0,183802+100 */
+            background: #195400; /* Old browsers */
+            background: -moz-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* FF3.6-15 */
+            background: -webkit-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #195400 0%, #183802 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#195400', endColorstr='#183802', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+        }
+
+        .nav-link {
+            font-size: 20px;
+        }
+
+        .card-title {
+            margin: 0px;
+        }
+
+        #extra_info p {
+            font-family: "Courier New";
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <a href="index.html"><img class="navbar-brand larger" src="strips.gif" class="img-thumbnail"></a>
+
+                <!--
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                -->
+
+                <div class="collapse navbar-collapse" id="myTab">
+                    <ul class="nav navbar-nav" id="myTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="false">Prijava</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">Operativni uporabniški vmesnik</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Nastavitve</a>
+                        </li>
+                    </ul>
+                </div>
+                <button style="display:none;" id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter">Izklopi testno napravo</button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Izklop testne naprave</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Ali želite zaustaviti testno napravo?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" id="shutdown_yes">Da</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Ne</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" style="margin-top: 20px;">
+
+        <div class="row">
+            <div class="col">
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+
+                        <div class="jumbotron">
+
+                            <h1 class="display-4">Pozdravljeni na uporabniškem vmesniku</h1>
+                            <p class="lead">StripsTester omogoča pregledno sledenje in indikacijo postopka testiranja proizvodnjih kosov.</p>
+
+                            <hr class="my-4">
+                            <p>Spodaj izberite željeno testno napravo:</p>
+                            <p class="lead">
+                            <div class="dropdown show inline">
+                                <a class="btn btn-light dropdown-toggle btn-lg" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Testna naprava
+                                </a>
+
+                                <div class="dropdown-menu" id="select_tn" aria-labelledby="dropdownMenuLink">
+
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-success inline btn-lg" id="connect_tn" disabled>Poveži
+                                <div style="display:none;" id="connect_tn_spinner" class="spinner-border spinner-border-sm" role="status"></div>
+                            </button>
+                            <p id="connect_info" class="inline" style="color: gray; margin-left: 20px;"></p>
+                            <br><br>
+                            <div style="display: none;" id="connect_status" class="alert alert-danger" role="alert"></div>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col-auto">
+                                <div id="semafor1" class="semaphore float-left">
+                                    <div class="tile red red-off"></div>
+                                    <div class="tile yellow yellow-off"></div>
+                                    <div class="tile green green-off"></div>
+
+                                </div>
+                            </div>
+
+                            <div class="col">
+                                <h1 id="gui_device_name" class="text-center">Testna naprava</h1>
+                                <h2 id="status" class="text-center"></h2>
+                                <div class="progress">
+                                    <div id="progressbar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="alert alert-danger" role="alert" id="error_list"><h4 class="alert-heading">Ugotovljene napake:</h4>
+                                    <hr>
+                                    <p></p></div>
+
+                            </div>
+
+                            <div class="col-auto">
+                                <div id="semafor2" class="semaphore float-right">
+                                    <div class="tile red red-off"></div>
+                                    <div class="tile yellow yellow-off"></div>
+                                    <div class="tile green green-off"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-success">
+                                        <h5 class="card-title">Uspešno testirani</h5>
+                                    </div>
+
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td style="border-top: 0px;">Danes</td>
+                                                <td id="good_count_title" style="border-top: 0px;">Skupaj</td>
+                                            </tr>
+                                            <tr>
+                                                <td><p id="good_count_today" class="card-text"></p></td>
+                                                <td id="good_count_text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-danger">
+                                        <h5 class="card-title">Neuspešno testirani</h5>
+                                    </div>
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td style="border-top: 0px;">Danes</td>
+                                                <td id="bad_count_title" style="border-top: 0px;">Skupaj</td>
+                                            </tr>
+                                            <tr>
+                                                <td><p id="bad_count_today" class="card-text"></p></td>
+                                                <td id="bad_count_text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="accordion" style="margin-top: 10px; margin-bottom: 10px;">
+                            <div class="card">
+                                <div class="card-header" id="headingOne">
+                                    <h5 class="mb-0">
+                                        <button class="btn btn-secondary" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                            Dodatne informacije
+                                        </button>
+                                    </h5>
+                                </div>
+
+                                <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
+                                    <div class="card-body" id="extra_info">
+                                        <p></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">Settings</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <script
+            src="http://code.jquery.com/jquery-3.3.1.js"
+            integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+            crossorigin="anonymous"></script>
+
+
+
+    <script>
+        $(document).ready(function () {
+            var selected_test_device = 0;
+
+            // Websocket list for test devices
+            var test_device_list = [
+                {"name": "GO-HA-1", "addr": "172.30.132.142:1241", "loc": "laboratorij"},
+                {"name": "GO-HA-1", "addr": "172.30.131.34:1238", "loc": "proizvodnja"},
+                {"name": "GO-HA-1", "addr": "192.168.88.244:8000", "loc": "laboratorij"},
+                {"name": "GO-HA-1", "addr": "192.168.88.244:8000", "loc": "debug"},
+                {"name": "GO-HA-2", "addr": "172.30.132.142:1239", "loc": "laboratorij"},
+                {"name": "GO-HA-2", "addr": "172.30.131.34:1239", "loc": "proizvodnja"},
+                {"name": "GO-HA-2", "addr": "192.168.88.232:8000", "loc": "debug"},
+                {"name": "GO-C19", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
+                {"name": "GO-C19", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
+                {"name": "GO-C19", "addr": "192.168.88.230:8000", "loc": "debug"},
+                {"name": "GACS_A2 Bender", "addr": "172.30.132.142:1240", "loc": "laboratorij"},
+                {"name": "GACS_A2 Bender", "addr": "172.30.131.34:1240", "loc": "proizvodnja"},
+                {"name": "GACS_A2 Bender", "addr": "192.168.88.242:8000", "loc": "debug"}
+            ];
+
+            $('#select_tn').append("</div><h6 class='dropdown-header'>Proizvodnja</h6>");
+
+            // List test devices
+            for(var index = 0; index < test_device_list.length; ++index) {
+                if(test_device_list[index]['loc'] == "proizvodnja") {
+                    $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+                }
+            }
+
+            $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Laboratorij</h6>");
+
+            // List test devices
+            for(var index = 0; index < test_device_list.length; ++index) {
+                if(test_device_list[index]['loc'] == "laboratorij") {
+                    $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+                }
+            }
+
+            $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Debug</h6>");
+
+            // List test devices
+            for(var index = 0; index < test_device_list.length; ++index) {
+                if(test_device_list[index]['loc'] == "debug") {
+                    $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+                }
+            }
+
+            function wsOpen(webSocketURL) {
+                try {
+                    $("#error_list").hide();
+                    $("#connect_status").fadeOut("fast");
+
+                    // Try close preopened socket
+                    try {
+                        socket.close();
+                    } catch (error) {
+
+                    }
+
+                    socket = new WebSocket("ws://" + test_device_list[selected_test_device]['addr']);
+
+                    socket.onopen = function () {
+                        $("#bad_count_title").hide();
+                        $("#bad_count_text").hide();
+                        $("#good_count_title").hide();
+                        $("#good_count_text").hide();
+
+                        $('#good_count_today').html("0");
+                        $('#bad_count_today').html("0");
+
+                        $("#profile-tab").removeClass("disabled");
+                        $("#connect_tn_spinner").fadeOut("slow");
+                        // Redirect to GUI
+                        $('#myTab a[href="#profile"]').tab('show')
+
+                        $('#tn_shutdown').fadeIn("fast");
+
+                        $('#gui_device_name').html("Testna naprava " + test_device_list[selected_test_device]['name']);
+                    };
+
+                    socket.onerror = function () {
+                        $("#profile-tab").addClass("disabled");
+                        $('#myTab a[href="#home"]').tab('show')
+                        $("#connect_tn_spinner").fadeOut("slow");
+                        $("#connect_status").fadeIn("fast");
+                        $("#connect_status").html("Napaka pri povezavi!");
+                        $('#tn_shutdown').fadeOut("fast");
+                        $('#connect_tn').prop('disabled', false);
+                        document.title = "StripsTester";
+                    };
+
+                    socket.onmessage = function (message) {
+                        if (!message.data) return;
+
+                        onMessage(JSON.parse(message.data));
+                    };
+
+                    socket.onclose = function () {
+                        $("#profile-tab").addClass("disabled");
+                        // Redirect to login page
+                        $('#myTab a[href="#home"]').tab('show')
+                        $('#tn_shutdown').fadeOut("fast");
+                        $('#connect_tn').prop('disabled', false);
+                        document.title = "StripsTester";
+                    };
+
+                } catch (error) {
+                    $("#profile-tab").addClass("disabled");
+                    $("#connect_status").fadeIn("fast");
+                    $("#connect_status").html("Napaka pri povezovanju!");
+                    $('#tn_shutdown').fadeOut("fast");
+                    $('#connect_tn').prop('disabled', false);
+                    document.title = "StripsTester";
+                }
+            }
+
+            function sendJSON(txt) {
+                socket.send(JSON.stringify(txt));
+            }
+
+            function onMessage(data) {
+                if (data instanceof Array) { // Refractor data
+                    for (let i = 0; i < data.length; i++) onMessage(data[i]);
+                    return;
+                }
+
+                if (data.command == "status") {
+                    $('#status').fadeOut("fast", function () {
+                        $('#status').html(data.value);
+                    });
+
+                    $('#status').fadeIn("fast");
+                }
+
+                if (data.command == "good_count") {
+                    $("#good_count_title").fadeIn("fast");
+
+                    $("#good_count_text").fadeIn("fast", function () {
+
+                        $('#good_count_text p').fadeOut("fast", function () {
+                            $('#good_count_text p').html(data.value);
+                        });
+
+                        $('#good_count_text p').fadeIn("fast");
+                    });
+                }
+
+                if (data.command == "bad_count") {
+                    $("#bad_count_title").fadeIn("fast");
+
+                    $("#bad_count_text").fadeIn("fast", function () {
+
+                        $('#bad_count_text p').fadeOut("fast", function () {
+                            $('#bad_count_text p').html(data.value);
+                        });
+
+                        $('#bad_count_text p').fadeIn("fast");
+                    });
+                }
+
+                if (data.command == "good_count_today") {
+                    $('#good_count_today').fadeOut("fast", function () {
+                        $('#good_count_today').html(data.value);
+                    });
+
+                    $('#good_count_today').fadeIn("fast");
+                }
+
+                if (data.command == "bad_count_today") {
+                    $('#bad_count_today').fadeOut("fast", function () {
+                        $('#bad_count_today').html(data.value);
+                    });
+
+                    $('#bad_count_today').fadeIn("fast");
+                }
+                if (data.command == "semafor") {
+                    semafor_id = data.which;
+
+                    if (data.value[0] == 0) {
+                        $('#semafor' + semafor_id + ' .red').addClass("red-off");
+                        $('#semafor' + semafor_id + ' .red').removeClass("red-on");
+                    } else {
+                        $('#semafor' + semafor_id + ' .red').addClass("red-on");
+                        $('#semafor' + semafor_id + ' .red').removeClass("red-off");
+                    }
+
+                    if (data.value[1] == 0) {
+                        $('#semafor' + semafor_id + ' .yellow').addClass("yellow-off");
+                        $('#semafor' + semafor_id + ' .yellow').removeClass("yellow-on");
+                    } else {
+                        $('#semafor' + semafor_id + ' .yellow').addClass("yellow-on");
+                        $('#semafor' + semafor_id + ' .yellow').removeClass("yellow-off");
+                    }
+
+                    if (data.value[2] == 0) {
+                        $('#semafor' + semafor_id + ' .green').addClass("green-off");
+                        $('#semafor' + semafor_id + ' .green').removeClass("green-on");
+                    } else {
+                        $('#semafor' + semafor_id + ' .green').addClass("green-on");
+                        $('#semafor' + semafor_id + ' .green').removeClass("green-off");
+                    }
+
+                }
+                if (data.command == "blink") {
+                    //$('#bad_count').html(data.bad_count);
+                }
+
+                if (data.command == "error") {
+                    if (data.value == -1) {
+                        $("#error_list").fadeOut("fast", function (e) {
+                            $("#error_list p").html(""); // Clean fields
+                        });
+                    } else {
+                        //var html = "- " + data.value + "<br>";
+                        $("#error_list").fadeIn("fast");
+                        //$(html).appendTo("#error_list p").fadeIn("fast");
+                        $("#error_list p").append("- " + data.value + "<br>").fadeIn("fast");
+                        $("#extra_info p").append("<span style='color: red;'>- " + data.value + "</span><br>");
+                    }
+                }
+
+                if (data.command == "info") {
+                    if (data.value == -1) {
+
+                        $("#extra_info p").html(""); // Clean fields
+
+                    } else {
+                        $("#extra_info p").append("<span style='color: black;'>- " + data.value + "</span><br>");
+                    }
+                }
+
+                if (data.command == "image") {  // Image processing handler
+
+                    $("#extra_info p").append("<img src='data:image/jpg;base64, " + data.value + "' /><br>");
+                }
+
+                if (data.command == "nests") {
+                    nests = data.value;
+
+                    if (nests == 1) {
+                        $('#semafor1').show();
+                        $('#semafor2').hide();
+                    } else if (nests == 2) {
+                        $('#semafor1').show();
+                        $('#semafor2').show();
+                    }
+                }
+                if (data.command == "title") {
+                    document.title = data.value;
+                    $("#gui_device_name").html("Testna naprava " + data.value);
+                }
+
+                if (data.command == "progress") {
+                    if (data.value > 5) $('#progressbar').html(data.value + "%");
+                    else $('#progressbar').html("");
+
+                    $('#progressbar').css('width', data.value + "%");
+                }
+            }
+
+            $("#select_tn a").click(function (e) {
+                selected_test_device = $(this).attr('id').replace('tn','');
+
+                e.preventDefault(); // cancel the link behaviour
+                $(this).parents(".dropdown").find('.btn').html($(this).text());
+                $(this).parents(".dropdown").find('.btn').val($(this).data('value'));
+
+                $("#connect_info").fadeOut("fast", function(event) {
+                    $("#connect_info").html("IP: " + test_device_list[selected_test_device]['addr']);
+                });
+
+                $("#connect_info").fadeIn("fast");
+
+                $('#connect_tn').prop('disabled', false);
+            });
+
+            $("#shutdown_yes").click(function () {
+                sendJSON({"command": "shutdown"});
+            });
+
+            $("#connect_tn").click(function () {
+                $("#connect_tn_spinner").show();
+                $('#connect_tn').prop('disabled', true);
+
+                wsOpen(); // Attempt to open websocket
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

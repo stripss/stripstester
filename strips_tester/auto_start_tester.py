@@ -6,11 +6,13 @@ import time
 import sys
 
 wifi_found = False
+time.sleep(10)
 while not wifi_found:
     # Get SSID name
     wifi = subprocess.check_output(['iwgetid']).decode()
 
     if "StripsTester" in wifi:
+        time.sleep(3)
         p = subprocess.Popen(["/venv_strips_tester/bin/python-sudo.sh", "/strips_tester_project/strips_tester/tester.py"] + sys.argv[1:])
         # TN is running in production mode
         print("Production mode (Found StripsTester)")
@@ -20,8 +22,7 @@ while not wifi_found:
             time.sleep(1)
 
         wifi_found = True
-
-    if "LabTest1" in wifi:
+    elif "LabTest1" in wifi:
         print("Debug mode (Found LabTest1)")
         wifi_found = True
 

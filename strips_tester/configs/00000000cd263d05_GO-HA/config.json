@@ -1,11 +1,11 @@
 {
-  "product_name": "GO-HA",
+  "product_name": "GO-HA-1",
   "product_type": 12,
   "product_variant": "basic",
   "product_hw_release": "1.0",
   "product_description": "GO-HA hall sensor",
   "product_notes": "nothing to say",
-  "test_device_name": "GO-HA",
+  "test_device_name": "GO-HA-1",
   "test_device_employee": "employee2",
   "central_db_host": "none",
   "local_db_host": "localhost",
@@ -22,22 +22,22 @@
   },
 
   "gpio_settings": {
-    "relay1": {
+    "relay4": {
       "function": 0,
       "pin": 11,
       "initial": 1
     },
-    "relay2": {
+    "relay3": {
       "function": 0,
       "pin": 13,
       "initial": 1
     },
-    "relay3": {
+    "relay2": {
       "function": 0,
       "pin": 15,
       "initial": 1
     },
-    "relay4": {
+    "relay1": {
       "function": 0,
       "pin": 19,
       "initial": 1
@@ -45,24 +45,24 @@
     "left_red_led": {
       "function": 0,
       "pin": 16,
-      "initial": 1
+      "initial": 0
     },
     "right_red_led": {
       "function": 0,
       "pin": 35,
-      "initial": 1
+      "initial": 0
     },
     "left_green_led": {
       "function": 0,
       "pin": 18,
-      "initial": 1
+      "initial": 0
     },
     "right_green_led": {
       "function": 0,
       "pin": 37,
-      "initial": 1
+      "initial": 0
     },
-    "start_switch": {
+    "START_SWITCH": {
       "function": 1,
       "pin": 22,
       "pull": 22

@@ -19,6 +19,7 @@ class SimpleChat(WebSocket):
             subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
 
+
     def handleConnected(self):
         print(self.address, 'connected')
         #for client in clients:

@@ -31,7 +31,7 @@ class StartProcedureTask(Task):
         strips_tester.data['status_left'] = -1  # Untested
         strips_tester.data['status_right'] = -1  # Untested
 
-        gui_web.send({"command": "title", "value": "GO-HA"})
+        gui_web.send({"command": "title", "value": "GO-HA 2"})
 
         if "START_SWITCH" in settings.gpios:
             gui_web.send({"command": "status", "value": "Za testiranje pritisni tipko."})

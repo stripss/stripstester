@@ -501,6 +501,22 @@ class GoDEXG300:
         self.ser.close()
 
 
+class Godex:
+
+    '''
+        Driver for Godex thermal printers. Performs like writing to file. Every line must be terminated with \n.
+        Does not need USB to RS232 converter. Made by Marcel Jancar 08.05.2019
+    '''
+
+    # Initialisation of printer port
+    def __init__(self, port, timeout=3.0):
+        self.port = port
+
+    # Command for actual printing.
+    def send_to_printer(self, string):
+        with open(self.port, 'w') as lpt:
+            lpt.write(string)
+
 class SainBoard16:
     # define command messages
     is_open = False
@@ -715,7 +731,6 @@ class TI74HC595:
         index = series * 16 + ordered.index(int(position[1:]))
 
         # index = - (2 * -(index % 2))
-
         self.dataa[index] = state * 1
 
         # self.invertShiftOut()
@@ -726,7 +741,6 @@ class TI74HC595:
         for bit in range(48):
             # print(self.data[bit], end='')
             GPIO.output(self.datapin, self.dataa[bit])
-
             GPIO.output(self.clockpin, GPIO.HIGH)
             GPIO.output(self.clockpin, GPIO.LOW)
 
@@ -734,6 +748,105 @@ class TI74HC595:
         GPIO.output(self.latchpin, GPIO.LOW)
 
         GPIO.output(self.oepin, GPIO.HIGH)
+
+        return
+
+
+class HEF4094BT:
+    def __init__(self, datapin, latchpin, clockpin, oepin):
+        self.datapin = datapin
+        self.latchpin = latchpin
+        self.clockpin = clockpin
+        self.oepin = oepin
+
+        self.data = []
+
+        for i in range(48):
+            self.data.append(0)
+
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
+
+        GPIO.setup(self.datapin, GPIO.OUT)
+        GPIO.setup(self.latchpin, GPIO.OUT)
+        GPIO.setup(self.clockpin, GPIO.OUT)
+        GPIO.setup(self.oepin, GPIO.OUT) # maybe pullup
+
+        GPIO.output(self.clockpin, GPIO.HIGH)
+        GPIO.output(self.latchpin, GPIO.LOW)
+
+    def reset(self):
+        for bit in range(48):
+            self.data[bit] = 0
+
+        self.invertShiftOut()
+
+    def writeraw(self, raw):
+        for i in range(48):
+            self.data[i] = raw[i]
+
+        # print("RAW", end='')
+        self.invertShiftOut()
+
+    def set(self, position, state):
+        if position[0] == 'K':
+            series = 0
+        elif position[0] == 'L':
+            series = 1
+        elif position[0] == 'M':
+            series = 2
+        else:
+            raise Exception("Unknown series on relay board.")
+            return
+
+        ordered = [7,5,3,1,9,11,13,15,10,12,14,16,8,6,4,2]
+        index = series * 16 + ordered.index(int(position[1:]))
+
+        # index = - (2 * -(index % 2))
+        self.data[index] = state * 1
+
+        # self.invertShiftOut()
+        return
+
+    def invertShiftOut(self):  # Data is 48-bit number
+
+
+        GPIO.output(self.latchpin, GPIO.HIGH)
+        time.sleep(0.00005)
+        for bit in range(48):
+            #print(self.data[bit], end='')
+            GPIO.output(self.datapin, self.data[bit])
+            time.sleep(0.00005)
+
+            GPIO.output(self.clockpin, GPIO.LOW)
+            time.sleep(0.00005)
+            GPIO.output(self.clockpin, GPIO.HIGH)
+            time.sleep(0.00005)
+
+        GPIO.output(self.latchpin, GPIO.LOW)
+        time.sleep(0.00005)
+        GPIO.output(self.oepin, GPIO.LOW)
+        time.sleep(0.00005)
+        GPIO.output(self.datapin, GPIO.HIGH)
+
+        # Debug purpose
+        for bit in range(48):
+            if self.data[bit]:
+                series = int(bit / 16)
+
+                if series == 0:
+                    series_str = 'K'
+                elif series == 1:
+                    series_str = 'L'
+                elif series == 2:
+                    series_str = 'M'
+
+                idx = bit - series * 16
+
+                ordered = [7, 5, 3, 1, 9, 11, 13, 15, 10, 12, 14, 16, 8, 6, 4, 2]
+                idx_real = ordered[idx]
+                print("{}{}, ".format(series_str, idx_real), end='')
+        print("")
 
         return
 
@@ -1279,7 +1392,7 @@ class Segger:
                 result = True
                 break
 
-            if "ERR255:Failed to open config file" in response:  # Flashing success
+            if "ERR255:Failed to open config file" in response:  # Flashing failed
                 result = False
                 print("File not found on Segger!")
                 break

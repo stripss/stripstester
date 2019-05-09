@@ -60,6 +60,7 @@ class StartProcedureTask(Task):
         GPIO.output(gpios['LOCK'],True) # Lock test device
 
     def run(self) -> (bool, str):
+        '''
         # Product detection
         detect = GPIO.input(strips_tester.settings.gpios.get("DETECT_PRODUCT"))
 
@@ -71,6 +72,9 @@ class StartProcedureTask(Task):
             module_logger.warning("Ni zaznanega kosa v ležišču.")
             gui_web.send({"command": "info", "value": "Ni zaznanega kosa v ležišču."})
             return {"signal": [1, "fail", 5, "NA"]}
+        '''''
+
+        pass
 
         return {"signal": [1, "ok", 5, "NA"]}
 
@@ -81,6 +85,11 @@ class StartProcedureTask(Task):
 
     def is_lid_closed(self):
         state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
+
+        return state
+
+    def is_product_inside(self):
+        state = GPIO.input(strips_tester.settings.gpios.get("DETECT_PRODUCT"))
 
         return state
 
@@ -182,7 +191,7 @@ class ReadSerial(Task):
 
         raw_scanned_string = ""
 
-        num_of_tries = 5
+        num_of_tries = 2
         gui_web.send({"command": "status", "value": "Branje QR kode..."})
         module_logger.info("Branje QR kode...")
 
@@ -192,10 +201,10 @@ class ReadSerial(Task):
                 rval, frame = self.vc.read()
 
                 # Dimensions of cropped image for QR code
-                x = 120
-                y = 120
-                h = 300
-                w = 350
+                x = 100
+                y = 100
+                h = 370
+                w = 390
 
                 roi = frame[y:y+h, x:x+w]
 
@@ -680,7 +689,7 @@ class VisualTest(Task):
         self.relay_board.close_relay(relays["LED_Green1"])
         self.relay_board.close_relay(relays["LED_Green2"])
 
-        self.get_light_states(70, "green_leds")
+        self.get_light_states(50, "green_leds")
 
         self.relay_board.open_relay(relays["12V"])
         self.relay_board.open_relay(relays["LED_Green1"])

@@ -27,6 +27,7 @@ def preset_tables(database: str='central', flag: bool=False):
         ProductType.objects.using(database).get_or_create(name='GO-C19', type=2, variant='n/a', description='c19 module for Gorenje')
         ProductType.objects.using(database).get_or_create(name='GO-HA', type=3, variant='n/a', description='ha module for Gorenje')
         ProductType.objects.using(database).get_or_create(name='GACS_A2 Bender', type=4, variant='n/a', description='bender module')
+        ProductType.objects.using(database).get_or_create(name='GO-HA-1', type=5, variant='n/a', description='hall module')
 
         for product_type in ProductType.objects.using(database).all():
             module_logger.debug("%s, %s, %s, %s",product_type.type, product_type.name, product_type.variant, product_type.description)
