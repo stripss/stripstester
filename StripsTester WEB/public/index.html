@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="icon" href="/icon.ico">
+    <link rel="icon" href="/img/icon.ico">
     <title>StripsTester</title>
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity
@@ -199,6 +199,16 @@
         #extra_info p {
             font-family: "Courier New";
         }
+
+        html, body {
+            height: 100%;
+        }
+
+        .fill {
+            min-height: 100%;
+            height: 100%;
+        }
+
     </style>
 </head>
 
@@ -208,7 +218,7 @@
     <div class="row">
         <div class="col">
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
-                <a href="index.html"><img class="navbar-brand larger" src="strips.gif" class="img-thumbnail"></a>
+                <a href="index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail"></a>
 
                 <!--
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -255,8 +265,7 @@
         </div>
     </div>
 
-    <div class="container" style="margin-top: 20px;">
-
+    <div class="container">
         <div class="row">
             <div class="col">
                 <div class="tab-content" id="myTabContent">
@@ -390,6 +399,18 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="col">
+            <nav class="navbar navbar-fixed-bottom navbar-light bg-light">
+                <ul class="nav navbar-nav" id="myTab" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link disabled" style="font-size: 12px;"  id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Made by Marcel Jančar | StripsTester &copy;</a>
+                </li>
+                </ul>
+                <a href="index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail" align="right"></a>
+            </nav>
+        </div>
+    </div>
 
     <script
             src="http://code.jquery.com/jquery-3.3.1.js"
@@ -404,7 +425,6 @@
 
     <script>
         $(document).ready(function () {
-
             var selected_test_device = 0;
 
             // Websocket list for test devices
@@ -681,7 +701,7 @@
             });
 
             $("#shutdown_yes").click(function () {
-                sendJSON({"command": "shutdown"});
+                sendJSON({"command": "sht"});
             });
 
             $("#connect_tn").click(function () {

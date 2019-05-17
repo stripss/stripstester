@@ -149,13 +149,12 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "blink", "which": i + 1, "value": (0, 0, 0)})
                 gui_web.send({"command": "semafor", "which": i + 1, "value": (0, 1, 0)})
 
-            '''
             for i in range(3):
                 self.lightboard.set_bit(self.lightboard.BUZZER)
                 time.sleep(0.1)
                 self.lightboard.clear_bit(self.lightboard.BUZZER)
                 time.sleep(0.1)
-            '''
+
         else:
             module_logger.info("START_SWITCH not defined in config_loader.py!")
         return {"signal": [1, "ok", 5, "NA"]}
@@ -170,17 +169,17 @@ class InitialTest(Task):
 
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)
-        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         self.segger_found = False
-        for i in range(10):
+        for i in range(1):
             try:
                 self.segger = devices.Segger("/dev/segger")
                 self.segger_found = True
                 break
             except Exception:
-                time.sleep(0.2)
+                time.sleep(0.1)
 
         self.measurement_results = {}
 
@@ -477,7 +476,7 @@ class ICT_ResistanceTest(Task):
         super().__init__(strips_tester.CRITICAL)
 
     def set_up(self):
-        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         for i in range(10):
@@ -519,7 +518,7 @@ class ICT_ResistanceTest(Task):
             self.shifter.set("K12", True)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            r3_left = self.measure_resistance("R3_left", "L2", "M13", 47)
+            r3_left = self.measure_resistance("R3_left", "L2", "M13", 47, 30)
             r9_left = self.measure_resistance("R9_left", "M16", "M9", 180)
             r8_left = self.measure_resistance("R8_left", "M10", "M8", 220)
 
@@ -531,7 +530,7 @@ class ICT_ResistanceTest(Task):
             self.shifter.set("K12", False)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            r3_right = self.measure_resistance("R3_right", "K6", "L16", 47)
+            r3_right = self.measure_resistance("R3_right", "K6", "L16", 47, 30)
             r9_right = self.measure_resistance("R9_right", "L13", "K4", 180)
             r8_right = self.measure_resistance("R8_right", "K3", "L12", 220)
 
@@ -577,7 +576,7 @@ class ICT_ResistanceTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 10
+        num_of_tries = 20
 
         resistance = self.ohmmeter.read().numeric_val
         if resistance is None:
@@ -652,7 +651,7 @@ class ICT_VoltageVisualTest(Task):
 
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)  # Rectified DC Voltage
-        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         self.measurement_results = {}
@@ -718,7 +717,7 @@ class ICT_VoltageVisualTest(Task):
                 module_logger.info("VisualStart RIGHT")
                 gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualStart) ustrezen"})
                 self.measurement_results['visualStart_right'] = [1, "ok", 0, "N/A"]
-
+        
         # Wait until leds are off
         visual_off = self.check_mask([1, 1, 1], 4)
         gui_web.send({"command": "progress", "value": "40"})
@@ -831,11 +830,11 @@ class ICT_VoltageVisualTest(Task):
 
                 #print("{} -> [{}] {}".format(current, mask[current], state_list[-1]))
 
-            '''
-            print(state_list, end='')
-            print(" should be ", end='')
-            print(mask)
-            '''
+
+            #print(state_list, end='')
+            #print(" should be ", end='')
+            #print(mask)
+
             time.sleep(0.05)
 
             result = [not strips_tester.data['exist_left'], not strips_tester.data['exist_right']]
@@ -942,7 +941,7 @@ class FinishProcedureTask(Task):
     def set_up(self):
         module_logger.debug("FinishProcedureTask init")
 
-        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.lightboard = devices.MCP23017(0x25)
 
     def run(self):
@@ -1001,7 +1000,7 @@ class PrintSticker(Task):
 
     def set_up(self):
         self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
-        self.shifter = devices.HEF4094BT(13, 15, 7, 11)
+        self.shifter = devices.HEF4094BT(24, 31, 26, 29)
 
     def run(self):
         # Unlock test device

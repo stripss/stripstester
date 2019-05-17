@@ -772,9 +772,6 @@ class HEF4094BT:
         GPIO.setup(self.clockpin, GPIO.OUT)
         GPIO.setup(self.oepin, GPIO.OUT) # maybe pullup
 
-        GPIO.output(self.clockpin, GPIO.HIGH)
-        GPIO.output(self.latchpin, GPIO.LOW)
-
     def reset(self):
         for bit in range(48):
             self.data[bit] = 0
@@ -812,21 +809,21 @@ class HEF4094BT:
 
 
         GPIO.output(self.latchpin, GPIO.HIGH)
-        time.sleep(0.00005)
+        time.sleep(0.00001)
         for bit in range(48):
             #print(self.data[bit], end='')
             GPIO.output(self.datapin, self.data[bit])
-            time.sleep(0.00005)
+            time.sleep(0.00001)
 
             GPIO.output(self.clockpin, GPIO.LOW)
-            time.sleep(0.00005)
+            time.sleep(0.00001)
             GPIO.output(self.clockpin, GPIO.HIGH)
-            time.sleep(0.00005)
+            time.sleep(0.00001)
 
         GPIO.output(self.latchpin, GPIO.LOW)
-        time.sleep(0.00005)
+        time.sleep(0.00001)
         GPIO.output(self.oepin, GPIO.LOW)
-        time.sleep(0.00005)
+        time.sleep(0.00001)
         GPIO.output(self.datapin, GPIO.HIGH)
 
         # Debug purpose

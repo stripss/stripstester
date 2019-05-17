@@ -6,6 +6,7 @@ import subprocess
 import logging
 from subprocess import Popen, PIPE
 from os import kill
+import os
 import signal
 
 clients = []
@@ -19,7 +20,13 @@ class SimpleChat(WebSocket):
             subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
 
-
+    '''
+    # Handle commands from connected test device
+    if os.path.isfile(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")):
+        print("File found" . format(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")))
+    else:
+        print("File not found {}" . format(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")))
+    '''
     def handleConnected(self):
         print(self.address, 'connected')
         #for client in clients:

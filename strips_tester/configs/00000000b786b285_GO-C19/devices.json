@@ -1,6 +1,0 @@
-{
-  "LightBoard": {"MCP23017": ["0x25"]},
-  "voltmeter": {"YoctoVoltageMeter": ["VOLTAGE1-B5E9C.voltage1",0.16]},
-  "NanoBoard": {"Arduino": ["0x04"]},
-  "NanoBoardSmall": {"Arduino": ["0x06"]}
-}

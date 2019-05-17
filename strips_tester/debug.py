@@ -19,30 +19,24 @@ import threading
 
 
 def main():
+    led_gpio = [40, 37, 38, 35, 36, 33]
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setwarnings(False)
 
-    godex = devices.Godex('/dev/usb/lp0')
+    # Prepare GPIO list for visual test (left leds, right leds)
+    for current in led_gpio:
+        GPIO.setup(current, GPIO.IN)
+    while True:
+        state_list = []
 
-    label = ('^Q9,3\n'
-             '^W21\n'
-             '^H4\n'
-             '^P1\n'
-             '^S2\n'
-             '^AD\n'
-             '^C1\n'
-             '^R0\n'
-             '~Q-8\n'
-             '^O0\n'
-             '^D0\n'
-             '^E12\n'
-             '~R255\n'
-             '^XSET,ROTATION,0\n'
-             '^L\n'
-             'Dy2-me-dd\n'
-             'Th:m:s\n'
-             'AD,24,14,1,1,0,0E,GoLabel\n'
-             'E\n')
+        for current in range(len(led_gpio)):
+            state_list.append(GPIO.input(led_gpio[current]))
 
-    godex.send_to_printer(label)
+            #print("{} -> [{}] {}".format(current, mask[current], state_list[-1]))
+
+        print(state_list)
+        time.sleep(0.1)
+
     '''
     while True:
         shifter = devices.HEF4094BT(13, 15, 7, 11)
