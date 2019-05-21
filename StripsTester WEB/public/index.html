@@ -9,6 +9,7 @@
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity
     "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
 
     <style>
         h1 {
@@ -329,6 +330,9 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div id="custom_html"></div>
+
                         <br>
                         <div class="row">
                             <div class="col-sm-6">
@@ -673,7 +677,12 @@
                 }
                 if (data.command == "title") {
                     document.title = data.value;
-                    $("#gui_device_name").html("Testna naprava " + data.value);
+
+                    $("#gui_device_name").fadeOut("fast", function(event) {
+                        $("#gui_device_name").html("Testna naprava " + data.value);
+                    });
+
+                    $("#gui_device_name").fadeIn("fast");
                 }
 
                 if (data.command == "progress") {
@@ -681,6 +690,19 @@
                     else $('#progressbar').html("");
 
                     $('#progressbar').css('width', data.value + "%");
+                }
+
+
+                if (data.command == "html_append") {  // Change custom HTML depending on test device
+                    $('#custom_html').append(data.value);
+                }
+
+                if (data.command == "html_clean") {  // Change custom HTML depending on test device
+                    $('#custom_html').html(data.value);
+                }
+
+                if (data.command == "java") {  // Change custom HTML depending on test device
+                    eval($(this).text());
                 }
             }
 
@@ -701,7 +723,7 @@
             });
 
             $("#shutdown_yes").click(function () {
-                sendJSON({"command": "sht"});
+                sendJSON({"command": "shutdown"});
             });
 
             $("#connect_tn").click(function () {

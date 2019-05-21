@@ -16,9 +16,43 @@ import cv2
 import datetime
 import multiprocessing
 import threading
+import pymongo
+import strips_tester
+
+
+
+def insert_test_device(name, nests, address, description, author, date_of_creation):
+    myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    mydb = myclient["stripstester"]
+    mycol = mydb['test_device']
+    mycol.drop()
+
+    if mycol.find_one({'name': name}) is None:  # Test device does not exist
+        data = {'name': name, 'nests': nests, 'address': address, 'description': description, 'author': author, 'date_of_creation': date_of_creation, 'worker_id': -1, 'worker_type': -1}
+        print("Test device {} is not found in database, so we create one." . format(name))
+
+        x = mycol.insert_one(data)
+    else:
+        print("Test device {} is already in database.".format(name))
 
 
 def main():
+
+    insert_test_device("GO-C19",2,"127.0.0.1:8000","Gorenje C19 sensor","Marcel Jancar",datetime.datetime.now())
+
+    '''
+    myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    mydb = myclient["stripstester"]
+    #print(mydb.list_collection_names())
+    mycol = mydb['test_info']
+    mydata = mydb['test_data']
+
+    for x in mycol.find():
+        print("Found new test: {}" . format(x))
+
+        for y in mydata.find({"test_info": x['_id']}):
+            print("  Its data: {}" . format(y))
+
     led_gpio = [40, 37, 38, 35, 36, 33]
     GPIO.setmode(GPIO.BOARD)
     GPIO.setwarnings(False)
@@ -37,7 +71,6 @@ def main():
         print(state_list)
         time.sleep(0.1)
 
-    '''
     while True:
         shifter = devices.HEF4094BT(13, 15, 7, 11)
 

@@ -56,6 +56,8 @@ def initialize_logging(level: int = logging.INFO):
 logger = initialize_logging(logging.DEBUG)
 #logger_queue = set_queue_logger()
 current_product = None
+
+# Data handles all custom data of current test device (acts like RAM)
 data = {}
 settings = config_loader.Settings()
 websocket = threading.Thread(target=gui_web.start_server)

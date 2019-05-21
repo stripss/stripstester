@@ -19,6 +19,7 @@ from strips_tester import gui_web
 # from strips_tester import presets
 from web_project.web_app.models import *
 import subprocess
+import pymongo
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -89,6 +90,7 @@ class Task:
         self.passed = []
         self.result = None
         # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
+
 
     def set_up(self):
         """Used for environment initial_setup"""
@@ -185,6 +187,42 @@ def run_custom_tasks():
     test_set_status = None
     global DB
     DB = check_db_connection()
+
+
+
+    stripstester_database = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    mydb = stripstester_database["stripstester"]
+    test_devices_col = mydb["test_device"]
+    test_info_col = mydb["test_info"]
+
+    test_device = test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
+
+    if test_device is not None:
+        print("[StripsTesterDB] Test device {} found in database!" . format(test_device['name']))
+
+        strips_tester.data['new_db'] = True
+        strips_tester.data['test_device_nests'] = test_device['nests']
+        strips_tester.data['exist'] = {}
+        strips_tester.data['status'] = {}
+
+        # Retrieve last settings
+        strips_tester.data['worker_id'] = test_device['worker_id']
+        strips_tester.data['worker_type'] = test_device['worker_type']
+
+        # Prepare data dictionary structure
+        strips_tester.data['measurement'] = {}
+
+        for current_nest in range(test_device['nests']):
+            strips_tester.data['measurement'][current_nest] = {}
+            strips_tester.data['exist'][current_nest] = False
+            strips_tester.data['status'][current_nest] = -1  # Untested
+
+    else:
+        strips_tester.data['new_db'] = False
+
+
+
+
     if DB == 'default' and settings.sync_db == True:
         pass
         #sync_db(from_db='local', to_db='default')
@@ -270,6 +308,62 @@ def run_custom_tasks():
         test_set_status = 4
     elif strips_tester.data['result_ok'] == 1 and strips_tester.data['result_fail'] == 1:
         test_set_status = 5
+
+
+
+
+    #########    PYMONGO    ##########
+    # Find test device ID in database for relationships
+    test_device_id = test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
+
+    if test_device_id is not None:  # Check if test device exists in database
+        print("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
+
+        # Update worker_info, worker_type
+        test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type']}})
+
+        try:
+            # Insert new test info because new test has been made
+            for current_nest in range(strips_tester.data['test_device_nests']):
+                if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
+                    print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
+
+                    # Each nest test counts as one test individually
+                    test_info_data = {"datetime": test_set_dt,
+                                      "test_device": test_device_id['_id'],
+                                      "worker": strips_tester.data['worker_id'],
+                                      "type": strips_tester.data['worker_type'],
+                                      "result": strips_tester.data['status'][current_nest],
+                                      "nest": current_nest}
+
+                    test_info_data_id = test_info_col.insert_one(test_info_data)
+
+                    test_data_col = mydb["test_data"]
+                    # Insert test data into database by tasks
+                    test_data_data = {"test_info": test_info_data_id.inserted_id,
+                                      "data": strips_tester.data['measurement'][current_nest]}
+                    test_data_col.insert_one(test_data_data)
+        except KeyError:
+            print("[StripsTesterDB] Error -> KeyError")
+
+    # Lets print good tested today
+    good = test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
+    bad = test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
+
+    date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
+
+    good_today = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
+    bad_today = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
+
+    print("[StripsTesterDB] Good products: {}" . format(good))
+    print("[StripsTesterDB] Bad products: {}" . format(bad))
+    print("[StripsTesterDB] Good products today: {}" . format(good_today))
+    print("[StripsTesterDB] Bad products today: {}" . format(bad_today))
+    ########
+
+
+
+
 
     test_set = TestSet(datetime=test_set_dt,
                       product=strips_tester.current_product,

@@ -97,12 +97,11 @@ class LidOpenCheck:
             module_logger.debug("Lid closed")
 
 def get_program_number():  # Flash program selector
-
     try:
-        program = sys.argv[1]
-
-    except Exception:
+        program = strips_tester.data['program_number']
+    except KeyError:
         program = "S001"
+        strips_tester.data['program_number'] = program
 
     return program
 
@@ -162,6 +161,8 @@ class StartProcedureTask(Task):
     def tear_down(self):
         pass
 
+
+
 # Perform product detection
 class InitialTest(Task):
     def __init__(self):
@@ -182,6 +183,11 @@ class InitialTest(Task):
                 time.sleep(0.1)
 
         self.measurement_results = {}
+
+
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
+
 
     def run(self) -> (bool, str):
 
@@ -227,6 +233,7 @@ class InitialTest(Task):
         voltage_left = self.measure_voltage("M7", "M3")
         if self.in_range(voltage_left, 4.8, 10):
             strips_tester.data['exist_left'] = True
+            strips_tester.data['exist'][0] = True
 
             module_logger.info("left product detected with %sV of power supply", voltage_left)
             gui_web.send({"command": "info", "value": "Levi kos zaznan na napetosti {}V" . format(voltage_left)})
@@ -248,22 +255,28 @@ class InitialTest(Task):
                 if self.in_range(capacitor_left, 1.8, 10):
                     module_logger.info("capacitor voltage in bounds: meas:%sV", capacitor_left)
                     gui_web.send({"command": "info", "value": "Meritev napetosti vCap na levem kosu: {}V" . format(capacitor_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vCap'] = [capacitor_left, True, "V"]
                     self.measurement_results["cap_left"] = [capacitor_left, "ok", 0, "V"]
                 else:
                     strips_tester.data['status_left'] = 0
+                    strips_tester.data['status'][0] = False
                     module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_left)
                     gui_web.send({"command": "error", "value": "Meritev napetosti vCap na levem kosu je izven območja: {}V" . format(capacitor_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vCap'] = [capacitor_left, False, "V"]
                     self.measurement_results["cap_left"] = [capacitor_left, "fail", 0, "V"]
 
                 vr1_left = self.measure_voltage("L3", "M5")
                 if self.in_range(vr1_left, -1.9, 0.2, False):
                     module_logger.info("R1 voltage in bounds: meas:%sV", vr1_left)
                     gui_web.send({"command": "info", "value": "Meritev napetosti R1 na levem kosu: {}V" . format(vr1_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vR1'] = [vr1_left, True, "V"]
                     self.measurement_results["vR1_left"] = [vr1_left, "ok", 0, "V"]
                 else:
                     strips_tester.data['status_left'] = 0
+                    strips_tester.data['status'][0] = False
                     module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_left)
                     gui_web.send({"command": "error", "value": "Meritev napetosti R1 na levem kosu je izven območja: {}V" . format(vr1_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vR1'] = [vr1_left, False, "V"]
                     self.measurement_results["vR1_left"] = [vr1_left, "fail", 0, "V"]
 
                 resistor_left = self.measure_voltage("L4", "M5")
@@ -272,11 +285,14 @@ class InitialTest(Task):
                 if self.in_range(resistor_left, expected_voltage, 1, False):  # Should be in absolute (not in percent)
                     module_logger.info("R2 voltage in bounds: meas:%sV", resistor_left)
                     gui_web.send({"command": "info", "value": "Meritev napetosti R2 na levem kosu: {}V" . format(resistor_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vR2'] = [resistor_left, True, "V"]
                     self.measurement_results["vR2_left"] = [resistor_left, "ok", 0, "V"]
                 else:
                     strips_tester.data['status_left'] = 0
+                    strips_tester.data['status'][0] = False
                     module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_left)
                     gui_web.send({"command": "error", "value": "Meritev napetosti R2 na levem kosu je izven območja: {}V" . format(resistor_left)})
+                    strips_tester.data['measurement'][0][type(self).__name__]['vR2'] = [resistor_left, False, "V"]
                     self.measurement_results["vR2_left"] = [resistor_left, "fail", 5, "V"]
                     stop = True  # Can't determine trimmer position
 
@@ -284,8 +300,10 @@ class InitialTest(Task):
                 #self.flash_process.join()
             else:
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
                 module_logger.error("left trimmer not in end position! ({}%)".format(angle))
                 gui_web.send({"command": "error", "value": "Potenciometer na levem kosu ni na končnem položaju ({}%)." . format(angle)})
+                strips_tester.data['measurement'][0][type(self).__name__]['trimmer'] = [angle, False, "deg"]
                 self.measurement_results["trimmer_left"] = [angle, "fail", 5, "deg"]
                 stop = True
         else:
@@ -305,6 +323,8 @@ class InitialTest(Task):
         voltage_right = self.measure_voltage("L11", "L7")
         if self.in_range(voltage_right, 4.8, 10):
             strips_tester.data['exist_right'] = True
+            strips_tester.data['exist'][1] = True
+
             module_logger.info("right product detected with %sV of power supply", voltage_right)
             gui_web.send({"command": "info", "value": "Desni kos zaznan na napetosti {}V" . format(voltage_right)})
         else:
@@ -326,21 +346,25 @@ class InitialTest(Task):
                     module_logger.info("capacitor voltage in bounds: meas:%sV", capacitor_right)
                     gui_web.send({"command": "info", "value": "Meritev napetosti vCap na desnem kosu: {}V" . format(capacitor_right)})
                     self.measurement_results["cap_right"] = [capacitor_right, "ok", 0, "V"]
+                    strips_tester.data['measurement'][1][type(self).__name__]['vCap'] = [capacitor_right, True, "V"]
                 else:
                     strips_tester.data['status_right'] = 0
                     module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_right)
                     gui_web.send({"command": "error", "value": "Meritev napetosti vCap na desnem kosu je izven območja: {}V" . format(capacitor_right)})
+                    strips_tester.data['measurement'][1][type(self).__name__]['vCap'] = [capacitor_right, False, "V"]
                     self.measurement_results["cap_right"] = [capacitor_right, "fail", 0, "V"]
 
                 vr1_right = self.measure_voltage("K7", "L9")
                 if self.in_range(vr1_right, -1.9, 0.2, False):
                     module_logger.info("R1 voltage in bounds: meas:%sV", vr1_right)
                     gui_web.send({"command": "info", "value": "Meritev napetosti R1 na desnem kosu: {}V" . format(vr1_right)})
+                    strips_tester.data['measurement'][1][type(self).__name__]['vR1'] = [vr1_right, True, "V"]
                     self.measurement_results["vR1_right"] = [vr1_right, "ok", 0, "V"]
                 else:
                     strips_tester.data['status_right'] = 0
                     module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_right)
                     gui_web.send({"command": "error", "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(vr1_right)})
+                    strips_tester.data['measurement'][1][type(self).__name__]['vR1'] = [vr1_right, False, "V"]
                     self.measurement_results["vR1_right"] = [vr1_right, "fail", 0, "V"]
 
                 resistor_right = self.measure_voltage("K8", "L9")
@@ -350,11 +374,13 @@ class InitialTest(Task):
                 if self.in_range(resistor_right, expected_voltage, 1, False):  # Should be in absolute (not in percent)
                     module_logger.info("R2 voltage in bounds: meas:%sV", resistor_right)
                     gui_web.send({"command": "info", "value": "Meritev napetosti R2 na desnem kosu: {}V" . format(resistor_right)})
+                    strips_tester.data['measurement'][1][type(self).__name__]['vR2'] = [resistor_right, True, "V"]
                     self.measurement_results["vR2_right"] = [resistor_right, "ok", 0, "V"]
                 else:
                     strips_tester.data['status_right'] = 0
                     module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_right)
                     gui_web.send({"command": "error", "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(resistor_right)})
+                    strips_tester.data['measurement'][1][type(self).__name__]['vR2'] = [resistor_right, False, "V"]
                     self.measurement_results["vR2_right"] = [resistor_right, "fail", 5, "V"]
                     stop = True  # Can't determine trimmer position
 
@@ -362,8 +388,10 @@ class InitialTest(Task):
                 #self.flash_process.join()
             else:
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
                 module_logger.error("right trimmer not in end position! ({}%)".format(angle))
                 gui_web.send({"command": "error", "value": "Potenciometer na desnem kosu ni na končnem položaju ({}%)." . format(angle)})
+                strips_tester.data['measurement'][1][type(self).__name__]['trimmer'] = [angle, False, "deg"]
                 self.measurement_results["trimmer_right"] = [angle, "fail", 5, "deg"]
                 stop = True
         else:
@@ -454,11 +482,11 @@ class InitialTest(Task):
         gui_web.send({"command": "status", "value": "Programiranje..."})
 
         if status:
-            module_logger.info("flashing ok ({})".format(get_program_number()))
-            gui_web.send({"command": "info", "value": "Programiranje uspelo {}." . format(get_program_number())})
+            module_logger.info("flashing ok ({})".format(strips_tester.data['program_number']))
+            gui_web.send({"command": "info", "value": "Programiranje uspelo {}." . format(strips_tester.data['program_number'])})
         else:
-            module_logger.warning("error flashing ({})".format(get_program_number()))
-            gui_web.send({"command": "error", "value": "Programiranje ni uspelo {}." . format(get_program_number())})
+            module_logger.warning("error flashing ({})".format(strips_tester.data['program_number']))
+            gui_web.send({"command": "error", "value": "Programiranje ni uspelo {}." . format(strips_tester.data['program_number'])})
 
         return status
 
@@ -487,6 +515,8 @@ class ICT_ResistanceTest(Task):
                 time.sleep(0.2)
 
         self.measurement_results = {}
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
 
     def run(self) -> (bool, str):
         if not lid_closed():
@@ -539,6 +569,7 @@ class ICT_ResistanceTest(Task):
 
             if r3_right == -1 or r9_right == -1 or r8_right == -1 or r4_right == -1 or r5_right == -1:
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
 
         gui_web.send({"command": "progress", "value": "20"})
 
@@ -553,6 +584,7 @@ class ICT_ResistanceTest(Task):
 
             if r3_left == -1 or r9_left == -1 or r8_left == -1 or r4_left == -1 or r5_left == -1:
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
 
         gui_web.send({"command": "progress", "value": "25"})
         self.servo_thread.join()  # Wait until trimmers are zeroed
@@ -595,15 +627,22 @@ class ICT_ResistanceTest(Task):
             if not num_of_tries:
                 break
 
+        if "left" in name:
+            nest = 0
+        elif "right" in name:
+            nest = 1
+
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sohm", name, resistance)
             gui_web.send({"command": "error", "value": "Meritev upornosti {} je izven območja: {}ohm".format(name,resistance)})
             self.measurement_results[name] = [resistance, "fail", 0, "ohm"]
+            strips_tester.data['measurement'][nest][type(self).__name__][name] = [resistance, False, "ohm"]
             resistance = -1
         else:
             module_logger.info("%s in bounds: meas:%sohm", name, resistance)
             gui_web.send({"command": "info", "value": "Meritev upornosti {}: {}ohm".format(name,resistance)})
             self.measurement_results[name] = [resistance, "ok", 0, "ohm"]
+            strips_tester.data['measurement'][nest][type(self).__name__][name] = [resistance, True, "ohm"]
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
@@ -655,6 +694,8 @@ class ICT_VoltageVisualTest(Task):
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         self.measurement_results = {}
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
 
         self.led_gpio = [40, 37, 38, 35, 36, 33]
 
@@ -700,22 +741,28 @@ class ICT_VoltageVisualTest(Task):
             if not visual_start[0]:
                 module_logger.error("VisualStart LEFT")
                 self.measurement_results['visualStart_left'] = [0, "fail", 0, "N/A"]
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualStart'] = [visual_start[0], False, "N/A"]
                 gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualStart)"})
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
             else:
                 module_logger.info("VisualStart LEFT")
                 gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualStart) ustrezen"})
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualStart'] = [visual_start[0], True, "N/A"]
                 self.measurement_results['visualStart_left'] = [1, "ok", 0, "N/A"]
 
         if strips_tester.data['exist_right']:
             if not visual_start[1]:
                 module_logger.error("VisualStart RIGHT")
                 self.measurement_results['visualStart_right'] = [0, "fail", 0, "N/A"]
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualStart'] = [visual_start[1], False, "N/A"]
                 gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualStart)"})
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
             else:
                 module_logger.info("VisualStart RIGHT")
                 gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualStart) ustrezen"})
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualStart'] = [visual_start[1], True, "N/A"]
                 self.measurement_results['visualStart_right'] = [1, "ok", 0, "N/A"]
         
         # Wait until leds are off
@@ -726,6 +773,7 @@ class ICT_VoltageVisualTest(Task):
             if not visual_off[0]:
                 module_logger.error("VisualOff LEFT")
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
                 gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualOff)"})
             else:
                 module_logger.info("VisualOff LEFT")
@@ -735,6 +783,7 @@ class ICT_VoltageVisualTest(Task):
             if not visual_off[1]:
                 module_logger.error("VisualOff RIGHT")
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
                 gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualOff)"})
             else:
                 module_logger.info("VisualOff RIGHT")
@@ -748,19 +797,25 @@ class ICT_VoltageVisualTest(Task):
             if visual_err[0]:
                 module_logger.info("VisualError LEFT")
                 self.measurement_results['visualOff_left'] = [0, "fail", 0, "N/A"]
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualOff'] = [visual_off[0], False, "N/A"]
                 gui_web.send({"command": "error", "value": "Napaka LED diod na level kosu (VisualError)"})
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
             else:
                 self.measurement_results['visualOff_left'] = [1, "ok", 0, "N/A"]
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualOff'] = [visual_off[0], True, "N/A"]
                 gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualError) ustrezen"})
 
         if strips_tester.data['exist_right']:
             if visual_err[1]:
                 module_logger.info("VisualError RIGHT")
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualOff'] = [visual_off[1], False, "N/A"]
                 self.measurement_results['visualOff_right'] = [0, "fail", 0, "N/A"]
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
                 gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualError)"})
             else:
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualOff'] = [visual_off[1], True, "N/A"]
                 self.measurement_results['visualOff_right'] = [1, "ok", 0, "N/A"]
                 gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualError) ustrezen"})
 
@@ -774,22 +829,28 @@ class ICT_VoltageVisualTest(Task):
             if not visual_on[0]:
                 module_logger.error("VisualOn LEFT")
                 self.measurement_results['visualOn_left'] = [0, "fail", 0, "N/A"]
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualOn'] = [visual_on[0], False, "N/A"]
                 gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualOn)"})
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
             else:
                 module_logger.info("VisualOn LEFT")
                 self.measurement_results['visualOn_left'] = [1, "ok", 0, "N/A"]
+                strips_tester.data['measurement'][0][type(self).__name__]['VisualOn'] = [visual_on[0], True, "N/A"]
                 gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualOn) ustrezen"})
 
         if strips_tester.data['exist_right']:
             if not visual_on[1]:
                 module_logger.error("VisualOn RIGHT")
                 self.measurement_results['visualOn_right'] = [0, "fail", 0, "N/A"]
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualOn'] = [visual_on[1], False, "N/A"]
                 gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualOn)"})
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
             else:
                 module_logger.info("VisualOn RIGHT")
                 self.measurement_results['visualOn_right'] = [1, "ok", 0, "N/A"]
+                strips_tester.data['measurement'][1][type(self).__name__]['VisualOn'] = [visual_on[1], True, "N/A"]
                 gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualOn) ustrezen"})
 
         self.ict_thread.join()  # Wait until ICT voltage test is finished
@@ -810,6 +871,7 @@ class ICT_VoltageVisualTest(Task):
 
             if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = False
 
         if strips_tester.data['exist_right']:
             voltage_5v = self.measure_voltage("5V_right", "L7", "L11", 4.7, 0.3)
@@ -818,6 +880,7 @@ class ICT_VoltageVisualTest(Task):
 
             if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = False
 
     def check_mask(self, mask=[], duration=0):
         end_time = datetime.datetime.now() + datetime.timedelta(seconds=duration)
@@ -877,15 +940,22 @@ class ICT_VoltageVisualTest(Task):
             if not num_of_tries:
                 break
 
+        if "left" in name:
+            nest = 0
+        elif "right" in name:
+            nest = 1
+
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sV", name, voltage)
             gui_web.send({"command": "error", "value": "Meritev napetosti {} je izven območja: {}V" . format(name,voltage)})
             self.measurement_results[name] = [voltage, "fail", 0, "V"]
+            strips_tester.data['measurement'][nest][type(self).__name__][name] = [voltage, False, "V"]
             voltage = -1
         else:
             module_logger.info("%s in bounds: meas:%sV", name, voltage)
             gui_web.send({"command": "info", "value": "Meritev napetosti {}: {}V" . format(name,voltage)})
             self.measurement_results[name] = [voltage, "ok", 0, "V"]
+            strips_tester.data['measurement'][nest][type(self).__name__][name] = [voltage, True, "V"]
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
@@ -920,6 +990,11 @@ class ProductConfigTask(Task):
         module_logger.debug("ProductConfigTask init")
 
     def run(self):
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            if strips_tester.data['exist'][current_nest]:
+                if strips_tester.data['status'][current_nest] == -1:
+                    strips_tester.data['status'][current_nest] = 1
+
         if strips_tester.data['exist_left']:
             if strips_tester.data['status_left'] == -1:  # untested prodcut became tested
                 strips_tester.data['status_left'] = 1

@@ -8,30 +8,49 @@ from subprocess import Popen, PIPE
 from os import kill
 import os
 import signal
+import importlib
+from config_loader import Settings
 
 clients = []
+settings = Settings()
+
+custom_parser = False
+try:
+    parser = importlib.import_module("configs." + settings.get_setting_file_name() + ".parser")
+    custom_parser = True
+    print("Custom parser detected.")
+except ImportError:
+    pass
 
 class SimpleChat(WebSocket):
     def handleMessage(self):
         print(self.data)
         data = json.loads(self.data)
 
+        # Global parsing (all test devices)
+
         if "shutdown" in data['command']:
             subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
+        if custom_parser:
+            Parser = getattr(parser, "Parser")
+            parser_in = Parser(clients)
+            answer = parser_in.parse(data)  # Parse command depending on test device
 
-    '''
-    # Handle commands from connected test device
-    if os.path.isfile(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")):
-        print("File found" . format(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")))
-    else:
-        print("File not found {}" . format(os.path.join(strips_tester.settings.get_setting_file_name(),"parser.py")))
-    '''
+            if answer:
+                send({"command": "status", "value": answer})
+
     def handleConnected(self):
         print(self.address, 'connected')
         #for client in clients:
         #    client.sendMessage(self.address[0] + u' - connected')
         clients.append(self)
+
+        if custom_parser:
+            Parser = getattr(parser, "Parser")
+            parser_in = Parser(clients)
+            parser_in.welcome()  # Parse command depending on test device
+
 
     def handleClose(self):
         clients.remove(self)
