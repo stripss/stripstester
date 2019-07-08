@@ -1,15 +1,6 @@
 {
-  "product_name": "GACS_A2 Bender",
-  "product_type": 4,
-  "product_variant": "basic",
-  "product_hw_release": "1.0",
-  "product_description": "GACS_A2 Bender",
-  "product_notes": "nothing to say",
+  "thread_nests": 0,
   "test_device_name": "GACS_A2 Bender",
-  "test_device_employee": "employee2",
-  "central_db_host": "none",
-  "local_db_host": "localhost",
-  "sync_db": 0,
 
   "task_execution_order": {
     "StartProcedureTask": 1,
@@ -158,6 +149,10 @@
       "initial": 0,
       "pin": 16
     }
+  },
+
+  "data": {
+
   }
 }
 

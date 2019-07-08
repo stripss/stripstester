@@ -10,73 +10,15 @@ import time
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
-from strips_tester import settings, current_product, DB
+from strips_tester import settings
 import datetime
 import config_loader
-from strips_tester import presets  # ORM preset
-from strips_tester import utils
 from strips_tester import gui_web
-# from strips_tester import presets
-from web_project.web_app.models import *
-import subprocess
-import pymongo
+import threading
+import signal
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
-
-# def connect_to_wifi(ssid: str, password: str, interface: str = "wlan0", scheme_name: str = "test_scheme", recreate_scheme: bool = False):
-#     cell_dict = {}
-#     # os.system("sudo ifdown {}".format(interface))
-#     os.system("sudo ifup {}".format(interface))
-#     for cell in wifi.Cell.all(interface):
-#         cell_dict[cell.ssid] = cell
-#     if ssid in cell_dict:
-#         cell = cell_dict[ssid]
-#         if wifi.Scheme.find(interface, scheme_name):
-#             scheme = wifi.Scheme.find(interface, scheme_name)
-#             module_logger.debug("found scheme")
-#             if recreate_scheme:
-#                 scheme.delete()
-#                 scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
-#                 scheme.save()
-#         else:
-#             scheme = wifi.Scheme.for_cell(interface, scheme_name, cell, passkey=password)
-#             scheme.save()
-#             module_logger.debug("created and saved scheme")
-#         for i in range(5):
-#             try:
-#                 module_logger.debug("connect try number: %s", i + 1)
-#                 scheme.activate()
-#                 break
-#             except Exception as e:
-#                 module_logger.error("Wifi connection error: %s", e)
-#     else:
-#         module_logger.error("Wlan network unreachable!")
-
-# settings = strips_tester.settings
-
-# class Product:
-#     def __init__(self, raw_scanned_string: str = None,
-#                  serial: int = None,
-#                  product_name: str = None,
-#                  product_type: int = None,
-#                  hw_release: str = None,
-#                  variant: str = None,
-#                  test_status: bool = None,
-#                  mac_address: int = None,
-#                  production_datetime=datetime):
-#         self.product_name = product_name
-#         self.product_type = product_type
-#         self.raw_scanned_string = raw_scanned_string
-#         self.mac_address = mac_address
-#         self.test_status = test_status
-#         self.variant = variant  # "wifi"/"basic"
-#         self.serial = serial
-#         self.hw_release = hw_release
-#         self.production_datetime = production_datetime
-#         self.task_results = []
-#         self.tests = {}
-
 
 class Task:
     """
@@ -84,13 +26,9 @@ class Task:
     accepts levelr
     """
 
-    def __init__(self, level: int = logging.CRITICAL):
-        self.test_level = level
-        self.end = []
-        self.passed = []
-        self.result = None
-        # self.logger = logging.getLogger(".".join(("strips_tester", "tester", __name__)))
-
+    def __init__(self):
+        self.test_data = {}
+        self.test_data['end'] = False
 
     def set_up(self):
         """Used for environment initial_setup"""
@@ -104,73 +42,65 @@ class Task:
         """Clean up after task, close_relay connections etc..."""
         pass
 
-    def _execute(self, test_level: int):
-        self.set_up()
-        module_logger.debug("Task: %s setUp", type(self).__name__)
+    def add_measurement(self, nest_id, measurement_state, measurement_name, measurement_value, measurement_unit = "N/A", end_task = False):
+        strips_tester.data['measurement'][nest_id][type(self).__name__][measurement_name] = [measurement_value, measurement_state, measurement_unit]
 
-        # { "db_test_type_name1":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str },
-        # "db_test_type_name2":{ "data": db_val(float)  , "status": str ->ok/fail/signal , "level": 0-4, "unit": str }}
-        ret = self.run()
-        # if len(ret) != 5:
-        #     raise "Wrong argument length"
-        for keys, values in ret.items():
-            if keys == "signal":
-                if values[1] == "fail" and values[2] > 3:
-                    self.end.append(True)
-                    self.passed.append(False)
-                elif values[1] == "ok":
-                    self.passed.append(True)
-                else:
-                    self.passed.append(False)
-                    ###########################################################################
-            else:
-                strips_tester.current_product.tests[keys] = values  # insert test to be written to DB
-                if values[1] == "fail" and values[2] > 3:
-                    self.end.append(True)
-                    self.passed.append(False)
-                elif values[1] == 'ok':
-                    self.passed.append(True)
-                else:
-                    self.passed.append(False)
-                    ##########################################################################
-        # normal flow when task is not critical
-        result = all(self.passed)
-        end = any(self.end)
-        if result:
-            module_logger.debug("Task: %s run and PASSED with result: %s", type(self).__name__, result)
+        if not measurement_state:
+            if strips_tester.data['exist'][nest_id]:
+                strips_tester.data['status'][nest_id] = False
+
+        #print("[{}] Added values to measurements: {}" . format(type(self).__name__, strips_tester.data['measurement'][nest_id][type(self).__name__]))
+
+        if end_task:
+            print("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
+            self.test_data['end'] = True
+
+    def end_test(self):
+        self.test_data['end'] = True
+
+    def is_product_ready(self, nest_id = 0):
+        if strips_tester.data['exist'][nest_id] and strips_tester.data['status'][nest_id] is not False:
+            return True
         else:
-            module_logger.debug("Task: %s run and FAILED with result: %s", type(self).__name__, result)
+            return False
 
-        module_logger.debug("Task: %s tearDown", type(self).__name__)
-        self.tear_down()  # normal tear down
-        return result, end  # to indicate further testing
+    def _execute(self):
+        # Prepare measurement variables
+        if strips_tester.settings.thread_nests:
+            self.nest_id = int((threading.current_thread().name)[-1])
+            strips_tester.data['measurement'][self.nest_id][type(self).__name__] = {}
+        else:
+            for current_nest in range(strips_tester.data['test_device_nests']):
+                strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
 
-    def set_level(self, level: int):
-        self.test_level = level
+        try:
+            #print("SETUP {}" . format(type(self).__name__))
+            self.set_up()
 
+            #print("RUN {}" . format(type(self).__name__))
+            self.run()
+        except Exception:
+            self.test_data['end'] = True
+            raise
+
+        #print("TEARDOWN {}" . format(type(self).__name__))
+        self.tear_down()
+
+        return self.test_data  # to indicate further testing
 
 def start_test_device():
-    ### one time tasks
-    initialize_gpios()
-
-    ###
     while True:
         try:
-            global task_results
-            # strips_tester.current_product.task_results = run_custom_tasks()
             run_custom_tasks()
-
 
         except Exception as e:
             module_logger.error("CRASH, PLEASE RESTART PROGRAM! %s", e)
             raise e
 
-
 def initialize_gpios():
-    # GPIO.cleanup()
     GPIO.setmode(GPIO.BOARD)
-    # GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
+
     for gpio in settings.gpios_settings.values():
         if gpio.get("function") == config_loader.G_INPUT:
             GPIO.setup(gpio.get("pin"), gpio.get("function"), pull_up_down=gpio.get("pull", GPIO.PUD_OFF))
@@ -179,22 +109,133 @@ def initialize_gpios():
         else:
             module_logger.critical("Not implemented gpio function")
 
-    st_state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
-    module_logger.debug("GPIOs initialized")
-
 
 def run_custom_tasks():
-    test_set_status = None
-    global DB
-    DB = check_db_connection()
+    reset_data()
+
+    # Run custom tasks with independed timing (because of threads)
+    custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
+    for task_name in settings.task_execution_order:
+        if settings.task_execution_order[task_name]:
+            CustomTask = getattr(custom_tasks, task_name)
+            try:
+                module_logger.debug("Executing: %s ...", CustomTask)
+                custom_task = CustomTask()
+                test_data = custom_task._execute()
+
+                if test_data['end']:
+                    print("EXEUCING CRITICAL TASKS")
+                    for task_name in settings.critical_event_tasks:
+                        if settings.critical_event_tasks[task_name]:
+                            CustomTask = getattr(custom_tasks, task_name)
+                            try:
+                                module_logger.debug("Executing: %s ...", CustomTask)
+                                custom_task = CustomTask()
+                                custom_task._execute()
+                            except Exception as ee:
+                                raise "CRITICAL EVENT EXCEPTION"
+                    break
+
+            # catch code exception and bugs. It shouldn't be for functional use
+            except Exception as e:
+                module_logger.error(str(e))
+                module_logger.exception("Code error -> REMOVE THE BUG")
+        else:
+            module_logger.debug("Task %s ignored", task_name)
+
+    update_database()
 
 
+def reset_data():
+    for current_nest in range(strips_tester.data['test_device_nests']):
+        if strips_tester.settings.thread_nests:
+            nest_id = threading.current_thread().name
+            nest_id = int(nest_id[-1])
 
-    stripstester_database = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
-    mydb = stripstester_database["stripstester"]
-    test_devices_col = mydb["test_device"]
-    test_info_col = mydb["test_info"]
+            if current_nest != nest_id:
+                continue  # Skip current nest if not from this thread
 
+        strips_tester.data['measurement'][current_nest] = {}
+        strips_tester.data['exist'][current_nest] = False
+        strips_tester.data['status'][current_nest] = -1  # Untested
+
+def update_database():
+    strips_tester.data['lock'].acquire()
+    end_time = datetime.datetime.now()
+
+    #########    PYMONGO    ##########
+    # Find test device ID in database for relationships
+    test_device_id = test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
+
+    if test_device_id is not None:  # Check if test device exists in database
+        print("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
+
+        #try:
+        # Insert new test info because new test has been made
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            if strips_tester.settings.thread_nests:  # If nests are threaded, update only current nest
+                nest_id = int((threading.current_thread().name)[-1])
+
+                if current_nest != nest_id:
+                    #print("Nest '{}' is threaded, skip it to '{}'".format(current_nest,nest_id))
+                    continue  # Skip current nest if not from this thread
+
+            duration = (end_time - strips_tester.data['start_time'][current_nest]).total_seconds()  # Get start test date
+            gui_web.send({"command": "time", "mode": "duration", "nest": current_nest, "value": duration})
+
+            if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
+                if strips_tester.data['status'][current_nest] != -1:
+                    print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
+
+                    # Each nest test counts as one test individually
+                    test_info_data = {"datetime": end_time,
+                                      "start_test": strips_tester.data['start_time'][current_nest],
+                                      "test_device": test_device_id['_id'],
+                                      "worker": strips_tester.data['worker_id'],
+                                      "type": strips_tester.data['worker_type'],
+                                      "result": strips_tester.data['status'][current_nest] * 1,
+                                      "nest": current_nest,
+                                      "measurements": strips_tester.data['measurement'][current_nest]}
+
+                    test_info_data_id = test_info_col.insert_one(test_info_data)
+
+                    #test_data_col = strips_tester.data['db_database']["test_data"]
+                    # Insert test data into database by tasks
+                    #test_data_data = {"test_info": test_info_data_id.inserted_id,
+                    #                  "data": strips_tester.data['measurement'][current_nest]}
+                    #test_data_col.insert_one(test_data_data)
+                else:
+                    print("Product {} is not tested, so we skip it." . format(current_nest))
+            #except ExceptioKeyError as e:
+            #    raise
+            #    #print("[StripsTesterDB] Error -> KeyError ({})" . format(e))
+
+    # Lets print good tested today
+    strips_tester.data['good_count'] = test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
+    strips_tester.data['bad_count'] = test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
+
+    date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
+
+    strips_tester.data['good_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
+    strips_tester.data['bad_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
+
+    gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
+                   "bad_count_today": strips_tester.data['bad_count_today']})
+    strips_tester.data['lock'].release()
+
+
+if __name__ == "__main__":
+    # parameter = str(sys.argv[1])  # We use that if we want to provide extra parameters
+
+    module_logger.info("Starting StripsTester ...")
+    initialize_gpios()
+
+    # Get info about test device based on its name. This happens only once
+
+    test_devices_col = strips_tester.data['db_database']["test_device"]
+    test_info_col = strips_tester.data['db_database']["test_info"]
+
+    # Find test device in StripsTester database based on its name
     test_device = test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
 
     if test_device is not None:
@@ -205,330 +246,67 @@ def run_custom_tasks():
         strips_tester.data['exist'] = {}
         strips_tester.data['status'] = {}
 
+        # Prepare data dictionary structure and reset to default values
+        strips_tester.data['measurement'] = {}
+        strips_tester.data['start_time'] = {}
+
+        # Load counts from DB
+        strips_tester.data['good_count'] = test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
+        strips_tester.data['bad_count'] = test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
+
+        date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
+
+        strips_tester.data['good_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
+        strips_tester.data['bad_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
+
         # Retrieve last settings
         strips_tester.data['worker_id'] = test_device['worker_id']
         strips_tester.data['worker_type'] = test_device['worker_type']
 
-        # Prepare data dictionary structure
-        strips_tester.data['measurement'] = {}
-
-        for current_nest in range(test_device['nests']):
-            strips_tester.data['measurement'][current_nest] = {}
-            strips_tester.data['exist'][current_nest] = False
-            strips_tester.data['status'][current_nest] = -1  # Untested
-
     else:
+        print("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
         strips_tester.data['new_db'] = False
 
+        while True:  # Wait forever
+            time.sleep(1)
 
+    try:
+        strips_tester.settings.thread_nests
+    except KeyError:
+        strips_tester.settings.thread_nests = False
 
+    strips_tester.data['lock'] = threading.Lock()
 
-    if DB == 'default' and settings.sync_db == True:
-        pass
-        #sync_db(from_db='local', to_db='default')
-    #get type from local or central
-    product_type = ProductType.objects.using(DB).get(name=settings.product_name, type=settings.product_type)
-    # TASKS
-    #################################################################################
-    strips_tester.current_product = Product(serial=None,
-                                            production_datetime=None,
-                                            hw_release=settings.product_hw_release,
-                                            notes=settings.product_notes,
-                                            type=product_type)
+    if strips_tester.settings.thread_nests:
+        print("[StripsTester] Nests are THREADED. Each nest in seperate thread start.")
+        # Multiple instances or threads. Global lock is required so the shared variables are not overwritten
 
-    custom_tasks = importlib.import_module("configs." + settings.get_setting_file_name() + ".custom_tasks")
-    for task_name in settings.task_execution_order:
-        if settings.task_execution_order[task_name]:
-            CustomTask = getattr(custom_tasks, task_name)
-            try:
-                module_logger.debug("Executing: %s ...", CustomTask)
-                custom_task = CustomTask()
-                result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                strips_tester.current_product.task_results.append(result)
-                if end == True:
-                    # Could be separate function. Here, due to import restrictions.
-                    # release all hardware, print sticker, etc...
-                    #######################
-                    for task_name in settings.critical_event_tasks:
-                        if settings.critical_event_tasks[task_name]:
-                            CustomTask = getattr(custom_tasks, task_name)
-                            try:
-                                module_logger.debug("Executing: %s ...", CustomTask)
-                                custom_task = CustomTask()
-                                result, end = custom_task._execute(config_loader.TEST_LEVEL)
-                                strips_tester.current_product.task_results.append(result)
-                            except Exception as ee:
-                                raise "CRITICAL EVENT EXCEPTION"
-                    break
-                    ######################
-            # catch code exception and bugs. It shouldn't be for functional use
-            except Exception as e:
-                module_logger.error(str(e))
-                module_logger.exception("Code error -> REMOVE THE BUG")
-        else:
-            module_logger.debug("Task %s ignored", task_name)
-    ## insert into DB
-    if all(strips_tester.current_product.task_results):
-        test_set_status = True
+        threads = []
+
+        for thread in range(strips_tester.data['test_device_nests']):
+            threads.append(threading.Thread(target=start_test_device, name="tester" + str(thread)))
+            threads[-1].daemon = True
+            threads[-1].start()
+
+        for thread in range(strips_tester.data['test_device_nests']):
+            threads[thread].join()
     else:
-        test_set_status = False
+        print("[StripsTester] Nests are non THREADED. Normal start.")
 
-    settings.test_pass_count += strips_tester.data['result_ok']
-    settings.test_failed_count += strips_tester.data['result_fail']
-
-    if test_set_status:
-        module_logger.info('TEST USPEL!\n\n')
-    else:
-        module_logger.error('TEST NI USPEL!\n\n')
-    #################################################################################
-    # TASKS ENDS
-
-    ### SAVE TEST AND PRODUCT IF IT DOES NOT EXIST
-    DB = check_db_connection()
-    #database = 'local'
-    result = Product.objects.using(DB).filter(serial=strips_tester.current_product.serial).exists()
-    # get or create product and create tests
-    product_to_save = strips_tester.current_product
-    if result:
-        strips_tester.current_product = Product.objects.using(DB).get(serial=strips_tester.current_product.serial)
-    else:
-        strips_tester.current_product.save(using=DB)
-
-    test_set_dt = datetime.datetime.now()
-
-    if strips_tester.data['result_ok'] == 0 and strips_tester.data['result_fail'] == 0:
-        test_set_status = 0
-    elif strips_tester.data['result_ok'] == 1 and strips_tester.data['result_fail'] == 0:
-        test_set_status = 1
-    elif strips_tester.data['result_ok'] == 0 and strips_tester.data['result_fail'] == 1:
-        test_set_status = 2
-    elif strips_tester.data['result_ok'] == 2 and strips_tester.data['result_fail'] == 0:
-        test_set_status = 3
-    elif strips_tester.data['result_ok'] == 0 and strips_tester.data['result_fail'] == 2:
-        test_set_status = 4
-    elif strips_tester.data['result_ok'] == 1 and strips_tester.data['result_fail'] == 1:
-        test_set_status = 5
+        start_test_device()
 
 
+class timeout:
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
 
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError(self.error_message)
 
-    #########    PYMONGO    ##########
-    # Find test device ID in database for relationships
-    test_device_id = test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
 
-    if test_device_id is not None:  # Check if test device exists in database
-        print("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
-
-        # Update worker_info, worker_type
-        test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type']}})
-
-        try:
-            # Insert new test info because new test has been made
-            for current_nest in range(strips_tester.data['test_device_nests']):
-                if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
-                    print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
-
-                    # Each nest test counts as one test individually
-                    test_info_data = {"datetime": test_set_dt,
-                                      "test_device": test_device_id['_id'],
-                                      "worker": strips_tester.data['worker_id'],
-                                      "type": strips_tester.data['worker_type'],
-                                      "result": strips_tester.data['status'][current_nest],
-                                      "nest": current_nest}
-
-                    test_info_data_id = test_info_col.insert_one(test_info_data)
-
-                    test_data_col = mydb["test_data"]
-                    # Insert test data into database by tasks
-                    test_data_data = {"test_info": test_info_data_id.inserted_id,
-                                      "data": strips_tester.data['measurement'][current_nest]}
-                    test_data_col.insert_one(test_data_data)
-        except KeyError:
-            print("[StripsTesterDB] Error -> KeyError")
-
-    # Lets print good tested today
-    good = test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
-    bad = test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
-
-    date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
-
-    good_today = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
-    bad_today = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
-
-    print("[StripsTesterDB] Good products: {}" . format(good))
-    print("[StripsTesterDB] Bad products: {}" . format(bad))
-    print("[StripsTesterDB] Good products today: {}" . format(good_today))
-    print("[StripsTesterDB] Bad products today: {}" . format(bad_today))
-    ########
-
-
-
-
-
-    test_set = TestSet(datetime=test_set_dt,
-                      product=strips_tester.current_product,
-                      status=test_set_status,
-                      test_device_name=settings.test_device_name,
-                      employee=settings.test_device_employee)
-    test_set.save(using=DB)
-
-    tests = []
-    for test_name, data in product_to_save.tests.items():
-        test_type = TestType.objects.using(DB).get(name=test_name)
-        tests.append(Test(test_set=test_set,
-                          type=test_type,
-                          value=data[0],
-                          result=data[1])
-                     )
-    Test.objects.using(DB).bulk_create(tests)
-
-    num_successfull_tests = TestSet.objects.using(DB).filter(status=1).distinct("id").count()
-    num_successfull_tests += TestSet.objects.using(DB).filter(status=3).distinct("id").count() * 2
-    num_successfull_tests += TestSet.objects.using(DB).filter(status=5).distinct("id").count()
-
-    #print(num_successfull_tests)
-
-    num_unsuccessfull_tests = TestSet.objects.using(DB).filter(status=2).distinct("id").count()
-    num_unsuccessfull_tests += TestSet.objects.using(DB).filter(status=4).distinct("id").count() * 2
-    num_unsuccessfull_tests += TestSet.objects.using(DB).filter(status=5).distinct("id").count()
-
-    #print(num_successfull_tests)
-    module_logger.info('Statistika: FROM START --> OK: {}, FAIL: {},  ALL --> OK: {}, FAIL: {}'.format(settings.test_pass_count,
-                                                                                                 settings.test_failed_count,
-                                                                                                 num_successfull_tests,
-                                                                                                 num_unsuccessfull_tests))
-
-    gui_web.send({"command": "good_count", "value": num_successfull_tests})
-    gui_web.send({"command": "bad_count", "value": num_unsuccessfull_tests})
-    gui_web.send({"command": "good_count_today", "value": settings.test_pass_count})
-    gui_web.send({"command": "bad_count_today", "value": settings.test_failed_count})
-    # num_successfull_tests = Product.objects.using(DB).filter(testset__status=True).order_by("id", '-testset_datetime').distinct("id").count()
-    # print(num_successfull_tests)
-
-
-def sync_db(from_db: str='local', to_db: str='default', flag: bool=False):
-    module_logger.warning('DATABASE SYNCRONIZATION %s', time.time())
-    bulk_size = 100
-    #products
-    existing = Product.objects.using(to_db).all()  # .filter(serial__in=local_product_ids)
-    local = Product.objects.using(from_db).all()
-    #tests and test sets
-
-    # write products
-    existing_product_ids = existing.values_list("serial", flat=True)
-    local_products = local.exclude(serial__in=list(existing_product_ids))
-    rows = local_products.count()
-    bulks = rows // bulk_size
-    last_bulk = rows - (rows - (bulks * bulk_size))
-    for i in range(bulks):
-        local_products_ram = list(local_products[i * bulk_size:(i + 1) * bulk_size])
-        for product in local_products_ram:
-        #for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
-            product.id = None
-        Product.objects.using(to_db).bulk_create(local_products_ram)
-    local_products_ram = list(local_products[last_bulk:rows])
-    Product.objects.using(to_db).bulk_create(local_products_ram)
-    # write products
-    # existing_product_ids = existing.values_list("serial", flat=True)
-    # local_products = local.exclude(serial__in=list(existing_product_ids))
-    # # write products to central base
-    # local_products_ram = local_products[0:100]
-    # print(str(local_products_ram.query))
-    # for product in local_products_ram.all():
-    #     product.id = None
-    # Product.objects.using(to_db).bulk_create(local_products_ram)  # get all local products
-    # local_products_ram.delete()
-
-    #write test_sets
-    test_sets = TestSet.objects.using(from_db).all()
-    rows = test_sets.count()
-    bulks = rows // bulk_size
-    last_bulk = rows - (rows - (bulks * bulk_size))
-    for i in range(bulks):
-        test_sets_ram = list(test_sets[i * bulk_size:(i + 1) * bulk_size])
-        for test_set in local_products_ram:
-        #for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
-            test_set.id = None
-            test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
-        TestSet.objects.using(to_db).bulk_create(test_sets_ram)
-
-    test_sets_ram = list(test_sets[last_bulk:rows])
-    for test_set in test_sets_ram:
-        # for product in (local_products[i * bulk_size:(i + 1) * bulk_size]):
-        test_set.id = None
-        test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
-    TestSet.objects.using(to_db).bulk_create(test_sets_ram)
-    # test_sets_ram = list(test_sets[0:100])
-    # for test_set in test_sets_ram:
-    #     test_set.id = None
-    #     test_set.product_id = Product.objects.using(to_db).get(serial=test_set.product.serial).id
-    # TestSet.objects.using(to_db).bulk_create(test_sets_ram)
-
-
-    # write tests
-    tests = Test.objects.using(from_db).all()
-    rows = tests.count()
-    bulks = rows // bulk_size
-    last_bulk = rows - (rows - (bulks * bulk_size))
-    for i in range(bulks):
-        test_ram = list(tests[i * bulk_size:(i + 1) * bulk_size])
-        for test in test_ram:
-            test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
-            test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
-        Test.objects.using(to_db).bulk_create(test_ram)
-    test_ram = list(tests[last_bulk:rows])
-    for test in test_ram:
-        test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
-        test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
-    Test.objects.using(to_db).bulk_create(test_ram)
-    # tests_ram = list(tests[:100])
-    # for test in tests_ram:
-    #     test.id = None
-    #     # print(test.type.name)
-    #     # print(test.product.serial)
-    #     # print(test.id)
-    #     test.type_id = TestType.objects.using(to_db).get(name=test.type.name).id
-    #     print(test.test_set.datetime)
-    #     test.test_set_id = TestSet.objects.using(to_db).get(datetime=test.test_set.datetime).id
-    #     test.save(using=to_db)
-
-    test_sets.using(from_db).delete()
-    tests.using(from_db).delete()
-    local.using(from_db).delete()
-    settings.sync_db = False
-    module_logger.info('DATABASE SYNCRONIZATION DONE %s', time.time())
-
-
-def check_db_connection():
-    global DB
-    # with open(os.devnull, 'wb') as devnull:
-    #     response_fl = subprocess.check_call('fping -c1 -t100 192.168.11.15', shell=True)
-    #     response_fc = subprocess.check_call('fping -c1 -t100 192.168.11.200', shell=True)
-    response_fl = os.system('timeout 0.2 ping -c 1 '+str(settings.local_db_host)+' > /dev/null 2>&1')
-    response_fc = os.system('timeout 0.2 ping -c 1 '+str(settings.central_db_host)+' > /dev/null 2>&1')
-    if response_fc == 0:
-        DB = 'default'
-    elif response_fc != 0:
-        settings.sync_db = True
-        if DB=='default':
-            utils.send_email(subject='DB Error', emailText='{}, {}'.format(datetime.datetime.now(), 'Writing to local database!!!'))
-            module_logger.warning('Writing to local database!!!'.format(datetime.datetime.now()))
-        DB = 'local'
-        if response_fl==0:
-            pass
-        else:
-            utils.send_email(subject='Error', emailText='{}, {}'.format(datetime.datetime.now(), 'No database available!!!'))
-            module_logger.error('Could not connect to default of local database!!!'.format(datetime.datetime.now()))
-            raise 'Could not connect to default of local database'
-    return DB
-
-
-
-if __name__ == "__main__":
-    # parameter = str(sys.argv[1])
-    module_logger.info("Starting tester ...")
-    start_test_device()
-    module_logger.error('ZNOVA ZAŽENI PROGRAM IN OBVESTI DOMŽALE O NAPAKI!!!')
-    while True:
-        time.sleep(1)
-
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)

@@ -1,8 +1,0 @@
-{
-	        "port": "/dev/ttyAMA0",
-            "baud": 115200,
-            "mode": "qio",
-            "erase": 0,
-			"reset_pin":18,
-			"boot_pin":22
-}

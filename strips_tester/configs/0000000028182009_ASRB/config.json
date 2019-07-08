@@ -1,0 +1,71 @@
+{
+  "test_device_name": "ASRB",
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "InitialTest": 1,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 18
+    },
+
+
+    "SIGNAL_1": {
+      "function": 1,
+      "pin": 7,
+      "pull": 20
+    },
+    "SIGNAL_2": {
+      "function": 1,
+      "pin": 11,
+      "pull": 20
+    },
+    "SIGNAL_3": {
+      "function": 1,
+      "pin": 8,
+      "pull": 20
+    },
+
+    "LATCH": {
+      "function": 0,
+      "initial": 0,
+      "pin": 31
+    },
+    "CLOCK": {
+      "function": 0,
+      "initial": 0,
+      "pin": 37
+    },
+    "OE": {
+      "function": 0,
+      "initial": 0,
+      "pin": 3
+    },
+    "DATA": {
+      "function": 0,
+      "initial": 0,
+      "pin": 12
+    }
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+    "led_green_1": "0x08",
+    "led_green_2": "0x10",
+    "led_green_3": "0x20",
+    "led_red_1": "0x01",
+    "led_red_2": "0x02",
+    "led_red_3": "0x04"
+  }
+}

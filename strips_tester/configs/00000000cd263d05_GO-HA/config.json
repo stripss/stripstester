@@ -1,5 +1,6 @@
 {
   "product_name": "GO-HA-1",
+  "thread_nests": 0,
   "product_type": 12,
   "product_variant": "basic",
   "product_hw_release": "1.0",
@@ -69,6 +70,9 @@
     }
   },
   "relay_settings": {
+
+  },
+  "data": {
 
   }
 }

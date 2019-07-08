@@ -5,12 +5,12 @@ import devices
 from config_loader import *
 import strips_tester
 from strips_tester import *
-from tester import Task
+from tester import Task, timeout
 import cv2
 from pylibdmtx.pylibdmtx import decode as decode_qr
 import numpy as np
 import base64
-
+import datetime
 
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -19,18 +19,13 @@ relays = strips_tester.settings.relays
 
 # OK
 class StartProcedureTask(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
-        strips_tester.data['exist'] = True  # Assume it exists
-        strips_tester.data['status'] = 1  # Tested good
-        gui_web.send({"command": "title", "value": "GACS_A2 Bender"})
-
         # Make sure that all relays are opened before test
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16, ribbon=True)
         self.relay_board.open_all_relays()
 
+
+    def run(self) -> (bool, str):
         gui_web.send({"command": "status", "value": "Za testiranje zapri pokrov."})
         gui_web.send({"command": "progress", "value": "0"})
 
@@ -39,12 +34,11 @@ class StartProcedureTask(Task):
 
         gui_web.send({"command": "error", "value": -1})  # Clear all error messages
         gui_web.send({"command": "info", "value": -1})  # Clear all error messages
-        gui_web.send({"command": "nests", "value": 1})
-
+        strips_tester.data['start_time'][0] = datetime.datetime.now()  # Get start test date
+        gui_web.send({"command": "time", "mode": "start"})  # Start count for test
         gui_web.send({"command": "status", "value": "Testiranje v teku..."})
 
-        gui_web.send({"command": "blink", "which": 1, "value": (0, 0, 0)})
-        gui_web.send({"command": "semafor", "which": 1, "value": (0, 1, 0)})
+        gui_web.send({"command": "semafor", "value": (0, 1, 0), "blink": (0,0,0)})
         # Lock test device
         #GPIO.output(gpios['LOCK'], False)
 
@@ -59,7 +53,6 @@ class StartProcedureTask(Task):
         GPIO.output(gpios['LIGHT_RED'],True)
         GPIO.output(gpios['LOCK'],True) # Lock test device
 
-    def run(self) -> (bool, str):
         '''
         # Product detection
         detect = GPIO.input(strips_tester.settings.gpios.get("DETECT_PRODUCT"))
@@ -68,15 +61,13 @@ class StartProcedureTask(Task):
             module_logger.info("Zaznan kos GACS_A2 Bender")
             gui_web.send({"command": "info", "value": "Zaznan kos GACS_A2 Bender"})
         else:
-            strips_tester.data['exist'] = False
+            strips_tester.data['exist'][0] = False
             module_logger.warning("Ni zaznanega kosa v ležišču.")
             gui_web.send({"command": "info", "value": "Ni zaznanega kosa v ležišču."})
             return {"signal": [1, "fail", 5, "NA"]}
         '''''
 
-        pass
-
-        return {"signal": [1, "ok", 5, "NA"]}
+        return
 
 
     def tear_down(self):
@@ -93,26 +84,18 @@ class StartProcedureTask(Task):
 
         return state
 
+
 # OK
 class FinishProcedureTask(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
-        pass
-
-    def run(self) -> (bool, str):
-        strips_tester.data['result_ok'] = 0
-        strips_tester.data['result_fail'] = 0
-
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16, ribbon=True)
         self.relay_board.open_all_relays()
         self.relay_board.hid_device.close()
 
+    def run(self) -> (bool, str):
         GPIO.output(gpios["Discharge1"], True)
         GPIO.output(gpios["Discharge2"], True)
 
-        #server.send_broadcast({"text": {"text": "Odprite pokrov in odstranite testirane kose.\n", "tag": "black"}})
         GPIO.output(gpios['LOCK'],False)
 
         GPIO.output(gpios['LIGHT_GREEN'],False)
@@ -120,6 +103,7 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "value": "95"})
         gui_web.send({"command": "status", "value": "Odpri pokrov testne naprave."})
+        gui_web.send({"command": "semafor", "blink": (0, 1, 0)})
 
         while self.is_lid_closed():
             GPIO.output(gpios['LIGHT_GREEN'], True)
@@ -129,20 +113,21 @@ class FinishProcedureTask(Task):
             GPIO.output(gpios['LIGHT_RED'], False)
             time.sleep(0.2)
 
+        if strips_tester.data['status'][0] == -1:
+            strips_tester.data['status'][0] = True
+
         gui_web.send({"command": "progress", "value": "100"})
-        gui_web.send({"command": "semafor", "which": 1, "value": (0, 0, 0)})
+        gui_web.send({"command": "semafor", "value": (0, 0, 0), "blink": (0,0,0)})
 
         beep = False
-        if strips_tester.data['exist']:
-            if strips_tester.data['status'] == 1: # Product is ok
-                strips_tester.data['result_ok'] += 1
+        if strips_tester.data['exist'][0]:
+            if strips_tester.data['status'][0] == True: # Product is ok
                 GPIO.output(gpios['LIGHT_GREEN'], True)
-                gui_web.send({"command": "semafor", "which": 1, "value": (0, 0, 1)})
-            elif strips_tester.data['status'] == 0: # Product is not ok
-                strips_tester.data['result_fail'] += 1
+                gui_web.send({"command": "semafor", "value": (0, 0, 1)})
+            elif strips_tester.data['status'][0] == False: # Product is not ok
                 beep = True
                 GPIO.output(gpios['LIGHT_RED'], True)
-                gui_web.send({"command": "semafor", "which": 1, "value": (1, 0, 0)})
+                gui_web.send({"command": "semafor", "value": (1, 0, 0)})
         else:
             beep = True
 
@@ -153,7 +138,7 @@ class FinishProcedureTask(Task):
 
         GPIO.output(gpios['LOCK'],True)
 
-        return {"signal": [1, "ok", 5, "NA"]}
+        return 
 
     def is_lid_closed(self):
         state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
@@ -167,9 +152,6 @@ class FinishProcedureTask(Task):
 
 # OK
 class ReadSerial(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         # Powering up board meanwhile
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
@@ -203,21 +185,26 @@ class ReadSerial(Task):
                 # Dimensions of cropped image for QR code
                 x = 100
                 y = 100
-                h = 370
+                h = 350
                 w = 390
 
+                frame = self.rotateImage(frame, 4)  # Rotate image by 4 degrees
                 roi = frame[y:y+h, x:x+w]
 
-                raw_scanned_string = decode_qr(roi)
+                try:
+                    with timeout(seconds = 3):
+                        raw_scanned_string = decode_qr(roi)
+                except TimeoutError:
+                    raw_scanned_string = ""
+                    print("Retrying...")
+
                 retval, buffer = cv2.imencode('.jpg', roi)
                 jpg_as_text = base64.b64encode(buffer)
-                gui_web.send({"command": "image", "value": jpg_as_text.decode()})
+                gui_web.send({"command": "info", "value": jpg_as_text.decode(), "type": "image"})
             else:
                 raw_scanned_string = raw_scanned_string[0].data.decode("utf-8")
                 gui_web.send({"command": "info", "value": "Serijska številka: {}\n" . format(raw_scanned_string)})
-
-                #server.send_broadcast({"text": {"text": "Serijska številka: {}\n" . format(raw_scanned_string), "tag": "black"}})
-                #strips_tester.current_product.serial = raw_scanned_string
+                self.add_measurement(0, True, "Serial", raw_scanned_string)
                 break
 
         self.vc.release()
@@ -225,16 +212,15 @@ class ReadSerial(Task):
 
         if not len(raw_scanned_string):
             gui_web.send({"command": "error", "value": "QR koda ni zaznana"})
-            strips_tester.data['status'] = 0
-            return {"signal": [1, 'fail', 5, 'NA']}
-            #server.send_broadcast({"text": {"text": "Serijske številke ni mogoče prebrati.\n", "tag": "red"}})
+            self.end_test()
+            return
 
+        strips_tester.data['exist'][0] = True  # Assume it exists
         # Save successfully read image
         cv2.imwrite("/strips_tester_project/strips_tester/last_qr.jpg",roi)
 
         gui_web.send({"command": "progress", "value": "10"})
-        return {"signal": [1, 'ok', 0, 'NA']}
-
+        return
 
     def rotateImage(self,image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -248,14 +234,9 @@ class ReadSerial(Task):
 
 # OK
 class VoltageTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1",0.16)
-
-        self.measurement_results = {}
 
         self.relay_board.close_relay(relays["Power"])
 
@@ -267,12 +248,12 @@ class VoltageTest(Task):
         self.relay_board.close_relay(relays["12V"])
         voltage = self.voltmeter.read()  # Read voltage on 12v pin
         if not self.in_range(voltage, 12.0, 10):
-            self.measurement_results["12v"] = [voltage, "fail", 5, "V"]
-            strips_tester.data['status'] = 0
+            self.add_measurement(0, False, "12V", voltage, "V")
+
             gui_web.send({"command": "error", "value": "Napetost 12V je izven območja. Izmerjeno {}V" . format(voltage)})
         else:
             gui_web.send({"command": "info", "value": "Meritev napetosti 12V: {}V" . format(voltage)})
-            self.measurement_results["12v"] = [voltage, "ok", 0, "V"]
+            self.add_measurement(0, True, "12V", voltage, "V")
         self.relay_board.open_relay(relays["12V"])
 
         gui_web.send({"command": "status", "value": "Meritev 3.3V..."})
@@ -283,16 +264,15 @@ class VoltageTest(Task):
         self.relay_board.close_relay(relays["3V3"])
         voltage = self.voltmeter.read()  # Read voltage on 3v3 pin
         if not self.in_range(voltage, 3.3, 10):
-            self.measurement_results["3v3"] = [voltage, "fail", 5, "V"]
-            strips_tester.data['status'] = 0
+            self.add_measurement(0, False, "3V3", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost 3.3V je izven območja. Izmerjeno {}V" . format(voltage)})
         else:
-            self.measurement_results["3v3"] = [voltage, "ok", 0, "V"]
+            self.add_measurement(0, True, "3V3", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti 3.3V: {}V" . format(voltage)})
             #server.send_broadcast({"text": {"text": "Meritev napetosti 3.3V: {}V\n".format(voltage), "tag": "green"}})
         self.relay_board.open_relay(relays["3V3"])
 
-        return self.measurement_results
+        return 
 
 
     def in_range(self, value, expected, tolerance, percent=True):
@@ -313,14 +293,9 @@ class VoltageTest(Task):
         self.voltmeter.close()
 
 class I2C_Communication(Task):
-    def __init__(self):
-        super().__init__(strips_tester.ERROR)
-
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
-
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
-        self.measurement_results = {}
 
         # Measure order: lednum,color_I_def,toleranca_I_def,
         self.measure_order = [
@@ -353,14 +328,11 @@ class I2C_Communication(Task):
                 current = self.voltmeter.read() * 1000.0
 
                 if not self.in_range(current, self.measure_order[i][2], self.measure_order[i][3]):
-                    #server.send_broadcast({"text": {"text": "Meritev toka '{}{}' LED: {}mA\n".format(self.measure_order[i][1],self.measure_order[i][2],current), "tag": "red"}})
-                    self.measurement_results[self.measure_order[i][1]] = [current, "fail", 5, "mA"]
+                    self.add_measurement(0, False, self.measure_order[i][1], current, "mA")
                     gui_web.send({"command": "error", "value": "Tok LED diod '{}' je izven območja. Izmerjeno {}mA" . format(self.measure_order[i][1],current)})
-                    strips_tester.data['status'] = 0
                 else:
-                    #server.send_broadcast({"text": {"text": "Meritev toka '{}{}' LED: {}mA\n".format(self.measure_order[i][1],self.measure_order[i][2],current), "tag": "green"}})
                     gui_web.send({"command": "info", "value": "Meritev toka '{}': {}mA" . format(self.measure_order[i][1],current)})
-                    self.measurement_results[self.measure_order[i][1]] = [current, "ok", 0, "mA"]
+                    self.add_measurement(0, True, self.measure_order[i][1], current, "mA")
 
                 self.i2c.manual_off()
 
@@ -373,38 +345,30 @@ class I2C_Communication(Task):
             voltage = self.voltmeter.read()  # Read voltage on Heater pin
 
             if not self.in_range(voltage, 12.0, 10.0):
-                #server.send_broadcast({"text": {"text": "Meritev napetosti grelca: {}V\n".format(voltage), "tag": "red"}})
-                self.measurement_results["HeaterOFF"] = [voltage, "fail", 5, "V"]
+                self.add_measurement(0, False, "HeaterOFF", voltage, "V")
                 gui_web.send({"command": "error", "value": "Napetost izklopljenega grelca je izven območja. Izmerjeno {}V" . format(voltage)})
-                strips_tester.data['status'] = 0
             else:
-                #server.send_broadcast({"text": {"text": "Meritev napetosti grelca: {}V\n".format(voltage), "tag": "green"}})
                 gui_web.send({"command": "info", "value": "Meritev napetosti grelca: {}V\n".format(voltage)})
-                self.measurement_results["HeaterOFF"] = [voltage, "ok", 0, "V"]
+                self.add_measurement(0, True, "HeaterOFF", voltage, "V")
 
             self.i2c.turn_heater_on()
             voltage = self.voltmeter.read()  # Read voltage on Heater pin
 
             if not self.in_range(voltage, 0.0, 0.5, False):
-                #server.send_broadcast({"text": {"text": "Meritev napetosti grelca: {}V\n".format(voltage), "tag": "red"}})
-                self.measurement_results["HeaterON"] = [voltage, "fail", 5, "V"]
                 gui_web.send({"command": "error", "value": "Napetost vklopljenega grelca je izven območja. Izmerjeno {}V" . format(voltage)})
-                strips_tester.data['status'] = 0
+                self.add_measurement(0, False, "HeaterON", voltage, "V")
             else:
-                #server.send_broadcast({"text": {"text": "Meritev napetosti grelca: {}V\n".format(voltage), "tag": "green"}})
                 gui_web.send({"command": "info", "value": "Meritev napetosti grelca: {}V\n".format(voltage)})
-                self.measurement_results["HeaterON"] = [voltage, "ok", 0, "V"]
+                self.add_measurement(0, True, "HeaterON", voltage, "V")
 
             self.i2c.manual_off()
 
             self.relay_board.open_relay(relays["Heater"])
-        except OSError:
-            #server.send_broadcast({"text": {"text": "Napaka branja iz IO ekspanderja MCP23017.\n", "tag": "red"}})
-            self.measurement_results["MCP23017"] = [0, "fail", 5, "V"]
-            gui_web.send({"command": "error", "value": "Ni zaznanega IO ekspanderja MCP23017."})
-            strips_tester.data['status'] = 0
 
-            #strips_tester.product[0].add_measurement(type(self).__name__, "MCP23017", Task.TASK_WARNING, "Sensor not found.")
+            self.add_measurement(0, True, "MCP23017", "OK")
+        except OSError:
+            self.add_measurement(0, False, "MCP23017", "Not detected")
+            gui_web.send({"command": "error", "value": "Ni zaznanega IO ekspanderja MCP23017."})
 
         gui_web.send({"command": "status", "value": "Testiranje senzorja temperature"})
 
@@ -414,22 +378,18 @@ class I2C_Communication(Task):
             temperature = self.temp_sensor.read()
 
             if not self.in_range(temperature, 25, 5, False):
-                #server.send_broadcast({"text": {"text": "Meritev temperature: {}°C\n".format(temperature), "tag": "red"}})
-                self.measurement_results["Temperature"] = [temperature, "fail", 5, "C"]
+                self.add_measurement(0, False, "Temperature", temperature, "C")
                 gui_web.send({"command": "error", "value": "Temperatura izven območja. Izmerjeno {}°C" . format(temperature)})
-                strips_tester.data['status'] = 0
             else:
-                self.measurement_results["Temperature"] = [temperature, "ok", 0, "C"]
+                self.add_measurement(0, True, "Temperature", temperature, "C")
                 gui_web.send({"command": "info", "value": "Meritev temperature: {}°C\n".format(temperature)})
-                #server.send_broadcast({"text": {"text": "Meritev temperature: {}°C\n".format(temperature), "tag": "green"}})
 
+            self.add_measurement(0, True, "LM75A", "OK")
         except OSError:
-            #server.send_broadcast({"text": {"text": "Napaka branja iz senzorja LM75A.\n", "tag": "red"}})
+            self.add_measurement(0, False, "LM75A", "Not detected")
             gui_web.send({"command": "error", "value": "Ni zaznanega senzorja temperature LM25A."})
-            self.measurement_results["Temperature"] = [-1, "fail", 5, "C"]
-            strips_tester.data['status'] = 0
 
-        return self.measurement_results
+        return 
 
     def in_range(self, value, expected, tolerance, percent = True):
         if percent:
@@ -450,9 +410,6 @@ class I2C_Communication(Task):
 
 #OK
 class LockSimulator(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         self.charging_time = 10
 
@@ -460,7 +417,6 @@ class LockSimulator(Task):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
 
         self.relay_board.close_relay(relays["Power"])
-        self.measurement_results = {}
 
     def run(self):
         '''
@@ -486,7 +442,6 @@ class LockSimulator(Task):
         self.relay_board.open_relay(relays["Vcc2"])
         '''
 
-        #server.send_broadcast({"text": {"text": "Polnenje modula...\n", "tag": "black"}})
         gui_web.send({"command": "status", "value": "Polnenje modula..."})
         gui_web.send({"command": "progress", "value": 55})
         time.sleep(self.charging_time)
@@ -498,28 +453,20 @@ class LockSimulator(Task):
         voltage = self.measure_output(2) # Measure left output
 
         if voltage <= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (odklenjen, napajanje): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["LeftOutUnlockPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "LeftOutUnlockPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost levega izhoda (odklenjen, napajanje) je izven območja. Izmerjeno {}V" . format(voltage)})
-
-            strips_tester.data['status'] = 0
         else:
             gui_web.send({"command": "info", "value": "Meritev napetosti levega izhoda (odklenjen, napajanje): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (odklenjen, napajanje): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["LeftOutUnlockPower"] = [voltage, "ok", 0, "V"]
+            self.add_measurement(0, True, "LeftOutUnlockPower", voltage, "V")
 
         voltage = self.measure_output(1)  # Measure right output
 
         if voltage <= 0:
-
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (odklenjen, napajanje): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["RightOutUnlockPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RightOutUnlockPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost desnega izhoda (odklenjen, napajanje) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "RightOutUnlockPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti desnega izhoda (odklenjen, napajanje): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (odklenjen, napajanje): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["RightOutUnlockPower"] = [voltage, "ok", 0, "V"]
 
         self.set_input(1, 1)  # Lock left
         self.set_input(2, 1)  # Lock right
@@ -528,56 +475,43 @@ class LockSimulator(Task):
         voltage = self.measure_output(2)  # Measure left output
 
         if voltage >= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (zaklenjen, napajanje): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["LeftOutLockPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "LeftOutLockPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost levega izhoda (zaklenjen, napajanje) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "LeftOutLockPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti levega izhoda (zaklenjen, napajanje): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (zaklenjen, napajanje): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["LeftOutLockPower"] = [voltage, "ok", 0, "V"]
 
         voltage = self.measure_output(1)  # Measure right output
 
         if voltage >= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (zaklenjen, napajanje): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["RightOutLockPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RightOutLockPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost desnega izhoda (zaklenjen, napajanje) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "RightOutLockPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti desnega izhoda (zaklenjen, napajanje): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (zaklenjen, napajanje): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["RightOutLockPower"] = [voltage, "ok", 0, "V"]
-
 
         gui_web.send({"command": "progress", "value": 65})
-        # Take away power
-        self.relay_board.open_relay(relays["Power"])
+
+        self.relay_board.open_relay(relays["Power"]) # Take away power
         time.sleep(0.5)
 
         voltage = self.measure_output(2)  # Measure left output
 
         if voltage >= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["LeftOutLockNoPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "LeftOutLockNoPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost levega izhoda (zaklenjen, brez napajanja) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "LeftOutLockNoPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti levega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["LeftOutLockNoPower"] = [voltage, "ok", 0, "V"]
 
         voltage = self.measure_output(1)  # Measure left output
 
         if voltage >= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["RightOutLockNoPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RightOutLockNoPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost desnega izhoda (zaklenjen, brez napajanja) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "RightOutLockNoPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti desnega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (zaklenjen, brez napajanja): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["RightOutLockNoPower"] = [voltage, "ok", 0, "V"]
 
         self.set_input(1,0) # Unlock left
         self.set_input(2,0) # Unlock right
@@ -586,31 +520,25 @@ class LockSimulator(Task):
         voltage = self.measure_output(2) # Measure left output
 
         if voltage <= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["LeftOutUnlockNoPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "LeftOutUnlockNoPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost levega izhoda (odklenjen, brez napajanja) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "LeftOutUnlockNoPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti levega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti levega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["LeftOutUnlockNoPower"] = [voltage, "ok", 0, "V"]
 
         voltage = self.measure_output(1) # Measure left output
     
         if voltage <= 0:
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage), "tag": "red"}})
-            self.measurement_results["RightOutUnlockNoPower"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RightOutUnlockNoPower", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost desnega izhoda (odklenjen, brez napajanja) je izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
         else:
+            self.add_measurement(0, True, "RightOutUnlockNoPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti desnega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage)})
-            #server.send_broadcast({"text": {"text": "Meritev napetosti desnega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage), "tag": "green"}})
-            self.measurement_results["RightOutUnlockNoPower"] = [voltage, "ok", 0, "V"]
 
         self.set_input(1,-1)  # Disable left input
         self.set_input(2,-1)  # Disable right input
 
-        return self.measurement_results
+        return 
 
     def set_input(self,side,state):
         # State:
@@ -647,16 +575,10 @@ class LockSimulator(Task):
         self.voltmeter.close()
 
 class VisualTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
-
-
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
         self.camera = cv2.VideoCapture('/dev/microsoft')  # video capture source camera
-        self.measurement_results = {}
 
         gui_web.send({"command": "status", "value": "Vizualni pregled LED diod"})
         while not self.camera.isOpened():  # try to get the first frame of camera
@@ -696,12 +618,11 @@ class VisualTest(Task):
         self.relay_board.open_relay(relays["LED_Green2"])
 
         if self.check_mask([1,1,-1,-1]):  # Does green LED turn on?
-            self.measurement_results["VisualGreen"] = [1, "ok", 0, "n/a"]
+            self.add_measurement(0, True, "VisualGreen", True)
             gui_web.send({"command": "info", "value": "Zaznani obe zeleni LED diodi."})
         else:
-            self.measurement_results["VisualGreen"] = [1, "fail", 5, "n/a"]
+            self.add_measurement(0, True, "VisualGreen", False)
             gui_web.send({"command": "error", "value": "Napaka pri zaznavanju zelenih LED diod."})
-            strips_tester.data['status'] = 0
 
         self.relay_board.open_relay(relays["Power"])
         gui_web.send({"command": "progress", "value": 75})
@@ -709,14 +630,13 @@ class VisualTest(Task):
         self.get_light_states(230, "red_leds")
 
         if self.check_mask([-1,-1,1,1]):  # Does red LED turn on?
-            self.measurement_results["VisualRed"] = [1, "ok", 0, "n/a"]
+            self.add_measurement(0, True, "VisualRed", True)
             gui_web.send({"command": "info", "value": "Zaznani obe rdeči LED diodi."})
         else:
-            self.measurement_results["VisualRed"] = [1, "fail", 5, "n/a"]
+            self.add_measurement(0, False, "VisualRed", False)
             gui_web.send({"command": "error", "value": "Napaka pri zaznavanju rdečih LED diod."})
-            strips_tester.data['status'] = 0
 
-        return self.measurement_results
+        return 
 
     def in_range(self, value, min, max):
 
@@ -734,7 +654,7 @@ class VisualTest(Task):
 
         retval, buffer = cv2.imencode('.jpg', roi)
         jpg_as_text = base64.b64encode(buffer)
-        gui_web.send({"command": "image", "value": jpg_as_text.decode()})
+        gui_web.send({"command": "info", "value": jpg_as_text.decode(), "type": "image"})
 
         if save:
             cv2.imwrite(strips_tester.settings.test_dir + "/images/" + save + "_roi.jpg",roi)
@@ -794,15 +714,10 @@ class VisualTest(Task):
 
 # OK
 class RCTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         self.disharge_time = 12
         self.rc_time = 5
         self.rc_voltage = 6
-
-        self.measurement_results = {}
 
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
@@ -821,14 +736,11 @@ class RCTest(Task):
         voltage = self.voltmeter.read()
 
         if voltage >= self.rc_voltage:
-            self.measurement_results["RC_RightVoltage"] = [voltage, "ok", 0, "V"]
+            self.add_measurement(0, True, "RC_RightVoltage", voltage, "V")
             gui_web.send({"command": "info", "value": "Napetost desnega RC člena po {}s: {}V\n".format(self.rc_time,voltage)})
-            #server.send_broadcast({"text": {"text": "Napetost desnega RC člena po {}{}: {}V\n".format(self.get_definition("rc_time"),self.get_definition_unit("rc_time"),voltage), "tag": "red"}})
         else:
-            self.measurement_results["RC_RightVoltage"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RC_RightVoltage", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost desnega RC člena izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
-            #server.send_broadcast({"text": {"text": "Napetost desnega RC člena po {}{}: {}V\n".format(self.get_definition("rc_time"),self.get_definition_unit("rc_time"),voltage), "tag": "red"}})
 
         self.relay_board.open_relay(relays["Vcc1"])
 
@@ -836,20 +748,16 @@ class RCTest(Task):
         voltage = self.voltmeter.read()
 
         if voltage >= self.rc_voltage:
-            self.measurement_results["RC_LeftVoltage"] = [voltage, "ok", 0, "V"]
+            self.add_measurement(0, True, "RC_LeftVoltage", voltage, "V")
             gui_web.send({"command": "info", "value": "Napetost levega RC člena po {}s: {}V\n".format(self.rc_time,voltage)})
-            #server.send_broadcast({"text": {"text": "Napetost levega RC člena po {}{}: {}V\n".format(self.get_definition("rc_time"),self.get_definition_unit("rc_time"),voltage), "tag": "green"}})
         else:
-            self.measurement_results["RC_LeftVoltage"] = [voltage, "fail", 5, "V"]
+            self.add_measurement(0, False, "RC_LeftVoltage", voltage, "V")
             gui_web.send({"command": "error", "value": "Napetost levega RC člena izven območja. Izmerjeno {}V" . format(voltage)})
-            strips_tester.data['status'] = 0
-            #server.send_broadcast({"text": {"text": "Napetost levega RC člena po {}{}: {}V\n".format(self.get_definition("rc_time"),self.get_definition_unit("rc_time"),voltage), "tag": "red"}})
 
         self.relay_board.open_relay(relays["Vcc2"])
 
         gui_web.send({"command": "status", "value": "Praznjenje modula..."})
         gui_web.send({"command": "progress", "value": "90"})
-        #server.send_broadcast({"text": {"text": "Praznjenje kondenzatorjev ({}{})...\n" . format(self.get_definition("discharge_time"),self.get_definition_unit("discharge_time")), "tag": "black"}})
 
         GPIO.output(gpios["Discharge1"], False)
         GPIO.output(gpios["Discharge2"], False)
@@ -861,7 +769,7 @@ class RCTest(Task):
 
         gui_web.send({"command": "info", "value": "Modul izpraznjen."})
 
-        return self.measurement_results
+        return 
 
     def tear_down(self):
         self.relay_board.hid_device.close()

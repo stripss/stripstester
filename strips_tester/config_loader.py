@@ -43,18 +43,12 @@ class Settings:
                 data = json.load(f,object_pairs_hook=OrderedDict)
                 self.gpios_settings = data['gpio_settings']
                 self.relays_settings = data['relay_settings']
-                self.product_name = data['product_name']
-                self.product_type = data['product_type']
-                self.product_variant = data['product_variant']
-                self.product_hw_release = data['product_hw_release']
-                self.product_description = data['product_description']
-                self.product_notes = data['product_notes']
                 self.test_device_name = data['test_device_name']
-                self.test_device_employee = data['test_device_employee']
-                self.central_db_host = data['central_db_host']
-                self.local_db_host = data['local_db_host']
+                self.thread_nests = data['thread_nests']
                 self.task_execution_order = data['task_execution_order']
                 self.critical_event_tasks = data['critical_event_tasks']
+                self.custom_data = data['data']
+
                 # GPIO pin finder helper. Example: gpios["START_SWITCH"] -> pin_number:int
                 self.gpios = {gpio: self.gpios_settings.get(gpio).get("pin") for gpio in self.gpios_settings}
 

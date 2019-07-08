@@ -1,7 +1,7 @@
 import os
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
+from logging.handlers import *
 import sqlite3
 import json
 from strips_tester import config_loader
@@ -10,10 +10,13 @@ import multiprocessing
 import time
 import gui_web
 import threading
+import pymongo
+from log4mongo.handlers import MongoHandler
 
+# Imported for catching SegmentationFault like errors
+import faulthandler
+faulthandler.enable()
 
-VERSION = '0.0.1'
-DB = "default"
 # test levels == logging levels (ints)
 CRITICAL = logging.CRITICAL
 ERROR = logging.CRITICAL
@@ -21,9 +24,6 @@ WARNING = logging.CRITICAL
 INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
-
-# PACKAGE_NAME = __name__
-
 
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
@@ -44,23 +44,28 @@ def initialize_logging(level: int = logging.INFO):
     file_handler2.setFormatter(formatter)
     lgr.addHandler(file_handler2)
 
+    # Stream module_logger to console
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
     stdout_handler.setLevel(logging.INFO)
     stdout_handler.setFormatter(formatter)
     lgr.addHandler(stdout_handler)
 
+    # Logging to database (works, but the document count will be large soon)
+    #db_handler = MongoHandler(host='172.30.129.19', database_name='stripstester', collection='logs')
+    #lgr.addHandler(db_handler)
+
     # db_handler = logging. # todo database logging handler
     return lgr
 
-
-logger = initialize_logging(logging.DEBUG)
-#logger_queue = set_queue_logger()
-current_product = None
-
 # Data handles all custom data of current test device (acts like RAM)
 data = {}
+data['db_connection'] = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+data['db_database'] = data['db_connection']["stripstester"]
+
+logger = initialize_logging(logging.DEBUG)
+current_product = None
 settings = config_loader.Settings()
+
 websocket = threading.Thread(target=gui_web.start_server)
 websocket.daemon = True
 websocket.start()
-

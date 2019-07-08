@@ -27,6 +27,8 @@ class StartProcedureTask(Task):
     def run(self) -> (bool, str):
         strips_tester.data['exist_left'] = True  # Assume it exists
         strips_tester.data['exist_right'] = True  # Assume it exists
+        strips_tester.data['exist'][0] = 1
+        strips_tester.data['exist'][1] = 1
 
         strips_tester.data['status_left'] = -1  # Untested
         strips_tester.data['status_right'] = -1  # Untested
@@ -141,6 +143,9 @@ class VoltageTest(Task):
         self.voltmeter.configure()
         self.measurement_results = {}
 
+        for current_nest in range(strips_tester.data['test_device_nests']):
+            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
+
     def run(self) -> (bool, str):
         gui_web.send({"command": "progress", "value": "10"})
         GPIO.output(gpios["relay1"], False) # Measure left side
@@ -186,47 +191,64 @@ class VoltageTest(Task):
 
         if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.0 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
             strips_tester.data['exist_left'] = False
+            strips_tester.data['exist'][0] = 0
 
         if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
             strips_tester.data['exist_right'] = False
+            strips_tester.data['exist'][1] = 0
 
         if strips_tester.data['exist_left']:
             strips_tester.data['status_left'] = 1
+            strips_tester.data['status'][0] = 1
+
 
             if self.in_range(normal_left_off,4.5,1,False):
                 self.measurement_results["normal_left_off"] = [normal_left_off, "ok", 0, "V"]
+                strips_tester.data['measurement'][0][type(self).__name__]['normal_off'] = [normal_left_off, True, "V"]
                 gui_web.send({"command": "info", "value": "Meritev napetosti levega hall senzorja brez magneta: {}V\n".format(normal_left_off)})
             else:
                 gui_web.send({"command": "error", "value": "Meritev napetosti levega hall senzorja brez magneta: {}V\n".format(normal_left_off)})
                 self.measurement_results["normal_left_off"] = [normal_left_off, "fail", 0, "V"]
+                strips_tester.data['measurement'][0][type(self).__name__]['normal_off'] = [normal_left_off, False, "V"]
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = 0
 
             if self.in_range(normal_left_on,0,0.5,False):
                 self.measurement_results["normal_left_on"] = [normal_left_on, "ok", 0, "V"]
+                strips_tester.data['measurement'][0][type(self).__name__]['normal_on'] = [normal_left_on, True, "V"]
                 gui_web.send({"command": "info", "value": "Meritev napetosti levega hall senzorja v okolici magneta: {}V\n".format(normal_left_on)})
             else:
                 gui_web.send({"command": "error", "value": "Meritev napetosti levega hall senzorja v okolici magneta: {}V\n".format(normal_left_on)})
+                strips_tester.data['measurement'][0][type(self).__name__]['normal_on'] = [normal_left_on, False, "V"]
                 self.measurement_results["normal_left_on"] = [normal_left_on, "fail", 0, "V"]
                 strips_tester.data['status_left'] = 0
+                strips_tester.data['status'][0] = 0
 
         if strips_tester.data['exist_right']:
             strips_tester.data['status_right'] = 1
+            strips_tester.data['status'][1] = 1
 
             if self.in_range(normal_right_off,4.5,1,False):
                 self.measurement_results["normal_right_off"] = [normal_right_off, "ok", 0, "V"]
+                strips_tester.data['measurement'][1][type(self).__name__]['normal_off'] = [normal_right_off, True, "V"]
                 gui_web.send({"command": "info", "value": "Meritev napetosti desnega hall senzorja brez magneta: {}V\n".format(normal_right_off)})
             else:
                 gui_web.send({"command": "error", "value": "Meritev napetosti desnega hall senzorja brez magneta: {}V\n".format(normal_right_off)})
                 self.measurement_results["normal_right_off"] = [normal_right_off, "fail", 0, "V"]
+                strips_tester.data['measurement'][1][type(self).__name__]['normal_off'] = [normal_right_off, False, "V"]
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = 0
 
             if self.in_range(normal_right_on,0,0.5,False):
                 self.measurement_results["normal_right_on"] = [normal_right_on, "ok", 0, "V"]
+                strips_tester.data['measurement'][1][type(self).__name__]['normal_on'] = [normal_right_on, True, "V"]
                 gui_web.send({"command": "info", "value": "Meritev napetosti desnega hall senzorja v okolici magneta: {}V\n".format(normal_right_on)})
             else:
                 gui_web.send({"command": "error", "value": "Meritev napetosti desnega hall senzorja v okolici magneta: {}V\n".format(normal_right_on)})
                 self.measurement_results["normal_right_on"] = [normal_right_on, "fail", 0, "V"]
+                strips_tester.data['measurement'][1][type(self).__name__]['normal_on'] = [normal_right_on, False, "V"]
                 strips_tester.data['status_right'] = 0
+                strips_tester.data['status'][1] = 0
 
         return self.measurement_results
 

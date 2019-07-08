@@ -30,71 +30,8 @@ module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 gpios = strips_tester.settings.gpios
 relays = strips_tester.settings.relays
 
-# You may set global test level and logging level in config_loader.py file
-# Tests severity levels matches python's logging levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
-# Failing "CRITICAL" test will immediately block execution of further tests! (and call "on_critical_event()")
-
-
-# Define tests and task as classes that inheriting from tester.Task
-# First param is test level, default is set to CRITICAL
-# run method should return test status (True if test passed/False if it failed) and result (value)
-
-
-'''
-PROCEDURE:
-
-START
-- izklop vseh relejev
-
-DETEKCIJA KOSOV V TN
-- Segger napajanje 5V
-- Preverba 5V na obeh kosih 
-- Preverba vPot na obeh kosih
-
-ROTACIJA TRIMERJEV
-- rotacija servo motorjev (platforma ostane gor!)
-- hkrati poteka ICT test za napetosti
-
-ICT TESTI
-- sklenitev 220V
-- preverba napetosti diod D1, Z1, D1, Z1
-
-- izklop 220V (sedaj mora biti Å¾e v zaÄetni legi trimer
-
-- sklenitev TP5, TP10 da se spraznejo kondenzatorji
-- meritev upornosti pri ICT testu (skupno merjenje veÄih)
-
-PROGRAMIRANJE MCU
-- S001 ali S002
-
-VIZUALNI PREGLED LED
-- sklenitev 220V
-- vrtenje trimerjev v konÄno lego
-- spustitev platforme
-
-PRINT STICKER
-- good or bad
-
-END PROCEDURE TASK
-- spustitev platforme
-- izklop vseh relejev
-
-
-'''
-
 
 # checks if lid is opened
-# prevents cyclic import, because gpios aren't available on import time
-class LidOpenCheck:
-    def __init__(self):
-        # if lid is opened
-        state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
-        if not state_GPIO_SWITCH:
-            module_logger.error("Lid opened /")
-            # strips_tester.current_product.task_results.append(False)
-            # strips_tester.emergency_break_tasks = True
-        else:
-            module_logger.debug("Lid closed")
 
 def get_program_number():  # Flash program selector
     try:
@@ -106,57 +43,48 @@ def get_program_number():  # Flash program selector
     return program
 
 class StartProcedureTask(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-        self.lightboard = devices.MCP23017(0x25)
-
     def run(self) -> (bool, str):
-        strips_tester.data['exist_left'] = False  # Untested
-        strips_tester.data['exist_right'] = False  # Untested
-
-        strips_tester.data['status_left'] = -1  # Untested
-        strips_tester.data['status_right'] = -1  # Untested
-
         gui_web.send({"command": "title", "value": "GO-C19 ({})" . format(get_program_number())})
 
         if "START_SWITCH" in settings.gpios:
             module_logger.info("Za nadaljevanje zapri pokrov")
 
-            gui_web.send({"command": "status", "value": "Za testiranje zapri pokrov."})
-            gui_web.send({"command": "progress", "value": "0"})
+            gui_web.send({"command": "status", "value": "Za začetek testiranja zapri pokrov."})
 
-            # self.lightboard.clear_bit(self.lightboard.LEFT_YELLOW)
-            # self.lightboard.clear_bit(self.lightboard.RIGHT_YELLOW)
+            for i in range(2):
+                gui_web.send({"command": "progress", "nest": i, "value": "0"})
 
             while True:
-                # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
                 state_GPIO_SWITCH = GPIO.input(gpios.get("START_SWITCH"))
                 if state_GPIO_SWITCH:
-                    # module_logger.info("START_SWITCH pressed(lid closed)")
                     break
 
                 time.sleep(0.01)
 
-            gui_web.send({"command": "error", "value": -1})  # Clear all error messages
-            gui_web.send({"command": "info", "value": -1})  # Clear all error messages
-            gui_web.send({"command": "nests", "value": 2})
-
-            self.lightboard.set_bit(self.lightboard.LEFT_YELLOW)
-            self.lightboard.set_bit(self.lightboard.RIGHT_YELLOW)
-
             for i in range(2):
-                gui_web.send({"command": "blink", "which": i + 1, "value": (0, 0, 0)})
-                gui_web.send({"command": "semafor", "which": i + 1, "value": (0, 1, 0)})
+                gui_web.send({"command": "error", "nest": i, "value": -1})  # Clear all error messages
+                gui_web.send({"command": "info", "nest": i, "value": -1})  # Clear all error messages
+                gui_web.send({"command": "semafor", "nest": i, "value": (0, 1, 0), "blink": (0, 0, 0)})
+
+                strips_tester.data['start_time'][i] = datetime.datetime.now()  # Get start test date
+                gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
+
+            GPIO.output(gpios['GREEN_LEFT'], True)
+            GPIO.output(gpios['RED_LEFT'], True)
+            GPIO.output(gpios['GREEN_RIGHT'], True)
+            GPIO.output(gpios['RED_RIGHT'], True)
 
             for i in range(3):
-                self.lightboard.set_bit(self.lightboard.BUZZER)
+                GPIO.output(gpios['BUZZER'], True)
                 time.sleep(0.1)
-                self.lightboard.clear_bit(self.lightboard.BUZZER)
+                GPIO.output(gpios['BUZZER'], False)
                 time.sleep(0.1)
 
+            GPIO.output(gpios['LN_RELAY'], GPIO.HIGH)  # Disable L and N
         else:
             module_logger.info("START_SWITCH not defined in config_loader.py!")
-        return {"signal": [1, "ok", 5, "NA"]}
+
+        return
 
     def tear_down(self):
         pass
@@ -165,44 +93,37 @@ class StartProcedureTask(Task):
 
 # Perform product detection
 class InitialTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
         self.segger_found = False
-        for i in range(1):
+        for i in range(10):
             try:
                 self.segger = devices.Segger("/dev/segger")
                 self.segger_found = True
                 break
-            except Exception:
+            except Exception as ee:
+                print(ee)
+
                 time.sleep(0.1)
-
-        self.measurement_results = {}
-
-
-        for current_nest in range(strips_tester.data['test_device_nests']):
-            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
-
 
     def run(self) -> (bool, str):
 
-        #if not self.segger_found:
-        #    gui_web.send({"command": "error", "value": "Programatorja ni mogoče najti!"})
-        #   return {"signal": [0, "fail", 5, "NA"]}
+        if not self.segger_found:
+            gui_web.send({"command": "error", "value": "Programatorja ni mogoče najti!"})
+            self.end_test()
+            return
 
-        #self.segger.select_file(get_program_number())  # Select S001 binary file
+        self.segger.select_file(get_program_number())  # Select S001 binary file
+
+        if not lid_closed():
+            gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
+            self.end_test()
+            return
 
         self.shifter.reset()
-
-        #if not lid_closed():
-        #    gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
-        #
-        #    return {"signal": [0, "fail", 5, "NA"]}
 
         # Lock test device
         self.shifter.set("K9", True)
@@ -220,7 +141,7 @@ class InitialTest(Task):
 
         self.power_on()  # Power on board (external 5V)
 
-        self.flash_process = multiprocessing.Process(target=self.flashMCU)
+        self.flash_process = threading.Thread(target=self.flashMCU, args=(0,))
 
         self.shifter.set("K11", True)  # Segger RESET enable
 
@@ -232,85 +153,71 @@ class InitialTest(Task):
 
         voltage_left = self.measure_voltage("M7", "M3")
         if self.in_range(voltage_left, 4.8, 10):
-            strips_tester.data['exist_left'] = True
             strips_tester.data['exist'][0] = True
 
             module_logger.info("left product detected with %sV of power supply", voltage_left)
-            gui_web.send({"command": "info", "value": "Levi kos zaznan na napetosti {}V" . format(voltage_left)})
+            gui_web.send({"command": "info", "nest": 0, "value": "Zaznan kos na napetosti {}V" . format(voltage_left)})
         else:
-            gui_web.send({"command": "info", "value": "Ni zaznanega levega kosa: {}V" . format(voltage_left)})
+            gui_web.send({"command": "info", "nest": 0, "value": "Ni zaznanega kosa: {}V" . format(voltage_left)})
 
-        if strips_tester.data['exist_left']:
+        if strips_tester.data['exist'][0]:
             trimmer_left = self.measure_voltage("M7", "L4")
-            angle = (trimmer_left / voltage_left) * 100.0
+            angle = round((trimmer_left / voltage_left) * 100.0,2)
             # print("Trimmer: {}%, {}V" . format(int(angle),trimmer_left))
 
             if angle < 5 or angle > 95:
                 if angle > 95:
                     flip_left = True
 
-                #self.flash_process.start()
+                self.flash_process.start()
 
                 capacitor_left = self.measure_voltage("M7", "M1")
                 if self.in_range(capacitor_left, 1.8, 10):
-                    module_logger.info("capacitor voltage in bounds: meas:%sV", capacitor_left)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti vCap na levem kosu: {}V" . format(capacitor_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vCap'] = [capacitor_left, True, "V"]
-                    self.measurement_results["cap_left"] = [capacitor_left, "ok", 0, "V"]
+                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti vCap na levem kosu: {}V" . format(capacitor_left)})
+
+                    self.add_measurement(0, True, "vCap", capacitor_left,"V")
                 else:
-                    strips_tester.data['status_left'] = 0
-                    strips_tester.data['status'][0] = False
+                    self.add_measurement(0, False, "vCap", capacitor_left, "V")
                     module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_left)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti vCap na levem kosu je izven območja: {}V" . format(capacitor_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vCap'] = [capacitor_left, False, "V"]
-                    self.measurement_results["cap_left"] = [capacitor_left, "fail", 0, "V"]
+                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti vCap na levem kosu je izven območja: {}V" . format(capacitor_left)})
 
                 vr1_left = self.measure_voltage("L3", "M5")
                 if self.in_range(vr1_left, -1.9, 0.2, False):
-                    module_logger.info("R1 voltage in bounds: meas:%sV", vr1_left)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti R1 na levem kosu: {}V" . format(vr1_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vR1'] = [vr1_left, True, "V"]
-                    self.measurement_results["vR1_left"] = [vr1_left, "ok", 0, "V"]
+                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti R1 na levem kosu: {}V" . format(vr1_left)})
+                    self.add_measurement(0, True, "vR1", vr1_left, "V")
                 else:
-                    strips_tester.data['status_left'] = 0
-                    strips_tester.data['status'][0] = False
                     module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_left)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti R1 na levem kosu je izven območja: {}V" . format(vr1_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vR1'] = [vr1_left, False, "V"]
-                    self.measurement_results["vR1_left"] = [vr1_left, "fail", 0, "V"]
+                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti R1 na levem kosu je izven območja: {}V" . format(vr1_left)})
+
+                    self.add_measurement(0, False, "vR1", vr1_left, "V")
 
                 resistor_left = self.measure_voltage("L4", "M5")
                 expected_voltage = - voltage_left + trimmer_left
 
                 if self.in_range(resistor_left, expected_voltage, 1, False):  # Should be in absolute (not in percent)
                     module_logger.info("R2 voltage in bounds: meas:%sV", resistor_left)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti R2 na levem kosu: {}V" . format(resistor_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vR2'] = [resistor_left, True, "V"]
-                    self.measurement_results["vR2_left"] = [resistor_left, "ok", 0, "V"]
+                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti R2 na levem kosu: {}V" . format(resistor_left)})
+
+                    self.add_measurement(0, True, "vR2", resistor_left, "V")
                 else:
-                    strips_tester.data['status_left'] = 0
-                    strips_tester.data['status'][0] = False
                     module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_left)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti R2 na levem kosu je izven območja: {}V" . format(resistor_left)})
-                    strips_tester.data['measurement'][0][type(self).__name__]['vR2'] = [resistor_left, False, "V"]
-                    self.measurement_results["vR2_left"] = [resistor_left, "fail", 5, "V"]
+                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti R2 na levem kosu je izven območja: {}V" . format(resistor_left)})
+                    self.add_measurement(0, False, "vR2", resistor_left, "V", True)
                     stop = True  # Can't determine trimmer position
 
                 # Wait flashing to be done.
-                #self.flash_process.join()
+                self.flash_process.join()
             else:
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
                 module_logger.error("left trimmer not in end position! ({}%)".format(angle))
-                gui_web.send({"command": "error", "value": "Potenciometer na levem kosu ni na končnem položaju ({}%)." . format(angle)})
-                strips_tester.data['measurement'][0][type(self).__name__]['trimmer'] = [angle, False, "deg"]
-                self.measurement_results["trimmer_left"] = [angle, "fail", 5, "deg"]
+                gui_web.send({"command": "error", "nest": 0, "value": "Potenciometer na levem kosu ni na končnem položaju ({}%)." . format(angle)})
+
+                self.add_measurement(0, False, "Trimmer", angle, "deg", True)
                 stop = True
         else:
-            gui_web.send({"command": "semafor", "which": 1, "value": (0, 0, 0)})
+            gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0)})
 
         # Make process for right side programming
-        #self.flash_process = multiprocessing.Process(target=self.flashMCU)
+        self.flash_process = threading.Thread(target=self.flashMCU, args=(1,))
 
         # 5V right
         self.shifter.set("K10", True)  # Segger SWIM Right
@@ -322,80 +229,70 @@ class InitialTest(Task):
         gui_web.send({"command": "status", "value": "Detekcija desnega kosa..."})
         voltage_right = self.measure_voltage("L11", "L7")
         if self.in_range(voltage_right, 4.8, 10):
-            strips_tester.data['exist_right'] = True
             strips_tester.data['exist'][1] = True
 
             module_logger.info("right product detected with %sV of power supply", voltage_right)
-            gui_web.send({"command": "info", "value": "Desni kos zaznan na napetosti {}V" . format(voltage_right)})
+            gui_web.send({"command": "info", "nest": 1, "value": "Zaznan kos na napetosti {}V" . format(voltage_right)})
         else:
-            gui_web.send({"command": "info", "value": "Ni zaznanega desnega kosa: {}V" . format(voltage_right)})
+            gui_web.send({"command": "info", "nest": 1, "value": "Ni zaznanega kosa: {}V" . format(voltage_right)})
 
-        if strips_tester.data['exist_right']:
+        if strips_tester.data['exist'][1]:
             trimmer_right = self.measure_voltage("K8", "L11")
-            angle = (trimmer_right / voltage_right) * 100.0
-            print("Trimmer: {}%, {}V".format(int(angle), trimmer_right))
+            angle = round((trimmer_right / voltage_right) * 100.0,2)
+            #print("Trimmer: {}%, {}V".format(int(angle), trimmer_right))
 
             if angle < 5 or angle > 95:
                 if angle > 95:
                     flip_right = True
 
-                #self.flash_process.start()
+                self.flash_process.start()
 
                 capacitor_right = self.measure_voltage("L5", "L11")
                 if self.in_range(capacitor_right, 1.8, 10):
                     module_logger.info("capacitor voltage in bounds: meas:%sV", capacitor_right)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti vCap na desnem kosu: {}V" . format(capacitor_right)})
-                    self.measurement_results["cap_right"] = [capacitor_right, "ok", 0, "V"]
-                    strips_tester.data['measurement'][1][type(self).__name__]['vCap'] = [capacitor_right, True, "V"]
+                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti vCap na desnem kosu: {}V" . format(capacitor_right)})
+
+                    self.add_measurement(1, True, "vCap", capacitor_right, "V")
                 else:
-                    strips_tester.data['status_right'] = 0
                     module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_right)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti vCap na desnem kosu je izven območja: {}V" . format(capacitor_right)})
-                    strips_tester.data['measurement'][1][type(self).__name__]['vCap'] = [capacitor_right, False, "V"]
-                    self.measurement_results["cap_right"] = [capacitor_right, "fail", 0, "V"]
+                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti vCap na desnem kosu je izven območja: {}V" . format(capacitor_right)})
+                    self.add_measurement(1, False, "vCap", capacitor_right, "V")
 
                 vr1_right = self.measure_voltage("K7", "L9")
                 if self.in_range(vr1_right, -1.9, 0.2, False):
                     module_logger.info("R1 voltage in bounds: meas:%sV", vr1_right)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti R1 na desnem kosu: {}V" . format(vr1_right)})
-                    strips_tester.data['measurement'][1][type(self).__name__]['vR1'] = [vr1_right, True, "V"]
-                    self.measurement_results["vR1_right"] = [vr1_right, "ok", 0, "V"]
+                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu: {}V" . format(vr1_right)})
+
+                    self.add_measurement(1, True, "vR1", vr1_right, "V")
                 else:
-                    strips_tester.data['status_right'] = 0
                     module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_right)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(vr1_right)})
-                    strips_tester.data['measurement'][1][type(self).__name__]['vR1'] = [vr1_right, False, "V"]
-                    self.measurement_results["vR1_right"] = [vr1_right, "fail", 0, "V"]
+                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(vr1_right)})
+                    self.add_measurement(1, False, "vR1", vr1_right, "V")
 
                 resistor_right = self.measure_voltage("K8", "L9")
                 expected_voltage = - voltage_right + trimmer_right
-                print("EXPECTED_RIGHT: {}".format(expected_voltage))
+                #print("EXPECTED_RIGHT: {}".format(expected_voltage))
 
                 if self.in_range(resistor_right, expected_voltage, 1, False):  # Should be in absolute (not in percent)
                     module_logger.info("R2 voltage in bounds: meas:%sV", resistor_right)
-                    gui_web.send({"command": "info", "value": "Meritev napetosti R2 na desnem kosu: {}V" . format(resistor_right)})
-                    strips_tester.data['measurement'][1][type(self).__name__]['vR2'] = [resistor_right, True, "V"]
-                    self.measurement_results["vR2_right"] = [resistor_right, "ok", 0, "V"]
+                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti R2 na desnem kosu: {}V" . format(resistor_right)})
+                    self.add_measurement(1, True, "vR2", resistor_right, "V")
                 else:
-                    strips_tester.data['status_right'] = 0
                     module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_right)
-                    gui_web.send({"command": "error", "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(resistor_right)})
-                    strips_tester.data['measurement'][1][type(self).__name__]['vR2'] = [resistor_right, False, "V"]
-                    self.measurement_results["vR2_right"] = [resistor_right, "fail", 5, "V"]
+                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(resistor_right)})
+                    self.add_measurement(1, False, "vR2", resistor_right, "V", True)
                     stop = True  # Can't determine trimmer position
 
                 # Wait flashing to be done.
-                #self.flash_process.join()
+                self.flash_process.join()
             else:
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
                 module_logger.error("right trimmer not in end position! ({}%)".format(angle))
-                gui_web.send({"command": "error", "value": "Potenciometer na desnem kosu ni na končnem položaju ({}%)." . format(angle)})
-                strips_tester.data['measurement'][1][type(self).__name__]['trimmer'] = [angle, False, "deg"]
-                self.measurement_results["trimmer_right"] = [angle, "fail", 5, "deg"]
+                gui_web.send({"command": "error", "nest": 1, "value": "Potenciometer na desnem kosu ni na končnem položaju ({}%)." . format(angle)})
+                self.add_measurement(1, False, "Trimmer", angle, "deg", True)
+
                 stop = True
         else:
-            gui_web.send({"command": "semafor", "which": 2, "value": (0, 0, 0)})
+            gui_web.send({"command": "semafor", "nest": 1, "value": (0, 0, 0)})
 
         gui_web.send({"command": "status", "value": "Kalibracija..."})
 
@@ -412,33 +309,17 @@ class InitialTest(Task):
         if not stop:
             if flip_left and flip_right:
                 # Flip both servos
-                self.nanoboard_small.write("servo 3 100")
+                self.nanoboard_small.write("servo 3 100", 10)
             else:
                 if flip_left:
                     # Flip left
-                    self.nanoboard_small.write("servo 1 100")
+                    self.nanoboard_small.write("servo 1 100", 10)
 
                 if flip_right:
                     # Flip right
-                    self.nanoboard_small.write("servo 2 100")
+                    self.nanoboard_small.write("servo 2 100", 10)
 
-        '''
-        if strips_tester.data['exist_left']:
-            angle = (trimmer_left / voltage_left) * 100.0
-
-            print("rotate left to {}" . format(int(angle)))
-            self.nanoboard_small.servo(1, int(angle))
-
-        if strips_tester.data['exist_right']:
-            angle = (trimmer_right / voltage_right) * 100.0
-            print("rotate right to {}" . format(int(angle)))
-            self.nanoboard_small.servo(2, int(angle))
-        '''
-
-        # Upoštevaj flip! (zato se servo ne obrne desni!) (ce je angle  vecji 50)
-        # Platforma naj ostane gor
-
-        return self.measurement_results
+        return
 
     def power_on(self):
         GPIO.output(gpios['POWER'], GPIO.HIGH)
@@ -447,7 +328,7 @@ class InitialTest(Task):
         GPIO.output(gpios['POWER'], GPIO.LOW)
 
     def calibration(self):
-        self.nanoboard_small.write("calibrate")
+        self.nanoboard_small.write("calibrate", 10)
 
     def measure_voltage(self, testpad1, testpad2):
         self.shifter.set(testpad1, True)
@@ -477,16 +358,24 @@ class InitialTest(Task):
         else:
             return False
 
-    def flashMCU(self):  # functional
-        status = self.segger.download()
+    def flashMCU(self, nest):  # functional
+
+        GPIO.output(gpios['SEGGER_RELAY'], GPIO.LOW)
+
         gui_web.send({"command": "status", "value": "Programiranje..."})
 
+        status = self.segger.download()
+
         if status:
-            module_logger.info("flashing ok ({})".format(strips_tester.data['program_number']))
-            gui_web.send({"command": "info", "value": "Programiranje uspelo {}." . format(strips_tester.data['program_number'])})
+            module_logger.info("flashing ok ({})".format(get_program_number()))
+            gui_web.send({"command": "info", "nest": nest, "value": "Programiranje uspelo {}." . format(get_program_number())})
+            self.add_measurement(nest, True, "Flashing", get_program_number())
         else:
-            module_logger.warning("error flashing ({})".format(strips_tester.data['program_number']))
-            gui_web.send({"command": "error", "value": "Programiranje ni uspelo {}." . format(strips_tester.data['program_number'])})
+            module_logger.warning("error flashing ({})".format(get_program_number()))
+            gui_web.send({"command": "error", "nest": nest, "value": "Programiranje ni uspelo {}." . format(get_program_number())})
+            self.add_measurement(nest, False, "Flashing", get_program_number())
+
+        GPIO.output(gpios['SEGGER_RELAY'], GPIO.HIGH)
 
         return status
 
@@ -500,9 +389,6 @@ class InitialTest(Task):
 
 # Perform resistance test and trimmer zeroing
 class ICT_ResistanceTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
@@ -514,17 +400,15 @@ class ICT_ResistanceTest(Task):
             except Exception:
                 time.sleep(0.2)
 
-        self.measurement_results = {}
-        for current_nest in range(strips_tester.data['test_device_nests']):
-            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
-
     def run(self) -> (bool, str):
         if not lid_closed():
             gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
-            return {"signal": [0, "fail", 5, "NA"]}
+            self.end_test()
+            return
 
-        if not strips_tester.data['exist_right'] and not strips_tester.data['exist_left']:
-            return {"signal": [0, "fail", 5, "no products exist"]}
+        if not strips_tester.data['exist'][0] and not strips_tester.data['exist'][1]:  # Move to the next task if no products
+            self.end_test()
+            return
 
         gui_web.send({"command": "status", "value": "ICT Meritev upornosti..."})
 
@@ -536,79 +420,77 @@ class ICT_ResistanceTest(Task):
         self.servo_thread = threading.Thread(target=self.zero_trimmers)
         self.servo_thread.start()
 
-        gui_web.send({"command": "progress", "value": "10"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "10"})
 
         self.power_off()  # Just to make sure
         self.make_short("M5", "M7")  # We make sure capacitors are discharged
         self.make_short("L9", "L7")  # We make sure capacitors are discharged
 
-        if strips_tester.data['exist_left'] and strips_tester.data['status_left'] != 0:
+        if self.is_product_ready(0):
             self.shifter.set("K13", True)  # Segger VCC Right
             self.shifter.set("K14", True)  # Segger GND Right
             self.shifter.set("K12", True)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            r3_left = self.measure_resistance("R3_left", "L2", "M13", 47, 30)
-            r9_left = self.measure_resistance("R9_left", "M16", "M9", 180)
-            r8_left = self.measure_resistance("R8_left", "M10", "M8", 220)
+            self.measure_resistance(0,"R3", "L2", "M13", 47, 30)
+            self.measure_resistance(0,"R9", "M16", "M9", 180)
+            self.measure_resistance(0,"R8", "M10", "M8", 220)
 
-        gui_web.send({"command": "progress", "value": "15"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "15"})
 
-        if strips_tester.data['exist_right'] and strips_tester.data['status_right'] != 0:
+        if self.is_product_ready(1):
             self.shifter.set("K13", False)  # Segger VCC Right
             self.shifter.set("K14", False)  # Segger GND Right
             self.shifter.set("K12", False)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            r3_right = self.measure_resistance("R3_right", "K6", "L16", 47, 30)
-            r9_right = self.measure_resistance("R9_right", "L13", "K4", 180)
-            r8_right = self.measure_resistance("R8_right", "K3", "L12", 220)
+            self.measure_resistance(1,"R3", "K6", "L16", 47, 30)
+            self.measure_resistance(1,"R9", "L13", "K4", 180)
+            self.measure_resistance(1,"R8", "K3", "L12", 220)
 
-            r4_right = self.measure_resistance("R4_right", "L15", "K6", 220000)
-            r5_right = self.measure_resistance("R5_right", "L14", "K5", 220000)
+            self.measure_resistance(1,"R4", "L15", "K6", 220000)
+            self.measure_resistance(1,"R5", "L14", "K5", 220000)
 
-            if r3_right == -1 or r9_right == -1 or r8_right == -1 or r4_right == -1 or r5_right == -1:
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "20"})
 
-        gui_web.send({"command": "progress", "value": "20"})
-
-        if strips_tester.data['exist_left'] and strips_tester.data['status_left'] != 0:
+        if self.is_product_ready(0):
             self.shifter.set("K13", True)  # Segger VCC Right
             self.shifter.set("K14", True)  # Segger GND Right
             self.shifter.set("K12", True)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            r4_left = self.measure_resistance("R4_left", "L2", "M14", 220000)
-            r5_left = self.measure_resistance("R5_left", "L1", "M15", 220000)
+            self.measure_resistance(0,"R4", "L2", "M14", 220000)
+            self.measure_resistance(0,"R5", "L1", "M15", 220000)
 
-            if r3_left == -1 or r9_left == -1 or r8_left == -1 or r4_left == -1 or r5_left == -1:
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
-
-        gui_web.send({"command": "progress", "value": "25"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "25"})
         self.servo_thread.join()  # Wait until trimmers are zeroed
 
-        return self.measurement_results
+        return
 
     def zero_trimmers(self):
         # Assuming servos are already in position as the trimmers
-        self.nanoboard_small.write("move 20")
-
         # BUG -> if servo is over the 50, it wont turn
-        self.nanoboard_small.write("servo 3 0")  # Zero both servos
 
-        # Upoštevaj flip! (zato se servo ne obrne desni!) (ce je angle  vecji 50)
+        self.nanoboard_small.write("move 23", 10)
+        self.nanoboard_small.write("servo 3 0", 10)  # Zero both servos
+
         # Platforma naj ostane gor
 
         return
 
-    def measure_resistance(self, name, testpad1, testpad2, expected, tolerance=20):
+    def measure_resistance(self, nest, name, testpad1, testpad2, expected, tolerance=20):
+        if not self.is_product_ready(nest): # Skip other measurements
+            return
+
         self.shifter.set(testpad1, True)
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 20
+        num_of_tries = 10
 
         resistance = self.ohmmeter.read().numeric_val
         if resistance is None:
@@ -627,22 +509,15 @@ class ICT_ResistanceTest(Task):
             if not num_of_tries:
                 break
 
-        if "left" in name:
-            nest = 0
-        elif "right" in name:
-            nest = 1
-
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sohm", name, resistance)
-            gui_web.send({"command": "error", "value": "Meritev upornosti {} je izven območja: {}ohm".format(name,resistance)})
-            self.measurement_results[name] = [resistance, "fail", 0, "ohm"]
-            strips_tester.data['measurement'][nest][type(self).__name__][name] = [resistance, False, "ohm"]
+            gui_web.send({"command": "error", "nest": nest, "value": "Meritev upornosti {} je izven območja: {}ohm".format(name,resistance)})
+            self.add_measurement(nest, False, name, resistance, "ohm")
             resistance = -1
         else:
             module_logger.info("%s in bounds: meas:%sohm", name, resistance)
-            gui_web.send({"command": "info", "value": "Meritev upornosti {}: {}ohm".format(name,resistance)})
-            self.measurement_results[name] = [resistance, "ok", 0, "ohm"]
-            strips_tester.data['measurement'][nest][type(self).__name__][name] = [resistance, True, "ohm"]
+            gui_web.send({"command": "info", "nest": nest, "value": "Meritev upornosti {}: {}ohm".format(name,resistance)})
+            self.add_measurement(nest, True, name, resistance, "ohm")
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
@@ -685,18 +560,16 @@ class ICT_ResistanceTest(Task):
 
 # Perform voltage and visual test
 class ICT_VoltageVisualTest(Task):
-    def __init__(self):
-        super().__init__(strips_tester.CRITICAL)
-
     def set_up(self):
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)  # Rectified DC Voltage
+        for i in range(3):
+            try:
+                self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-B5E9C.voltage1", 0.16)  # Rectified DC Voltage
+                break
+            except Exception:
+                time.sleep(0.2)
+
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
-
-        self.measurement_results = {}
-        for current_nest in range(strips_tester.data['test_device_nests']):
-            strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
-
         self.led_gpio = [40, 37, 38, 35, 36, 33]
 
         GPIO.setmode(GPIO.BOARD)
@@ -709,10 +582,12 @@ class ICT_VoltageVisualTest(Task):
     def run(self) -> (bool, str):
         if not lid_closed():
             gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!"})
-            return {"signal": [0, "fail", 5, "NA"]}
+            self.end_test()
+            return
 
-        if not strips_tester.data['exist_right'] and not strips_tester.data['exist_left']:
-            return {"signal": [0, "fail", 5, "no products exist"]}
+        if not self.is_product_ready(0) and not self.is_product_ready(1):  # Move to the next task if no products
+            self.end_test()
+            return
 
         gui_web.send({"command": "status", "value": "Vizualni pregled LED diod"})
 
@@ -722,165 +597,160 @@ class ICT_VoltageVisualTest(Task):
 
         self.power_off()  # We make sure that test device is galvanic isolated from product
         self.shifter.set("K11", False)  # Segger RESET disable (so both MCU are running)
+
         self.shifter.invertShiftOut()
 
+        GPIO.output(gpios['SEGGER_RELAY'],GPIO.HIGH)
+        time.sleep(0.5)
+
         # skleni L, N
-        self.shifter.set("K16", True)  # L
-        self.shifter.set("K15", True)  # N
-        self.shifter.invertShiftOut()
+
+
+
+        GPIO.output(gpios['LN_RELAY'],GPIO.LOW)
+
+
+
+
+
+        #self.shifter.set("K16", True)  # L
+        #self.shifter.set("K15", True)  # N
+        #self.shifter.invertShiftOut()
 
         module_logger.info("VISUAL TEST STARTING...")
         # Initiate ICT voltage test
         self.ict_thread = threading.Thread(target=self.ICTVoltageACTest)
         self.ict_thread.start()
 
-        gui_web.send({"command": "progress", "value": "30"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "30"})
+
         visual_start = self.check_mask([0, 0, 1], 7)
 
-        if strips_tester.data['exist_left']:
+        if self.is_product_ready(0):
             if not visual_start[0]:
                 module_logger.error("VisualStart LEFT")
-                self.measurement_results['visualStart_left'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualStart'] = [visual_start[0], False, "N/A"]
-                gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualStart)"})
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
+                gui_web.send({"command": "error", "nest": 0, "value": "Napaka LED diod na levem kosu (VisualStart)"})
             else:
                 module_logger.info("VisualStart LEFT")
-                gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualStart) ustrezen"})
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualStart'] = [visual_start[0], True, "N/A"]
-                self.measurement_results['visualStart_left'] = [1, "ok", 0, "N/A"]
+                gui_web.send({"command": "info", "nest": 0, "value": "Test LED diod na levem kosu (VisualStart) ustrezen"})
 
-        if strips_tester.data['exist_right']:
+            self.add_measurement(0, visual_start[0], "VisualStart", visual_start[0], "")
+
+        if self.is_product_ready(1):
             if not visual_start[1]:
                 module_logger.error("VisualStart RIGHT")
-                self.measurement_results['visualStart_right'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualStart'] = [visual_start[1], False, "N/A"]
-                gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualStart)"})
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
+                gui_web.send({"command": "error", "nest": 1, "value": "Napaka LED diod na desnem kosu (VisualStart)"})
             else:
                 module_logger.info("VisualStart RIGHT")
-                gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualStart) ustrezen"})
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualStart'] = [visual_start[1], True, "N/A"]
-                self.measurement_results['visualStart_right'] = [1, "ok", 0, "N/A"]
-        
+                gui_web.send({"command": "info", "nest": 1, "value": "Test LED diod na desnem kosu (VisualStart) ustrezen"})
+
+            self.add_measurement(1, visual_start[1], "VisualStart", visual_start[1], "")
+
         # Wait until leds are off
         visual_off = self.check_mask([1, 1, 1], 4)
-        gui_web.send({"command": "progress", "value": "40"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "40"})
 
-        if strips_tester.data['exist_left']:
+        if self.is_product_ready(0):
             if not visual_off[0]:
                 module_logger.error("VisualOff LEFT")
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
-                gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualOff)"})
+                gui_web.send({"command": "error", "nest": 0, "value": "Napaka LED diod na levem kosu (VisualOff)"})
+                self.add_measurement(0, False, "VisualOff", "Led stays on", "")
             else:
                 module_logger.info("VisualOff LEFT")
-                gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualOff) ustrezen"})
+                gui_web.send({"command": "info", "nest": 0, "value": "Test LED diod na levem kosu (VisualOff) ustrezen"})
 
-        if strips_tester.data['exist_right']:
+        if self.is_product_ready(1):
             if not visual_off[1]:
                 module_logger.error("VisualOff RIGHT")
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
-                gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualOff)"})
+                gui_web.send({"command": "error", "nest": 1, "value": "Napaka LED diod na desnem kosu (VisualOff)"})
+                self.add_measurement(1, False, "VisualOff", "Led stays on", "")
             else:
                 module_logger.info("VisualOff RIGHT")
-                gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualOff) ustrezen"})
+                gui_web.send({"command": "info", "nest": 1, "value": "Test LED diod na desnem kosu (VisualOff) ustrezen"})
 
         # Check for errors
         visual_err = self.check_mask([0, 1, 1], 1)
-        gui_web.send({"command": "progress", "value": "50"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "50"})
 
-        if strips_tester.data['exist_left']:
+        if self.is_product_ready(0):
             if visual_err[0]:
                 module_logger.info("VisualError LEFT")
-                self.measurement_results['visualOff_left'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualOff'] = [visual_off[0], False, "N/A"]
-                gui_web.send({"command": "error", "value": "Napaka LED diod na level kosu (VisualError)"})
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
+                gui_web.send({"command": "error", "nest": 0, "value": "Napaka LED diod na level kosu (VisualError)"})
+                self.add_measurement(0, False, "VisualOff", "Led in error state", "")
             else:
-                self.measurement_results['visualOff_left'] = [1, "ok", 0, "N/A"]
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualOff'] = [visual_off[0], True, "N/A"]
-                gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualError) ustrezen"})
+                gui_web.send({"command": "info", "nest": 0, "value": "Test LED diod na levem kosu (VisualError) ustrezen"})
+                self.add_measurement(0, True, "VisualOff", "OK", "")
 
-        if strips_tester.data['exist_right']:
+        if self.is_product_ready(1):
             if visual_err[1]:
                 module_logger.info("VisualError RIGHT")
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualOff'] = [visual_off[1], False, "N/A"]
-                self.measurement_results['visualOff_right'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
-                gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualError)"})
+                self.add_measurement(1, False, "VisualOff", "Led in error state", "")
+                gui_web.send({"command": "error", "nest": 1, "value": "Napaka LED diod na desnem kosu (VisualError)"})
             else:
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualOff'] = [visual_off[1], True, "N/A"]
-                self.measurement_results['visualOff_right'] = [1, "ok", 0, "N/A"]
-                gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualError) ustrezen"})
+                self.add_measurement(1, True, "VisualOff", "OK", "")
+                gui_web.send({"command": "info", "nest": 1, "value": "Test LED diod na desnem kosu (VisualError) ustrezen"})
 
-        self.nanoboard_small.write("servo 3 100")
-        self.nanoboard_small.write("move 0")
+        self.nanoboard_small.write("servo 3 100", 10)
+        self.nanoboard_small.write("move 0", 10)
 
         visual_on = self.check_mask([0, 0, 0], 5)
-        gui_web.send({"command": "progress", "value": "60"})
 
-        if strips_tester.data['exist_left']:
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "60"})
+
+        if self.is_product_ready(0):
             if not visual_on[0]:
                 module_logger.error("VisualOn LEFT")
-                self.measurement_results['visualOn_left'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualOn'] = [visual_on[0], False, "N/A"]
-                gui_web.send({"command": "error", "value": "Napaka LED diod na levem kosu (VisualOn)"})
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
+                gui_web.send({"command": "error", "nest": 0, "value": "Napaka LED diod na levem kosu (VisualOn)"})
             else:
                 module_logger.info("VisualOn LEFT")
-                self.measurement_results['visualOn_left'] = [1, "ok", 0, "N/A"]
-                strips_tester.data['measurement'][0][type(self).__name__]['VisualOn'] = [visual_on[0], True, "N/A"]
-                gui_web.send({"command": "info", "value": "Test LED diod na levem kosu (VisualOn) ustrezen"})
+                gui_web.send({"command": "info", "nest": 0, "value": "Test LED diod na levem kosu (VisualOn) ustrezen"})
 
-        if strips_tester.data['exist_right']:
+            self.add_measurement(0, visual_on[0], "VisualOn", visual_on[0], "")
+
+        if self.is_product_ready(1):
             if not visual_on[1]:
                 module_logger.error("VisualOn RIGHT")
-                self.measurement_results['visualOn_right'] = [0, "fail", 0, "N/A"]
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualOn'] = [visual_on[1], False, "N/A"]
-                gui_web.send({"command": "error", "value": "Napaka LED diod na desnem kosu (VisualOn)"})
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
+                gui_web.send({"command": "error", "nest": 1, "value": "Napaka LED diod na desnem kosu (VisualOn)"})
             else:
                 module_logger.info("VisualOn RIGHT")
-                self.measurement_results['visualOn_right'] = [1, "ok", 0, "N/A"]
-                strips_tester.data['measurement'][1][type(self).__name__]['VisualOn'] = [visual_on[1], True, "N/A"]
-                gui_web.send({"command": "info", "value": "Test LED diod na desnem kosu (VisualOn) ustrezen"})
+                gui_web.send({"command": "info", "nest": 1, "value": "Test LED diod na desnem kosu (VisualOn) ustrezen"})
+
+            self.add_measurement(1, visual_on[1], "VisualOn", visual_on[1], "")
 
         self.ict_thread.join()  # Wait until ICT voltage test is finished
-        gui_web.send({"command": "progress", "value": "70"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "70"})
 
         # razkleni L, N
-        self.shifter.set("K16", False)  # L
-        self.shifter.set("K15", False)  # N
-        self.shifter.invertShiftOut()
+        #self.shifter.set("K16", False)  # L
+        #self.shifter.set("K15", False)  # N
+        GPIO.output(gpios['LN_RELAY'], GPIO.HIGH)
+        #self.shifter.invertShiftOut()
 
-        return self.measurement_results
+        return
 
     def ICTVoltageACTest(self):
-        if strips_tester.data['exist_left']:
-            voltage_5v = self.measure_voltage("5V_left", "M3", "M7", 4.7, 0.3)
-            voltage_d1 = self.measure_voltage("D1_left", "M4", "M7", 2.3, 0.3)
-            voltage_z1 = self.measure_voltage("Z1_left", "M4", "M5", -2.3, 0.3)
+        if self.is_product_ready(0):
+            self.measure_voltage(0,"5V", "M3", "M7", 4.7, 0.3)
+            self.measure_voltage(0,"D1", "M4", "M7", 2.3, 0.4)
+            self.measure_voltage(0,"Z1", "M4", "M5", -2.3, 0.4)
+            #
+            # if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
+            #     strips_tester.data['status_left'] = 0
+            #     strips_tester.data['status'][0] = False
 
-            if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
-                strips_tester.data['status_left'] = 0
-                strips_tester.data['status'][0] = False
-
-        if strips_tester.data['exist_right']:
-            voltage_5v = self.measure_voltage("5V_right", "L7", "L11", 4.7, 0.3)
-            voltage_d1 = self.measure_voltage("D1_right", "L8", "L11", 2.3, 0.3)
-            voltage_z1 = self.measure_voltage("Z1_right", "L8", "L9", -2.3, 0.3)
-
-            if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
-                strips_tester.data['status_right'] = 0
-                strips_tester.data['status'][1] = False
+        if self.is_product_ready(1):
+            self.measure_voltage(1,"5V", "L7", "L11", 4.7, 0.3)
+            self.measure_voltage(1,"D1", "L8", "L11", 2.3, 0.4)
+            self.measure_voltage(1,"Z1", "L8", "L9", -2.3, 0.4)
+            #
+            # if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
+            #     strips_tester.data['status_right'] = 0
+            #     strips_tester.data['status'][1] = False
 
     def check_mask(self, mask=[], duration=0):
         end_time = datetime.datetime.now() + datetime.timedelta(seconds=duration)
@@ -900,7 +770,7 @@ class ICT_VoltageVisualTest(Task):
 
             time.sleep(0.05)
 
-            result = [not strips_tester.data['exist_left'], not strips_tester.data['exist_right']]
+            result = [not strips_tester.data['exist'][0], not strips_tester.data['exist'][1]]
 
             for mask_num in range(2):
                 # print(mask[mask_num * 3:mask_num * 3 + 3])
@@ -920,7 +790,10 @@ class ICT_VoltageVisualTest(Task):
     def power_off(self):
         GPIO.output(gpios['POWER'], GPIO.LOW)
 
-    def measure_voltage(self, name, testpad1, testpad2, expected, tolerance=15):
+    def measure_voltage(self, nest, name, testpad1, testpad2, expected, tolerance=15):
+        if not self.is_product_ready(nest):
+            return
+
         self.shifter.set(testpad1, True)
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
@@ -940,22 +813,15 @@ class ICT_VoltageVisualTest(Task):
             if not num_of_tries:
                 break
 
-        if "left" in name:
-            nest = 0
-        elif "right" in name:
-            nest = 1
-
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sV", name, voltage)
-            gui_web.send({"command": "error", "value": "Meritev napetosti {} je izven območja: {}V" . format(name,voltage)})
-            self.measurement_results[name] = [voltage, "fail", 0, "V"]
-            strips_tester.data['measurement'][nest][type(self).__name__][name] = [voltage, False, "V"]
+            gui_web.send({"command": "error", "nest": nest, "value": "Meritev napetosti {} je izven območja: {}V" . format(name,voltage)})
+            self.add_measurement(nest, False, name, voltage, "V")
             voltage = -1
         else:
             module_logger.info("%s in bounds: meas:%sV", name, voltage)
-            gui_web.send({"command": "info", "value": "Meritev napetosti {}: {}V" . format(name,voltage)})
-            self.measurement_results[name] = [voltage, "ok", 0, "V"]
-            strips_tester.data['measurement'][nest][type(self).__name__][name] = [voltage, True, "V"]
+            gui_web.send({"command": "info", "nest": nest, "value": "Meritev napetosti {}: {}V" . format(name,voltage)})
+            self.add_measurement(nest, True, name, voltage, "V")
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
@@ -983,9 +849,6 @@ class ICT_VoltageVisualTest(Task):
         self.nanoboard_small.close()
 
 class ProductConfigTask(Task):
-    def __init__(self):
-        super().__init__(strips_tester.ERROR)
-
     def set_up(self):
         module_logger.debug("ProductConfigTask init")
 
@@ -993,88 +856,94 @@ class ProductConfigTask(Task):
         for current_nest in range(strips_tester.data['test_device_nests']):
             if strips_tester.data['exist'][current_nest]:
                 if strips_tester.data['status'][current_nest] == -1:
-                    strips_tester.data['status'][current_nest] = 1
+                    strips_tester.data['status'][current_nest] = True
 
-        if strips_tester.data['exist_left']:
-            if strips_tester.data['status_left'] == -1:  # untested prodcut became tested
-                strips_tester.data['status_left'] = 1
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "80"})
 
-        if strips_tester.data['exist_right']:
-            if strips_tester.data['status_right'] == -1:
-                strips_tester.data['status_right'] = 1
-
-        gui_web.send({"command": "progress", "value": "80"})
-        return {"signal": [1, 'ok', 0, 'NA']}
+        return
 
     def tear_down(self):
         pass
 
 class FinishProcedureTask(Task):
-    def __init__(self):
-        super().__init__(strips_tester.ERROR)
-
     def set_up(self):
         module_logger.debug("FinishProcedureTask init")
 
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
-        self.lightboard = devices.MCP23017(0x25)
 
     def run(self):
-        strips_tester.data['result_ok'] = 0
-        strips_tester.data['result_fail'] = 0
-
-        gui_web.send({"command": "progress", "value": "90"})
-
         for i in range(2):
-            gui_web.send({"command": "semafor", "which": i + 1, "value": (0, 0, 0)})
-            gui_web.send({"command": "blink", "which": i + 1, "value": (0, 0, 0)})
+            gui_web.send({"command": "semafor", "nest": i, "value": (0, 0, 0), "blink": (0, 0, 0)})
+            gui_web.send({"command": "progress", "nest": i, "value": "95"})
 
-        self.lightboard.clear_bit(self.lightboard.LEFT_YELLOW)
-        self.lightboard.clear_bit(self.lightboard.RIGHT_YELLOW)
 
-        if strips_tester.data['exist_left']:
-            if strips_tester.data['status_left'] == 1:  # test ok
-                strips_tester.data['result_ok'] += 1
+        GPIO.output(gpios['GREEN_LEFT'], False)
+        GPIO.output(gpios['RED_LEFT'], False)
+        GPIO.output(gpios['GREEN_RIGHT'], False)
+        GPIO.output(gpios['RED_RIGHT'], False)
 
-                # Turn left green on
-                self.lightboard.set_bit(self.lightboard.LEFT_GREEN)
-                gui_web.send({"command": "semafor", "which": 1, "value": (0, 0, 1)})
-            elif strips_tester.data['status_left'] == 0:  # test fail
-                strips_tester.data['result_fail'] += 1
+        GPIO.output(gpios['BUZZER'], True)
 
-                self.lightboard.set_bit(self.lightboard.LEFT_RED)
-                self.lightboard.set_bit(self.lightboard.BUZZER)
-                gui_web.send({"command": "semafor", "which": 1, "value": (1, 0, 0)})
+        if strips_tester.data['exist'][0]:
+            if strips_tester.data['status'][0] == True:
+                GPIO.output(gpios['GREEN_LEFT'], True)
+                gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 1)})
+            elif strips_tester.data['status'][0] == False:
+                GPIO.output(gpios['RED_LEFT'], True)
+                gui_web.send({"command": "semafor", "nest": 0, "value": (1, 0, 0)})
 
-        if strips_tester.data['exist_right']:
-            if strips_tester.data['status_right'] == 1:  # test ok
-                strips_tester.data['result_ok'] += 1
+        if strips_tester.data['exist'][1]:
+            if strips_tester.data['status'][1] == True:
+                GPIO.output(gpios['GREEN_RIGHT'], True)
+                gui_web.send({"command": "semafor", "nest": 1, "value": (0, 0, 1)})
+            elif strips_tester.data['status'][1] == False:
+                GPIO.output(gpios['RED_RIGHT'], True)
+                gui_web.send({"command": "semafor", "nest": 1, "value": (1, 0, 0)})
 
-                # Turn left green on
-                self.lightboard.set_bit(self.lightboard.RIGHT_GREEN)
-                gui_web.send({"command": "semafor", "which": 2, "value": (0, 0, 1)})
-            elif strips_tester.data['status_right'] == 0:  # test fail
-                strips_tester.data['result_fail'] += 1
-
-                self.lightboard.set_bit(self.lightboard.RIGHT_RED)
-                self.lightboard.set_bit(self.lightboard.BUZZER)
-                gui_web.send({"command": "semafor", "which": 2, "value": (1, 0, 0)})
         time.sleep(1)
 
-        # Turn buzzer off
-        self.lightboard.clear_bit(self.lightboard.BUZZER)
+        GPIO.output(gpios['BUZZER'], False)
 
-        return {"signal": [1, 'ok', 0, 'NA']}
+        while lid_closed():
+            time.sleep(0.01)
+
+        return
 
     def tear_down(self):
         self.shifter.reset()
 
-class PrintSticker(Task):
-    def __init__(self):
-        super().__init__(strips_tester.ERROR)
 
+
+class EndCalibration(Task):
+    # If mid-test fail, calibrate servos so they don't stay in the product
     def set_up(self):
-        self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
+
+        self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
+
+    def run(self):
+        self.nanoboard_small.write("calibrate", 10)
+        return
+
+    def tear_down(self):
+        self.nanoboard_small.close()
+
+
+
+class PrintSticker(Task):
+    def set_up(self):
+        self.godex_found = False
+        for i in range(10):
+            try:
+                self.godex = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
+                self.godex_found = True
+                break
+            except Exception as ee:
+                print(ee)
+
+                time.sleep(0.1)
+
+        #self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
 
     def run(self):
@@ -1082,43 +951,40 @@ class PrintSticker(Task):
         self.shifter.set("K9", False)
         self.shifter.invertShiftOut()
 
-        gui_web.send({"command": "progress", "value": "95"})
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "100"})
+            #gui_web.send({"command": "semafor", "nest": i, "blink": (0, 1, 0)})
 
         # wait for open lid
-        if not strips_tester.data['exist_right'] and not strips_tester.data['exist_left']:
+        if not strips_tester.data['exist'][0] and not strips_tester.data['exist'][1]:
             gui_web.send({"command": "status", "value": "Za konec testa odpri pokrov"})
             module_logger.info("Za konec testa odpri pokrov")
         else:
             module_logger.info("Za tiskanje nalepke odpri pokrov")
             gui_web.send({"command": "status", "value": "Za tiskanje nalepke odpri pokrov"})
 
-        while lid_closed():
-            time.sleep(0.01)
+        if not self.godex_found:
+            for current_nest in range(2):
+                if strips_tester.data['exist'][current_nest]:
+                    gui_web.send({"command": "error", "nest": current_nest, "value": "Tiskalnika ni mogoče najti!"})
+            return
 
         # Lid is now opened.
-        if strips_tester.data['exist_left']:
-            if strips_tester.data['status_left'] != -1:  # if product was tested
-
-                if strips_tester.data['exist_right'] and strips_tester.data['status_right'] != -1:
-                    module_logger.info("Prilepi prvo natiskano nalepko na LEVI kos.")
-
+        if strips_tester.data['exist'][0]:
+            if strips_tester.data['status'][0] != -1:  # if product was tested
                 try:
-                    self.print_sticker(strips_tester.data['status_left'])
+                    self.print_sticker(strips_tester.data['status'][0])
                 except Exception:
                     pass
 
-        if strips_tester.data['exist_right']:
-            if strips_tester.data['status_right'] != -1:  # if product was tested
-                if strips_tester.data['exist_left'] and strips_tester.data['status_left'] != -1:
-                    module_logger.info("Prilepi drugo natiskano nalepko na DESNI kos.")
-
+        if strips_tester.data['exist'][1]:
+            if strips_tester.data['status'][1] != -1:  # if product was tested
                 try:
-                    self.print_sticker(strips_tester.data['status_right'])
+                    self.print_sticker(strips_tester.data['status'][1])
                 except Exception:
                     pass
 
-        gui_web.send({"command": "progress", "value": "100"})
-        return {"signal": [1, 'ok', 0, 'NA']}
+        return
 
     def print_sticker(self, test_status):
         program = get_program_number()
@@ -1126,16 +992,18 @@ class PrintSticker(Task):
         code = {}
         code['S001'] = 435545
         code['S002'] = 552943
-        qc_id = -1
+        qc_id = strips_tester.data['worker_id']
 
         date = datetime.datetime.now().strftime("%d.%m.%Y")
 
-        if test_status == 1:  # Test OK
+        if test_status == True:  # Test OK
             inverse = '^L\r'
             darkness = '^H15\r'
-        else:  # Test FAIL
+        elif test_status == False:  # Test FAIL
             inverse = '^LI\r'
             darkness = '^H4\r'
+        else:
+            return
 
         if qc_id != -1:
             qc = "QC {}".format(qc_id)

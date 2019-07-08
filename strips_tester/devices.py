@@ -24,9 +24,9 @@ import collections
 import RPi.GPIO as GPIO
 import struct
 from smbus2 import SMBusWrapper
+import ina219
 
-module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
-from ina219 import INA219
+module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
 
 class Honeywell1400gHID(AbstractBarCodeScanner):
@@ -646,40 +646,20 @@ class SainBoard16:
         return result
 
 
+# Driver for voltmeter or ammeter INA219. Made by Marcel Jancar
 class INA219:
-    ADDR = 0x40
-    SHUNT_OHMS = 0.1
-    MAX_EXPECTED_AMPS = 0.2
-
     def __init__(self):
-        self.ina = INA219(INA219.SHUNT_OHMS, INA219.MAX_EXPECTED_AMPS, INA219.ADDR)
-        self.ina.configure(self.ina.RANGE_16V, self.ina.GAIN_1_40MV)
+        self.ina = ina219.INA219(0.1)
 
-    def get_voltage(self):
-        with SMBusWrapper(1) as bus:
-            hibyte = bus.read_byte_data(INA219.ADDR, 0x02)
-            result = (hibyte << 8) + bus.read_byte_data(INA219.ADDR, 0x02 + 1)
+    def voltage(self, repeat=5):
+        voltage = 0.0
 
-        return (result >> 3) * 4
+        for x in range(0, repeat):
+            voltage += self.ina.voltage()
 
-    def voltage(self):
-        return self.get_voltage()
+        voltage /= repeat
 
-    def voltmeter(self):
-        try:
-            repeat = 60
-            voltage = 0.0
-
-            for x in range(0, repeat):
-                voltage += self.get_voltage()
-
-            voltage /= repeat
-            voltage *= 0.001
-
-        except Exception as ee:
-            print("ERROR: {}".format(ee))
-
-        return voltage
+        return round(voltage,2)
 
 
 class TI74HC595:
@@ -778,13 +758,6 @@ class HEF4094BT:
 
         self.invertShiftOut()
 
-    def writeraw(self, raw):
-        for i in range(48):
-            self.data[i] = raw[i]
-
-        # print("RAW", end='')
-        self.invertShiftOut()
-
     def set(self, position, state):
         if position[0] == 'K':
             series = 0
@@ -826,6 +799,7 @@ class HEF4094BT:
         time.sleep(0.00001)
         GPIO.output(self.datapin, GPIO.HIGH)
 
+        '''
         # Debug purpose
         for bit in range(48):
             if self.data[bit]:
@@ -844,9 +818,20 @@ class HEF4094BT:
                 idx_real = ordered[idx]
                 print("{}{}, ".format(series_str, idx_real), end='')
         print("")
+        '''
 
         return
 
+
+    def shiftout(byte):
+        GPIO.output(gpios['LATCH'], 0)
+
+        for x in range(8):
+            GPIO.output(gpios['DATA'], (byte >> x) & 1)
+            GPIO.output(gpios['CLOCK'], 1)
+            GPIO.output(gpios['CLOCK'], 0)
+
+        GPIO.output(gpios['LATCH'], 1)
 
 class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, device_name, delay: int = 1):
@@ -1073,32 +1058,50 @@ class MeshLoaderToList:
 
 
 class ArduinoSerial:
-    def __init__(self, port='/dev/ttyACM0', baudrate=9600, retries=5, timeout=3.0):
-        try:
-            self.ser = serial.Serial(
-                port=port,
-                baudrate=baudrate,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                bytesize=serial.EIGHTBITS,
-                timeout=timeout
-            )
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600, timeout=3):
+        for i in range(10):
+            try:
+                self.ser = serial.Serial(
+                    port=port,
+                    baudrate=baudrate,
+                    parity=serial.PARITY_NONE,
+                    stopbits=serial.STOPBITS_ONE,
+                    bytesize=serial.EIGHTBITS,
+                    timeout=timeout
+                )
 
-        except Exception:
-            raise
+                break
 
-    def write(self, command):
+            except Exception:
+                module_logger.error("Arduino device not found.")
+                pass
+
+    def write(self, command, timeout = 0):
         string = command + "\r\n"
         self.ser.write(string.encode())
         # self.ser.flushInput()
-        self.wait_for_response()
+        success = self.wait_for_response(timeout)
 
-    def wait_for_response(self):
+        if not success:
+            module_logger.error("wait_for_response timeout")
+            return False
+        else:
+            return True
+
+    def wait_for_response(self, timeout):
+        start = datetime.datetime.now()
+
         while True:
+            if timeout:
+                end = datetime.datetime.now()
+
+                if end > start + datetime.timedelta(seconds=timeout):
+                    return False
+
             response = str(self.ser.readline())
             # print("Arduino: {}".format(response))
             if "ok" in response:
-                break
+                return True
 
     def close(self):
         self.ser.close()
@@ -1384,14 +1387,21 @@ class Segger:
 
         for i in range(10):
             response = self.send_command("AUTO NOINFO")
-            print(response)
-            if "NACK:ERR008" in response:  # Flashing success
-                result = True
-                break
 
-            if "ERR255:Failed to open config file" in response:  # Flashing failed
-                result = False
-                print("File not found on Segger!")
+            for i in response:
+                print(i)
+
+                if "OK" in i:
+                    result = True
+                    break
+
+                if "ERR255" in response:  # Flashing failed
+                    result = False
+                    print("File not found on Segger!")
+                    break
+
+            # Break from loop if we succeed flashing
+            if result:
                 break
 
         return result

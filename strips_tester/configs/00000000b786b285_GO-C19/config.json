@@ -5,6 +5,7 @@
   "product_hw_release": "1.5",
   "product_description": "c19 module for GARO",
   "product_notes": "nothing so say",
+  "thread_nests": 0,
   "test_device_name": "GO-C19",
   "test_device_employee": "employee1",
   "central_db_host": "192.168.11.50",
@@ -22,6 +23,7 @@
   },
 
   "critical_event_tasks": {
+    "EndCalibration": 1,
     "FinishProcedureTask": 1,
     "PrintSticker": 1
   },
@@ -36,9 +38,48 @@
       "function": 0,
       "initial": 0,
       "pin": 19
+    },
+    "SEGGER_RELAY": {
+      "function": 0,
+      "initial": 1,
+      "pin": 7
+    },
+    "LN_RELAY": {
+      "function": 0,
+      "initial": 1,
+      "pin": 8
+    },
+    "GREEN_RIGHT": {
+      "function": 0,
+      "initial": 0,
+      "pin": 16
+    },
+    "GREEN_LEFT": {
+      "function": 0,
+      "initial": 0,
+      "pin": 3
+    },
+    "RED_RIGHT": {
+      "function": 0,
+      "initial": 0,
+      "pin": 18
+    },
+    "RED_LEFT": {
+      "function": 0,
+      "initial": 0,
+      "pin": 5
+    },
+    "BUZZER": {
+      "function": 0,
+      "initial": 0,
+      "pin": 22
     }
+
   },
   "relay_settings": {
+
+  },
+  "data": {
 
   }
 }
