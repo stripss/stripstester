@@ -12,48 +12,90 @@
     "FinishProcedureTask": 1
   },
   "gpio_settings": {
-    "START_SWITCH": {
+    "START_SWITCH_1": {
       "function": 1,
       "pin": 18
     },
 
 
-    "SIGNAL_1": {
+
+    "SWITCH_1": {
       "function": 1,
-      "pin": 7,
+      "pin": 15,
       "pull": 20
     },
-    "SIGNAL_2": {
+    "SWITCH_2": {
+      "function": 1,
+      "pin": 13,
+      "pull": 20
+    },
+    "SWITCH_3": {
       "function": 1,
       "pin": 11,
       "pull": 20
     },
+
+
+
+    "SIGNAL_1": {
+      "function": 1,
+      "pin": 24,
+      "pull": 20
+    },
+    "SIGNAL_2": {
+      "function": 1,
+      "pin": 26,
+      "pull": 20
+    },
     "SIGNAL_3": {
       "function": 1,
-      "pin": 8,
+      "pin": 32,
+      "pull": 20
+    },
+    "SIGNAL_4": {
+      "function": 1,
+      "pin": 36,
+      "pull": 20
+    },
+    "SIGNAL_5": {
+      "function": 1,
+      "pin": 38,
+      "pull": 20
+    },
+    "SIGNAL_6": {
+      "function": 1,
+      "pin": 40,
       "pull": 20
     },
 
-    "LATCH": {
-      "function": 0,
-      "initial": 0,
-      "pin": 31
+    "RELAY_1": {
+      "function": 1,
+      "pin": 18,
+      "pull": 20
     },
-    "CLOCK": {
-      "function": 0,
-      "initial": 0,
-      "pin": 37
+    "RELAY_2": {
+      "function": 1,
+      "pin": 16,
+      "pull": 20
     },
-    "OE": {
-      "function": 0,
-      "initial": 0,
-      "pin": 3
+    "RELAY_3": {
+      "function": 1,
+      "pin": 12,
+      "pull": 20
     },
-    "DATA": {
+
+
+    "LIGHT_GREEN": {
       "function": 0,
-      "initial": 0,
-      "pin": 12
+      "pin": 21,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
     }
+
   },
 
   "relay_settings": {

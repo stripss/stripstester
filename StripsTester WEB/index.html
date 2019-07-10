@@ -30,6 +30,7 @@
             -moz-border-radius: 6px 6px 6px 6px;
             -webkit-border-radius: 6px 6px 6px 6px;
             border: 5px solid black;
+            display: inline-block;
         }
 
         .progress {
@@ -60,6 +61,9 @@
             font-size: 60px;
         }
 
+        .nest_title {
+            text-align: center;
+        }
         @media (max-width: 768px) {
             .semaphore .tile {
                 width: 50px;
@@ -121,7 +125,6 @@
                 padding: 5px;
             }
 
-
             .semaphore {
                 border-radius: 6px 6px 6px 6px;
                 -moz-border-radius: 6px 6px 6px 6px;
@@ -148,9 +151,9 @@
             /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#2a0000+0,2c0000+100 */
             background: #2a0000; /* Old browsers */
             background: -moz-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #2a0000 0%,#2c0000 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #2a0000 0%,#2c0000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#2a0000', endColorstr='#2c0000',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
+            background: -webkit-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* Chrome10-25,Safari5.1-6 */
+            background: radial-gradient(ellipse at center, #2a0000 0%, #2c0000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#2a0000', endColorstr='#2c0000', GradientType=1); /* IE6-9 fallback on horizontal gradient */
         }
 
         .semaphore .yellow-on {
@@ -210,6 +213,20 @@
             height: 100%;
         }
 
+        .fa-power-off, .fa-save, .fa-cog, .fa-sync {
+            padding-right: 10px;
+        }
+
+        .db_table {
+            font-size: 13px;
+        }
+
+        .db_table td.title {
+            padding-right: 20px;
+            white-space: nowrap;
+            width: 1%;
+        }
+
     </style>
 </head>
 
@@ -220,12 +237,6 @@
         <div class="col">
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
                 <a href="index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail"></a>
-
-                <!--
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                -->
 
                 <div class="collapse navbar-collapse" id="myTab">
                     <ul class="nav navbar-nav" id="myTab" role="tablist">
@@ -238,9 +249,14 @@
                         <li class="nav-item">
                             <a class="nav-link disabled" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Nastavitve</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" id="database-tab" data-toggle="tab" href="#database" role="tab" aria-controls="database" aria-selected="false">Baza meritev</a>
+                        </li>
                     </ul>
                 </div>
-                <button style="display:none;" id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter">Izklopi testno napravo</button>
+                <button style="display:none;" id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
+                    napravo
+                </button>
             </nav>
         </div>
     </div>
@@ -272,7 +288,7 @@
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
 
-                        <div class="jumbotron">
+                        <div class="jumbotron" style="margin-top: 2rem;">
 
                             <h1 class="display-4">Pozdravljeni na uporabniškem vmesniku</h1>
                             <p class="lead">StripsTester omogoča pregledno sledenje in indikacijo postopka testiranja proizvodnjih kosov.</p>
@@ -308,12 +324,14 @@
                                     <div class="tile green green-off"></div>
 
                                 </div>
+                                <div id="nest_title1" class="nest_title">Ležišče #1</div>
+                                <div id="nest_time1" class="nest_time"></div>
                             </div>
 
                             <div class="col">
                                 <h1 id="gui_device_name" class="text-center">Testna naprava</h1>
                                 <h2 id="status" class="text-center"></h2>
-                                <div class="progress">
+                                <div id="progressbar_whole" class="progress">
                                     <div id="progressbar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                                 <div class="alert alert-danger" role="alert" id="error_list"><h4 class="alert-heading">Ugotovljene napake:</h4>
@@ -328,10 +346,11 @@
                                     <div class="tile yellow yellow-off"></div>
                                     <div class="tile green green-off"></div>
                                 </div>
+                                <div id="nest_title2" class="nest_title">Ležišče #2</div>
+                                <div id="nest_time2" class="nest_time"></div>
                             </div>
                         </div>
 
-                        <div id="custom_html"></div>
 
                         <br>
                         <div class="row">
@@ -376,7 +395,47 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="custom_html"></div>
 
+                        <div id="set_worker_data_accordion" style="margin-top: 10px; margin-bottom: 10px;">
+                            <div class="card">
+                                <div class="card-header" id="headingOne">
+                                    <h5 class="mb-0">
+                                        <button class="btn btn-secondary" data-toggle="collapse" data-target="#set_worker_data_collapse" aria-expanded="true" aria-controls="set_worker_data_collapse">
+                                            Nastavitve delavca
+                                        </button>
+                                    </h5>
+                                </div>
+
+                                <div id="set_worker_data_collapse" class="collapse" aria-labelledby="headingOne" data-parent="#set_worker_data_accordion">
+                                    <div class="card-body">
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text" id="basic-addon1">ID</span>
+                                            </div>
+                                            <input type="text" id="worker_id" class="form-control" placeholder="Identifikacija" aria-label="Identifikacija" aria-describedby="basic-addon1"
+                                                   value="Neznan">
+                                        </div>
+
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" for="inputGroupSelect01">Tip testiranja</label>
+                                            </div>
+                                            <select class="custom-select" id="worker_type">
+                                                <option value="1" selected>Redna proizvodnja</option>
+                                                <option value="2">Kosi iz popravila</option>
+                                                <option value="3">Analiza reklamacije</option>
+                                                <option value="4">Ostalo</option>
+                                            </select>
+                                        </div>
+
+                                        <button type="button" class="btn btn-primary" id="save_worker_data"><i class="far fa-save"></i>Shrani</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div id="accordion" style="margin-top: 10px; margin-bottom: 10px;">
                             <div class="card">
@@ -397,6 +456,13 @@
                         </div>
                     </div>
                     <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">Settings</div>
+                    <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="dbsite-tab">
+                        <h1>Baza opravljenih testov in meritev</h1>
+                        <button id="refresh_db" type="button" class="btn btn-primary"><i class="fas fa-sync"></i>Posodobi podatke</button>
+                        <br><br>
+                        <div id="myDiv"></div>
+                        <div id="dbsite">Kliknite "Posodobi podatke" za prikaz.</div>
+                    </div>
                 </div>
 
             </div>
@@ -407,9 +473,9 @@
         <div class="col">
             <nav class="navbar navbar-fixed-bottom navbar-light bg-light">
                 <ul class="nav navbar-nav" id="myTab" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link disabled" style="font-size: 12px;"  id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Made by Marcel Jančar | StripsTester &copy;</a>
-                </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" style="font-size: 12px;">Made by Marcel Jančar | StripsTester &copy;</a>
+                    </li>
                 </ul>
                 <a href="index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail" align="right"></a>
             </nav>
@@ -425,11 +491,11 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
             crossorigin="anonymous"></script>
 
-
-
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
         $(document).ready(function () {
             var selected_test_device = 0;
+            var max_nests = 5;
 
             // Websocket list for test devices
             var test_device_list = [
@@ -439,29 +505,47 @@
                 {"name": "GO-HA-1", "addr": "192.168.88.244:8000", "loc": "debug"},
                 {"name": "GO-HA-2", "addr": "172.30.132.142:1239", "loc": "laboratorij"},
                 {"name": "GO-HA-2", "addr": "172.30.131.34:1239", "loc": "proizvodnja"},
-                {"name": "GO-HA-2", "addr": "192.168.88.232:8000", "loc": "debug"},
-                {"name": "GO-C19", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
-                {"name": "GO-C19", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
+                {"name": "GO-HA-2", "addr": "192.168.88.224:8000", "loc": "debug"},
+                {"name": "GO-C19", "addr": "172.30.132.142:1242", "loc": "laboratorij"},
+                {"name": "GO-C19", "addr": "172.30.131.34:1241", "loc": "proizvodnja"},
                 {"name": "GO-C19", "addr": "192.168.88.230:8000", "loc": "debug"},
                 {"name": "GACS_A2 Bender", "addr": "172.30.132.142:1240", "loc": "laboratorij"},
                 {"name": "GACS_A2 Bender", "addr": "172.30.131.34:1240", "loc": "proizvodnja"},
-                {"name": "GACS_A2 Bender", "addr": "192.168.88.242:8000", "loc": "debug"}
+                {"name": "GACS_A2 Bender", "addr": "192.168.88.242:8000", "loc": "debug"},
+                {"name": "Photointerrupter", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
+                {"name": "Photointerrupter", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
+                {"name": "Photointerrupter", "addr": "192.168.88.227:8000", "loc": "debug"}
             ];
 
             $('#select_tn').append("</div><h6 class='dropdown-header'>Proizvodnja</h6>");
 
             // List test devices
-            for(var index = 0; index < test_device_list.length; ++index) {
-                if(test_device_list[index]['loc'] == "proizvodnja") {
+            for (var index = 0; index < test_device_list.length; ++index) {
+                if (test_device_list[index]['loc'] == "proizvodnja") {
                     $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+                    /*
+                    try {
+                        pingsocket = new WebSocket("ws://" + test_device_list[index]['addr'][-5] + ":8001");
+
+                        pingsocket.onopen = function () {
+                            console.log("OPEN")
+                        }
+                        pingsocket.onerror = function () {
+                            console.log("OPEN")
+                        }
+                    }
+                    catch (error) {
+
+                    }
+                    */
                 }
             }
 
             $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Laboratorij</h6>");
 
             // List test devices
-            for(var index = 0; index < test_device_list.length; ++index) {
-                if(test_device_list[index]['loc'] == "laboratorij") {
+            for (var index = 0; index < test_device_list.length; ++index) {
+                if (test_device_list[index]['loc'] == "laboratorij") {
                     $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
                 }
             }
@@ -469,8 +553,8 @@
             $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Debug</h6>");
 
             // List test devices
-            for(var index = 0; index < test_device_list.length; ++index) {
-                if(test_device_list[index]['loc'] == "debug") {
+            for (var index = 0; index < test_device_list.length; ++index) {
+                if (test_device_list[index]['loc'] == "debug") {
                     $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
                 }
             }
@@ -499,6 +583,7 @@
                         $('#bad_count_today').html("0");
 
                         $("#profile-tab").removeClass("disabled");
+                        $("#database-tab").removeClass("disabled");
                         $("#connect_tn_spinner").fadeOut("slow");
                         // Redirect to GUI
                         $('#myTab a[href="#profile"]').tab('show')
@@ -510,6 +595,7 @@
 
                     socket.onerror = function () {
                         $("#profile-tab").addClass("disabled");
+                        $("#database-tab").addClass("disabled");
                         $('#myTab a[href="#home"]').tab('show')
                         $("#connect_tn_spinner").fadeOut("slow");
                         $("#connect_status").fadeIn("fast");
@@ -527,6 +613,7 @@
 
                     socket.onclose = function () {
                         $("#profile-tab").addClass("disabled");
+                        $("#database-tab").addClass("disabled");
                         // Redirect to login page
                         $('#myTab a[href="#home"]').tab('show')
                         $('#tn_shutdown').fadeOut("fast");
@@ -536,6 +623,7 @@
 
                 } catch (error) {
                     $("#profile-tab").addClass("disabled");
+                    $("#database-tab").addClass("disabled");
                     $("#connect_status").fadeIn("fast");
                     $("#connect_status").html("Napaka pri povezovanju!");
                     $('#tn_shutdown').fadeOut("fast");
@@ -552,6 +640,12 @@
                 if (data instanceof Array) { // Refractor data
                     for (let i = 0; i < data.length; i++) onMessage(data[i]);
                     return;
+                }
+
+                console.log(data);
+
+                if (data.command == "new") {
+                    window.location.replace("http://172.30.129.19:8080/public/index_debug.html");
                 }
 
                 if (data.command == "status") {
@@ -667,18 +761,42 @@
                 if (data.command == "nests") {
                     nests = data.value;
 
+                    /*
                     if (nests == 1) {
                         $('#semafor1').show();
+                        $('#nest_title1').show();
                         $('#semafor2').hide();
+                        $('#nest_title2').hide();
                     } else if (nests == 2) {
                         $('#semafor1').show();
+                        $('#nest_title1').show();
                         $('#semafor2').show();
+                        $('#nest_title2').show();
+                    } else {
+                        // Hide semaphores and progressbar for custom UI, sent by custom.html of the test device
+                        $('#semafor1').hide();
+                        $('#nest_title1').hide();
+                        $('#semafor2').hide();
+                        $('#nest_title2').hide();
+                        $('#progressbar_whole').hide();
                     }
+                    */
+
+                    for (var current = 0; current < 5; current++) {
+                        if(current <= nests) {
+                            $('#semafor' + current).show();
+                            $('#nest_title' + current).show();
+                        } else {
+                            $('#semafor' + current).hide();
+                            $('#nest_title' + current).hide();
+                        }
+                    }
+
                 }
                 if (data.command == "title") {
                     document.title = data.value;
 
-                    $("#gui_device_name").fadeOut("fast", function(event) {
+                    $("#gui_device_name").fadeOut("fast", function (event) {
                         $("#gui_device_name").html("Testna naprava " + data.value);
                     });
 
@@ -693,27 +811,58 @@
                 }
 
 
-                if (data.command == "html_append") {  // Change custom HTML depending on test device
-                    $('#custom_html').append(data.value);
+                if (data.command == "html") {  // Change custom HTML depending on test device
+                    if (data.value) {
+                        $('#custom_html').append(data.value);
+                    } else {
+                        $('#custom_html').html("");
+                    }
                 }
 
-                if (data.command == "html_clean") {  // Change custom HTML depending on test device
-                    $('#custom_html').html(data.value);
+                if (data.command == "db") {  // Change custom HTML  DB depending on test device
+                    $("#dbsite").fadeOut("fast", function (event) {
+                        if (data.value) {
+                            $('#dbsite').append(data.value);
+                        } else {  // Clear db site
+                            $('#dbsite').html("");
+                            $('#myDiv').html("");
+                        }
+                    });
+
+                    $("#dbsite").fadeIn("fast");
                 }
 
-                if (data.command == "java") {  // Change custom HTML depending on test device
-                    eval($(this).text());
+                if (data.command == "plot") {  // Change custom HTML  DB depending on test device
+                    $('#myDiv').fadeOut("fast", function (event) {
+                        if (data.value) {
+                            $('#myDiv').append(data.value);
+                        } else {  // Clear db site
+                            $('#myDiv').html("");
+                        }
+                    });
+
+                    $('#myDiv').fadeIn("fast");
+                }
+
+                if (data.command == "set_worker_data") {  // Change custom HTML  DB depending on test device
+                    // Retrieve worker data from test device
+                    worker_id = data.worker_id;
+                    worker_type = data.worker_type;
+
+                    // Set current worker and type on GUI
+                    $('#worker_id').val(worker_id);
+                    $('#worker_type').val(worker_type);
                 }
             }
 
             $("#select_tn a").click(function (e) {
-                selected_test_device = $(this).attr('id').replace('tn','');
+                selected_test_device = $(this).attr('id').replace('tn', '');
 
                 e.preventDefault(); // cancel the link behaviour
                 $(this).parents(".dropdown").find('.btn').html($(this).text());
                 $(this).parents(".dropdown").find('.btn').val($(this).data('value'));
 
-                $("#connect_info").fadeOut("fast", function(event) {
+                $("#connect_info").fadeOut("fast", function (event) {
                     $("#connect_info").html("IP: " + test_device_list[selected_test_device]['addr']);
                 });
 
@@ -731,6 +880,18 @@
                 $('#connect_tn').prop('disabled', true);
 
                 wsOpen(); // Attempt to open websocket
+            });
+
+            $("#refresh_db").click(function () {
+                sendJSON({"command": "populate_db"})
+            });
+
+            $("#save_worker_data").click(function () {
+                var worker_id = $("#worker_id").val();
+
+                if(worker_id < -1 || worker_id > 99 || isNaN(worker_id)) worker_id = -1;
+
+                sendJSON({"command": "save_worker_data", "worker_id": worker_id, "worker_type": $("#worker_type").find("option:selected").val()});
             });
         });
     </script>

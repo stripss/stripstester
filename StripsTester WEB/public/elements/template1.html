@@ -1,0 +1,73 @@
+<style>
+
+    .nest_status_only {
+        text-align: center;
+        font-size: 30px;
+    }
+
+    .nest_time_container_only {
+        text-align: center;
+        font-size: 30px;
+    }
+
+    .nest_time_only {
+        display: inline-block;
+    }
+
+    @media (max-width: 768px) {
+        .card {
+            margin-bottom: 20px;
+        }
+
+        .nest_status_only {
+            font-size: 20px;
+        }
+    }
+</style>
+<div id="nest_status0" class="nest_status_only"></div>
+<div class="row justify-content-between" id="semaphores"></div>
+<div id="nest_time_container0" class="nest_time_container_only">
+    <i class="far fa-clock"></i>
+    <div id="nest_time0" class="nest_time_only">00:00:00</div>
+</div>
+<br>
+
+<div id="error_accordion" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h5 class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#error_collapse" aria-expanded="true" aria-controls="error_collapse">
+                    <i class="fas fa-angle-double-down"></i> Ugotovljene napake <span class="badge badge-danger" id="error_count"></span>
+                </button>
+            </h5>
+        </div>
+
+        <div id="error_collapse" class="collapse" aria-labelledby="headingOne" data-parent="#error_accordion">
+            <div class="card-body">
+                <div class="row" id="errors">
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="info_accordion" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h5 class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#info_collapse" aria-expanded="true" aria-controls="info_collapse">
+                    <i class="fas fa-angle-double-down"></i> Dodatne informacije <span class="badge badge-primary" id="info_count"></span>
+                </button>
+            </h5>
+        </div>
+
+        <div id="info_collapse" class="collapse" aria-labelledby="headingOne" data-parent="#info_accordion">
+            <div class="card-body">
+                <div class="row" id="infos">
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -32,11 +32,13 @@ custom_data = strips_tester.settings.custom_data
 
 class StartProcedureTask(Task):
     def run(self) -> (bool, str):
+
         start_switch = "START_SWITCH_" + str(self.nest_id + 1)
 
         gui_web.send({"command": "status", "value": "Za začetek testiranja vstavi kos.", "nest": self.nest_id})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "0"})
 
+        module_logger.info("Waiting for detection switch")
         while True:
             # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
             state_GPIO_SWITCH = GPIO.input(gpios.get(start_switch))
@@ -113,30 +115,23 @@ class InitialTest(Task):
         pass
 
     def run(self) -> (bool, str):
-        gui_web.send({"command": "status", "nest": self.nest_id, "value": "Blinkanje LED diod"})  # Clear all info messages
-        gui_web.send({"command": "progress", "nest": self.nest_id, "value": "34"})
-
-
-        gui_web.send({"command": "progress", "nest": self.nest_id, "value": "69"})
-
-        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
-        acc = 0.005
-        for i in range(3600):
-            if acc > 0:
-                acc = acc - 0.00001
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
-            time.sleep(0.0001 + acc)
-        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
-
-        end_time = datetime.datetime.now() + datetime.timedelta(seconds=5)
-
+        end_time = datetime.datetime.now() + datetime.timedelta(seconds=2)
 
         gui_web.send({"command": "status", "nest": self.nest_id, "value": "Test preklopov stikala"})  # Clear all info messages
         preklop = 0
+
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
+        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.LOW)
+
         old_state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
+
         while datetime.datetime.now() < end_time and preklop <= 5:
+
             state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
+
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
+            time.sleep(0.0001)
 
             if not old_state and state:
                 preklop = preklop + 1
@@ -145,6 +140,7 @@ class InitialTest(Task):
                 gui_web.send({"command": "info", "nest": self.nest_id, "value": "Preklop"})
 
             old_state = state
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
 
         gui_web.send({"command": "info", "nest": self.nest_id, "value": "Čas za preklope se je iztekel"})
 
@@ -157,7 +153,6 @@ class InitialTest(Task):
             self.add_measurement(self.nest_id, False, "switches", preklop, "")
             gui_web.send({"command": "error", "nest": self.nest_id, "value": "Nezadostno število preklopov! ({})" . format(preklop)})
 
-        time.sleep(0.5)
         return
 
     def tear_down(self):
@@ -184,11 +179,10 @@ class FinishProcedureTask(Task):
         module_logger.debug("FinishProcedureTask init")
 
     def run(self):
+        self.calibrate()
+
         gui_web.send({"command": "status", "nest": self.nest_id, "value": "Odstrani kos iz ležišča."})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "90"})
-
-        while self.lid_closed():
-            time.sleep(0.01)
 
         gui_web.send({"command": "semafor", "nest": self.nest_id, "value": (0, 0, 0)})
 
@@ -206,7 +200,32 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "100"})
 
+        while self.lid_closed():
+            time.sleep(0.01)
+
+        time.sleep(1)
         return
+
+    def calibrate(self):
+        offset = 100
+        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
+
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
+
+        while GPIO.input(gpios['LIMIT_' + str(self.nest_id + 1)]):
+
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
+
+            time.sleep(0.0001)
+
+        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.LOW)  # Reverse stepper direction
+        for i in range(offset):
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
+            time.sleep(0.00015)
+
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
 
     def lid_closed(self):
         state = GPIO.input(gpios.get("START_SWITCH_" + str(self.nest_id + 1)))

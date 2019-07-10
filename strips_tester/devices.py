@@ -648,7 +648,7 @@ class SainBoard16:
 
 # Driver for voltmeter or ammeter INA219. Made by Marcel Jancar
 class INA219:
-    def __init__(self):
+    def __init__(self):  # Initialize sensor with 0.1 resistor
         self.ina = ina219.INA219(0.1)
 
     def voltage(self, repeat=5):

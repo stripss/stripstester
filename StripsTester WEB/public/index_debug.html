@@ -1,0 +1,1511 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="/img/icon.ico">
+    <title>StripsTester</title>
+
+    <link rel="stylesheet" href="./css/index.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity
+    "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+
+    <script
+            src="http://code.jquery.com/jquery-3.3.1.js"
+            integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+            crossorigin="anonymous"></script>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="https:////cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
+    <script src="https://cdn.datatables.net/plug-ins/1.10.19/dataRender/datetime.js"></script>
+    <script src="https://cdn.datatables.net/plug-ins/1.10.19/sorting/datetime-moment.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.26/moment-timezone.min.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <nav class="navbar navbar-expand-md navbar-light bg-light">
+                <a href="../index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail"></a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-toggle" aria-controls="navbar-toggle" aria-expanded="false"
+                        aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbar-toggle">
+                    <ul class="nav navbar-nav" id="myTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="false">Prijava</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">Operativni uporabniški vmesnik</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Nastavitve</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" id="database-tab" data-toggle="tab" href="#database" role="tab" aria-controls="database" aria-selected="false">Baza meritev</a>
+                        </li>
+                    </ul>
+                </div>
+                <button style="display:none;" id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
+                    napravo
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Izklop testne naprave</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Ali želite zaustaviti testno napravo ali izvesti ponovni zagon?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-dismiss="modal" id="reboot_yes"><i class="fas fa-sync"></i>Ponovni zagon</button>
+                    <button type="button" class="btn btn-danger float-right" data-dismiss="modal" id="shutdown_yes"><i class="fas fa-power-off"></i>Izklop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+
+                        <div class="jumbotron" style="margin-top: 2rem;">
+
+                            <h1 class="display-4">Pozdravljeni na uporabniškem vmesniku</h1>
+                            <p class="lead">StripsTester omogoča pregledno sledenje in indikacijo postopka testiranja proizvodnjih kosov.</p>
+
+                            <hr class="my-4">
+                            <p>Spodaj izberite željeno testno napravo:</p>
+                            <p class="lead">
+                            <div class="dropdown show inline">
+                                <a class="btn btn-light dropdown-toggle btn-lg" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Testna naprava
+                                </a>
+
+                                <div class="dropdown-menu" id="select_tn" aria-labelledby="dropdownMenuLink">
+
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-success inline btn-lg" id="connect_tn" disabled>Poveži
+                                <div style="display:none;" id="connect_tn_spinner" class="spinner-border spinner-border-sm" role="status"></div>
+                            </button>
+                            <p id="connect_info" class="inline" style="color: gray; margin-left: 20px;"></p>
+                            <br><br>
+                            <div style="display: none;" id="connect_status" class="alert alert-danger" role="alert"></div>
+                            </p>
+                        </div>
+                    </div>
+
+
+                    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col">
+                                <h1 id="gui_device_name" class="text-center">Testna naprava</h1>
+                            </div>
+                        </div>
+                        <div id="dynamic_gui">
+
+                        </div>
+                        <div id="custom_html">
+
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-success">
+                                        <h5 class="card-title">Uspešno testirani</h5>
+                                    </div>
+
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td id="good_count_today_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                                <td id="good_count_title" style="border-top: 0px;">Skupaj <span id="delta"></span></td>
+                                            </tr>
+                                            <tr>
+                                                <td id="good_count_today" class="big-text"><p class="card-text"></p></td>
+                                                <td id="good_count_text" class="big-text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-danger">
+                                        <h5 class="card-title">Neuspešno testirani</h5>
+                                    </div>
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td id="bad_count_today_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                                <td id="bad_count_title" style="border-top: 0px;">Skupaj <span id="delta"></span></td>
+                                            </tr>
+                                            <tr>
+                                                <td id="bad_count_today" class="big-text"><p class="card-text"></p></td>
+                                                <td id="bad_count_text" class="big-text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="set_worker_data_accordion" style="margin-top: 10px; margin-bottom: 10px;">
+                            <div class="card">
+                                <div class="card-header" id="headingOne">
+                                    <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                                        <button class="btn btn-light" data-toggle="collapse" data-target="#set_worker_data_collapse" aria-expanded="true" aria-controls="set_worker_data_collapse">
+                                            <i class="fas fa-angle-double-down"></i> Nastavitve delavca
+                                        </button>
+                                    </h5>
+
+                                    <span id="current"></span>
+                                </div>
+
+                                <div id="set_worker_data_collapse" class="collapse" aria-labelledby="headingOne" data-parent="#set_worker_data_accordion">
+                                    <div class="card-body">
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text" id="basic-addon1">ID</span>
+                                            </div>
+                                            <input type="text" id="worker_id" class="form-control" placeholder="Identifikacija" aria-label="Identifikacija" aria-describedby="basic-addon1"
+                                                   value="Neznan">
+                                        </div>
+
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" for="inputGroupSelect01">Tip testiranja</label>
+                                            </div>
+                                            <select class="custom-select" id="worker_type">
+                                                <option value="0" selected>Redna proizvodnja</option>
+                                                <option value="1">Kosi iz popravila</option>
+                                                <option value="2">Analiza reklamacije</option>
+                                                <option value="3">Ostalo</option>
+                                            </select>
+                                        </div>
+
+                                        <button type="button" class="btn btn-primary" id="save_worker_data"><i class="far fa-save"></i>Shrani</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">
+
+                        <h1>Nastavitve</h1>
+
+                        <p id="settings_info">Za dostop do nastavitev se prosim prijavite:</p>
+
+                        <form class="form-inline" id="settings_form">
+                            <div class="form-group mb-2">
+                                <input type="text" readonly class="form-control-plaintext" value="Administrator">
+                            </div>
+                            <div class="form-group mx-sm-3 mb-2">
+                                <label for="input_pass" class="sr-only">Geslo</label>
+                                <input type="password" class="form-control" id="input_pass" name="input_pass" placeholder="Geslo">
+
+                            </div>
+                            <button type="button" class="btn btn-primary mb-2" id="settings_login"><i class="fas fa-sign-in-alt"></i>Prijava</button>
+
+                        </form>
+
+                        <div id="settings_page">
+                            <h5>Seznam testnih naprav:</h5>
+
+                            <table id="tntable" class="display">
+                                <thead>
+                                <tr>
+                                    <th>Ime</th>
+                                    <th>IP Naslov</th>
+                                    <th>Datum izdelave</th>
+                                    <th>Opis</th>
+                                    <th>Število gnezd</th>
+                                    <th>Delavec</th>
+                                    <th>Tip testiranja</th>
+                                    <th>Avtor</th>
+                                    <th>Status</th>
+                                    <th>Extra</th>
+                                </tr>
+                                </thead>
+                                <tfoot>
+                                <tr>
+                                    <th>Ime</th>
+                                    <th>IP Naslov</th>
+                                    <th>Datum izdelave</th>
+                                    <th>Opis</th>
+                                    <th>Število gnezd</th>
+                                    <th>Delavec</th>
+                                    <th>Tip testiranja</th>
+                                    <th>Avtor</th>
+                                    <th>Status</th>
+                                    <th>Extra</th>
+                                </tr>
+                                </tfoot>
+                            </table>
+
+
+                            <button class="btn btn-primary mb-2" id="settings_logout"><i class="fas fa-sign-out-alt"></i>Odjava</button>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="dbsite-tab">
+                        <h1>Baza opravljenih testov in meritev</h1>
+                        <button id="refresh_db" type="button" class="btn btn-primary"><i class="fas fa-sync"></i>Posodobi podatke
+                            <div style="display:none;" id="db_spinner" class="spinner-border spinner-border-sm" role="status"></div>
+                        </button>
+
+                        <p id="db_refresh_info"></p>
+
+                        <div id="plotsite">
+                            <div id="nest_vs_result"></div>
+                            <div id="result_vs_time"></div>
+                            <div id="resultproc_vs_time"></div>
+                            <div id="meas_vs_value"></div>
+                        </div>
+
+                        <table id="dbtable" class="display">
+                            <thead>
+                            <tr>
+                                <th>Datum testiranja</th>
+                                <th>Gnezdo</th>
+                                <th>Status</th>
+                                <th>Čas testiranja</th>
+                                <th>Tip</th>
+                                <th>Delavec</th>
+                                <th>Rezultati meritev</th>
+                            </tr>
+                            </thead>
+                            <tfoot>
+                            <tr>
+                                <th>Datum testiranja</th>
+                                <th>Gnezdo</th>
+                                <th>Status</th>
+                                <th>Čas testiranja</th>
+                                <th>Tip</th>
+                                <th>Delavec</th>
+                                <th>Rezultati meritev</th>
+                            </tr>
+                            </tfoot>
+                        </table>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <nav class="navbar navbar-light bg-light" style="width: inherit;">
+                <ul class="nav navbar-nav" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link disabled" style="font-size: 12px;">Made by Marcel Jančar | StripsTester &copy; | v1.2</a>
+                    </li>
+                </ul>
+                <a href="../index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail" align="right"></a>
+            </nav>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
+
+
+<script>
+    $(document).ready(function () {
+        var tn_timer = 0;
+
+        $('#settings_page').hide();
+
+        $('#settings_login').click(function () {
+            $('#input_pass').removeClass('is-invalid');
+
+            $.ajax({
+                url: '/login',
+                type: 'post',
+                dataType: 'json',
+                data: $('#settings_form').serialize(),
+                success: function (data) {
+                    if (data.logged) {
+                        $('#input_pass').addClass('is-valid');
+
+                        $('#settings_page').fadeIn('fast');
+                        get_tn_data();
+                        tn_timer = setInterval(get_tn_data, 1 * 1000);
+
+                        $('#settings_form').fadeOut('fast');
+                        $('#settings_info').fadeOut('fast');
+                    } else {
+                        $('#input_pass').addClass('is-invalid');
+                    }
+                }
+            });
+        });
+
+        $('#settings_logout').click(function () {
+            $('#input_pass').removeClass('is-valid');
+
+            $('#settings_form').fadeIn('fast');
+            $('#settings_info').fadeIn('fast');
+
+            $('#settings_page').fadeOut('fast');
+            $('#settings_form').find("input[type=password]").val("");
+            clearInterval(tn_timer);
+        });
+
+        get_tn_data = function () {
+            $.getJSON("/stats", function (data) {
+                $.each(data, function (index) {
+
+                    if (data[index]['status'] == null) data[index]['status'] = -1;
+                    data[index]['status'] = moment.utc(data[index]['status']).format('x');  // Convert datetime to unix
+
+                    data[index]['date_of_creation'] = moment.utc(data[index]['date_of_creation']).local().format('x');  // Convert datetime to unix
+                });
+
+                $('#tntable').dataTable().fnClearTable();
+                $('#tntable').dataTable().fnAddData(data);
+            });
+        };
+
+        Object.size = function (obj) {
+            var size = 0, key;
+            for (key in obj) {
+                if (obj.hasOwnProperty(key)) size++;
+            }
+            return size;
+        };
+
+
+        $('#tntable').DataTable({
+            "dom": 't',
+            "columns":
+                [
+                    {
+                        "data": "name"
+                    },
+                    {
+                        "data": "address"
+                    },
+                    {
+                        "data": "date_of_creation", "render": $.fn.dataTable.render.moment('x', 'DD.MM.YYYY HH:mm:ss')
+                    },
+                    {
+                        "data": "description"
+                    },
+                    {
+                        "data": "nests"
+                    },
+                    {
+                        "data": "worker_id"
+                    },
+                    {
+                        "data": "worker_type", "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "-1") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Neznan");
+                            } else {
+                                var test_type = ['Redna proizvodnja', 'Kosi iz popravila', 'Analiza reklamacije', 'Ostalo'];
+                                $(td).html(test_type[parseInt(cellData)]);
+                            }
+                        }
+                    },
+                    {
+                        "data": "author"
+                    },
+                    {
+                        "data": "status", "render": function (data) {
+                            //moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
+
+                            return "<i class='fas fa-circle'></i>";
+
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if(cellData == -1) $(td).css('color', 'grey');
+                            else {
+                                var now = moment.utc().unix() * 1000;
+                                var duration = Math.round(moment.duration(now - cellData).as("seconds"), 1);
+
+                                if (duration > 5) $(td).css('color', 'red');
+                                else $(td).css('color', 'green');
+                            }
+                        }
+                    },
+                    {
+                        "data": "extra", "render": function(data) {
+                            return "Good: " + data['good'] + "<br>Bad: " + data['bad'];
+                        }
+                    }
+                ]
+        });
+
+        $('#dbtable').DataTable({
+            "dom": 'l<"dbsearch"f>rtip',
+            "language": {
+                "sEmptyTable": "Nobenih podatkov ni na voljo",
+                "sInfo": "Prikazujem _START_ do _END_ od _TOTAL_ opravljenih testiranj",
+                "sInfoEmpty": "Prikazujem 0 do 0 od 0 opravljenih testiranj",
+                "sInfoFiltered": "(filtrirano od _MAX_ vseh opravljenih testiranj)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ",",
+                "sLengthMenu": "Prikaži _MENU_ opravljenih testiranj",
+                "sLoadingRecords": "Nalagam...",
+                "sProcessing": "Obdelujem...",
+                "sSearch": "Iskanje po meritvah",
+                "sZeroRecords": "Nobeden zapis ne ustreza",
+                "oPaginate": {
+                    "sFirst": "Prvi",
+                    "sLast": "Zadnji",
+                    "sNext": "Naslednja",
+                    "sPrevious": "Prejšna"
+                },
+                "oAria": {
+                    "sSortAscending": ": vključite za naraščujoči sort",
+                    "sSortDescending": ": vključite za padajoči sort"
+                }
+
+            },
+            "order": [[0, 'desc']], // Default ordering by date
+            "columns":
+                [
+                    {
+                        "data": "datetime", "render": $.fn.dataTable.render.moment('x', 'DD.MM.YYYY HH:mm:ss')
+                    },
+                    {
+                        "data": "nest", "render": function (data) {
+                            return data + 1
+                        }
+                    },
+                    {
+                        "data": "result", "render": function (data) {
+                            if (data == "1") return "OK";
+                            else if (data == "0") return "FAIL";
+                            else return "";
+                        },
+                        "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "1") {
+                                $(td).css('color', 'green');
+                            } else {
+                                $(td).css('color', 'red');
+                            }
+                        }
+                    },
+                    {
+                        "data": "start_test", "render": function (data, type, row, meta) {
+                            var duration;
+
+                            if (data != null) {
+                                duration = moment.duration(row['datetime'] - data);
+                                duration = "<b>" + Math.round(duration.as('seconds'), 1) + " sekund</b>";
+                            } else {
+                                duration = "<span style='color: gray;'>Neznan</span>";
+                            }
+
+                            return duration;
+                        }
+                    },
+                    {
+                        "data": "type", "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "-1") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Neznan");
+                            } else {
+                                var test_type = ['Redna proizvodnja', 'Kosi iz popravila', 'Analiza reklamacije', 'Ostalo'];
+                                $(td).html(test_type[parseInt(cellData)]);
+                            }
+                        }
+                    },
+                    {
+                        "data": "worker", "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "-1") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Neznan");
+                            }
+                        }
+                    },
+                    {
+                        "data": "measurements", "render": function (value, type, row) {
+                            var val = "";
+
+                            $.each(value, function (i, v) {
+                                if (!Object.size(v)) return;
+
+                                val = val + "<span class='task_name'>" + i + "</span><ul>";
+
+                                $.each(v, function (j, w) {
+                                    var add = ""
+                                    if (!w[1]) add = "fail";
+                                    if (w[2] == "N/A") w[2] = "";
+
+                                    val = val + "<li class='task_data " + add + "'>" + j + ": " + w[0] + " " + w[2] + "</li>";
+                                });
+
+                                val = val + "</ul>";
+
+                            });
+
+                            return val;
+                        }
+                    }
+                ]
+        });
+
+        var selected_test_device = 0;
+        var connected_to = -1;
+
+        // Websocket list for test devices
+        var test_device_list = [
+            {"name": "GO-HA-1", "addr": "172.30.132.142:1241", "loc": "laboratorij"},
+            {"name": "GO-HA-1", "addr": "172.30.131.34:1238", "loc": "proizvodnja"},
+            {"name": "GO-HA-1", "addr": "192.168.88.244:8000", "loc": "debug"},
+            {"name": "GO-HA-2", "addr": "172.30.132.142:1239", "loc": "laboratorij"},
+            {"name": "GO-HA-2", "addr": "172.30.131.34:1239", "loc": "proizvodnja"},
+            {"name": "GO-HA-2", "addr": "192.168.88.224:8000", "loc": "debug"},
+            {"name": "GO-C19", "addr": "172.30.132.142:1242", "loc": "laboratorij"},
+            {"name": "GO-C19", "addr": "172.30.131.34:1241", "loc": "proizvodnja"},
+            {"name": "GO-C19", "addr": "192.168.88.230:8000", "loc": "debug"},
+            {"name": "GACS_A2 Bender", "addr": "172.30.132.142:1240", "loc": "laboratorij"},
+            {"name": "GACS_A2 Bender", "addr": "172.30.131.34:1240", "loc": "proizvodnja"},
+            {"name": "GACS_A2 Bender", "addr": "192.168.88.242:8000", "loc": "debug"},
+            {"name": "Photointerrupter", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
+            {"name": "Photointerrupter", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
+            {"name": "Photointerrupter", "addr": "192.168.88.227:8000", "loc": "debug"}
+        ];
+
+        $('#select_tn').append("</div><h6 class='dropdown-header'>Proizvodnja</h6>");
+
+        // List test devices
+        for (var index = 0; index < test_device_list.length; ++index) {
+            if (test_device_list[index]['loc'] == "proizvodnja") {
+                $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+                /*
+                try {
+                    pingsocket = new WebSocket("ws://" + test_device_list[index]['addr'][-5] + ":8001");
+
+                    pingsocket.onopen = function () {
+                        console.log("OPEN")
+                    }
+                    pingsocket.onerror = function () {
+                        console.log("OPEN")
+                    }
+                }
+                catch (error) {
+
+                }
+                */
+            }
+        }
+
+        $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Laboratorij</h6>");
+
+        // List test devices
+        for (var index = 0; index < test_device_list.length; ++index) {
+            if (test_device_list[index]['loc'] == "laboratorij") {
+                $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+            }
+        }
+
+        $('#select_tn').append("<div class='dropdown-divider'></div><h6 class='dropdown-header'>Debug</h6>");
+
+        // List test devices
+        for (var index = 0; index < test_device_list.length; ++index) {
+            if (test_device_list[index]['loc'] == "debug") {
+                $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
+            }
+        }
+
+        // Make stopwatches for nests
+        var stopwatch = [];
+        var threaded = false;
+        var blinker = [];
+
+        function wsOpen(webSocketURL) {
+            try {
+                $("#connect_status").fadeOut("fast");
+
+                // Try close preopened socket
+                try {
+                    socket.close();
+                } catch (error) {
+
+                }
+
+                socket = new WebSocket("ws://" + test_device_list[selected_test_device]['addr']);
+
+                socket.onopen = function () {
+                    $("#dynamic_gui").empty();
+
+                    $("#profile-tab").removeClass("disabled");
+                    $("#database-tab").removeClass("disabled");
+                    $("#connect_tn_spinner").fadeOut("slow");
+                    // Redirect to GUI
+                    $('#myTab a[href="#profile"]').tab('show')
+
+                    $('#tn_shutdown').fadeIn("fast");
+
+                    $('#gui_device_name').html("Testna naprava " + test_device_list[selected_test_device]['name']);
+                    connected_to = selected_test_device;
+                };
+
+                socket.onerror = function () {
+                    handleError("Napaka pri povezavi!");
+                    $("#connect_status").fadeIn("fast");
+                };
+
+                socket.onmessage = function (message) {
+                    if (!message.data) return;
+
+                    onMessage(JSON.parse(message.data));
+                };
+
+                socket.onclose = function () {
+                    handleError("Napaka pri povezovanju!");
+                };
+
+            } catch (error) {
+                handleError("Napaka pri povezovanju!");
+                $("#connect_status").fadeIn("fast");
+            }
+        }
+
+        function handleError(message) {
+            connected_to = -1;
+            $("#profile-tab").addClass("disabled");
+            $("#database-tab").addClass("disabled");
+            $('#myTab a[href="#home"]').tab('show')
+            $("#connect_status").html(message);
+            $('#tn_shutdown').fadeOut("fast");
+            $("#connect_tn_spinner").fadeOut("slow");
+            $('#connect_tn').prop('disabled', false);
+            document.title = "StripsTester";
+
+            // Clear existing timers
+            for (var timer = 0; timer < stopwatch.length; timer++) {
+                stopwatch[timer].reset();  // Clear all intervals
+            }
+            stopwatch = [];
+
+            // Clear existing timers
+            for (var blink = 0; blink < blinker.length; blink++) {
+                clearInterval(blinker[blink]);  // Clear all intervals
+            }
+            blinker = [];
+
+            $("#db_refresh_info").empty();
+            $("#plotsite div").empty(); // Clean plot space
+            $('#dbtable').dataTable().fnClearTable();
+            $('#tntable').dataTable().fnClearTable();
+        }
+
+        function sendJSON(txt) {
+            socket.send(JSON.stringify(txt));
+        }
+
+        String.prototype.replaceAll = function (search, replacement) {
+            var target = this;
+            return target.replace(new RegExp(search, 'g'), replacement);
+        };
+
+        function onMessage(data) {
+            if (data instanceof Array) { // Refractor data
+                for (let i = 0; i < data.length; i++) onMessage(data[i]);
+                return;
+            }
+
+            console.log(data);
+
+            if (data.command == "count") {
+                var good_count = data.good_count;
+                var good_count_today = data.good_count_today;
+                var bad_count = data.bad_count;
+                var bad_count_today = data.bad_count_today;
+
+                var percent_good_count = Math.round((good_count / (parseFloat($("#bad_count_text p").html()) + good_count)) * 100.0);
+                var percent_bad_count = 100 - percent_good_count;
+
+                var percent_good_count_today = Math.round((good_count_today / (parseFloat($("#bad_count_today p").html()) + good_count_today)) * 100.0);
+                var percent_bad_count_today = 100 - percent_good_count_today;
+
+
+                $('#good_count_text p').fadeOut("fast", function () {
+                    $('#good_count_text p').html(good_count);
+                });
+                $('#good_count_text p').fadeIn("fast");
+
+                $('#good_count_title #delta').fadeOut("fast", function () {
+                    $('#good_count_title #delta').html("(" + percent_good_count + "%)");
+                });
+                $('#good_count_title #delta').fadeIn("fast");
+
+
+                $('#bad_count_text p').fadeOut("fast", function () {
+                    $('#bad_count_text p').html(bad_count);
+                });
+                $('#bad_count_text p').fadeIn("fast");
+
+                $('#bad_count_title #delta').fadeOut("fast", function () {
+                    $('#bad_count_title #delta').html("(" + percent_bad_count + "%)");
+                });
+                $('#bad_count_title #delta').fadeIn("fast");
+
+
+                $('#good_count_today p').fadeOut("fast", function () {
+                    $('#good_count_today p').html(good_count_today);
+                });
+                $('#good_count_today p').fadeIn("fast");
+
+                $('#good_count_today_title #delta').fadeOut("fast", function () {
+                    $('#good_count_today_title #delta').html("(" + percent_good_count_today + "%)");
+                });
+                $('#good_count_today_title #delta').fadeIn("fast");
+
+                $('#bad_count_today p').fadeOut("fast", function () {
+                    $('#bad_count_today p').html(bad_count_today);
+                });
+                $('#bad_count_today p').fadeIn("fast");
+
+                $('#bad_count_today_title #delta').fadeOut("fast", function () {
+                    $('#bad_count_today_title #delta').html("(" + percent_bad_count_today + "%)");
+                });
+                $('#bad_count_today_title #delta').fadeIn("fast");
+            }
+
+            if (data.command == "semafor") {
+                var nest_id = data.nest;
+
+                if (data.nest == null) nest_id = 0;
+
+                state = data.value;  // Array e.g. [0,1,1]
+                blink = data.blink;  // Array e.g. [0,1,1]
+
+                if (state != null) {
+                    if (!state[0]) {
+                        $('#semafor' + (nest_id + 1) + ' .red').addClass("red-off");
+                        $('#semafor' + (nest_id + 1) + ' .red').removeClass("red-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .red').addClass("red-on");
+                        $('#semafor' + (nest_id + 1) + ' .red').removeClass("red-off");
+                    }
+
+                    if (!state[1]) {
+                        $('#semafor' + (nest_id + 1) + ' .yellow').addClass("yellow-off");
+                        $('#semafor' + (nest_id + 1) + ' .yellow').removeClass("yellow-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .yellow').addClass("yellow-on");
+                        $('#semafor' + (nest_id + 1) + ' .yellow').removeClass("yellow-off");
+                    }
+
+                    if (!state[2]) {
+                        $('#semafor' + (nest_id + 1) + ' .green').addClass("green-off");
+                        $('#semafor' + (nest_id + 1) + ' .green').removeClass("green-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .green').addClass("green-on");
+                        $('#semafor' + (nest_id + 1) + ' .green').removeClass("green-off");
+                    }
+                }
+
+                if (blink != null) {
+                    function isZero(element) {
+                        return element === 0;
+                    }
+
+                    clearInterval(blinker[nest_id]);
+
+                    if (!blink.every(isZero)) {
+                        blinker[nest_id] = setInterval(function (nest_id, blink) {
+
+                            if (blink[0]) {
+                                $('#semafor' + (nest_id + 1) + ' .red').toggleClass("red-on");
+                                $('#semafor' + (nest_id + 1) + ' .red').toggleClass("red-off");
+                            }
+
+                            if (blink[1]) {
+                                $('#semafor' + (nest_id + 1) + ' .yellow').toggleClass("yellow-on");
+                                $('#semafor' + (nest_id + 1) + ' .yellow').toggleClass("yellow-off");
+                            }
+
+                            if (blink[2]) {
+                                $('#semafor' + (nest_id + 1) + ' .green').toggleClass("green-on");
+                                $('#semafor' + (nest_id + 1) + ' .green').toggleClass("green-off");
+                            }
+                        }, 300, nest_id, blink);
+                    }
+                }
+            }
+
+
+            if (data.command == "threaded") {  // Determine if nests are threaded
+                threaded = data.value;
+            }
+
+            if (data.command == "error") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+
+                nest_id++;
+
+                if (data.value == -1) {
+                    $("#nest_error" + nest_id + " #error_list").fadeOut("fast", function () {
+                        $("#nest_error" + nest_id + " #error_list").html(""); // Clean fields
+
+                        if (!$("#error_collapse br").length) {
+                            $("#error_collapse").collapse('hide');
+                            $("#error_count").hide();
+                        }
+
+                        $("#error_count").html($("#error_collapse br").length);
+                    }); // Clean fields
+                } else {
+                    //var html = "- " + data.value + "<br>";
+                    $("#nest_error" + nest_id + " #error_list").fadeIn("fast");
+                    //$(html).appendTo("#error_list p").fadeIn("fast");
+                    $("#nest_error" + nest_id + " #error_list").append("- " + data.value + "<br>").fadeIn("fast");
+                    $("#nest_info" + nest_id + " #info_list").append("<span style='color: red;'>- " + data.value + "</span><br>").fadeIn("fast");
+
+                    $("#error_count").html($("#error_collapse br").length);
+                    $("#error_count").show();
+                    $("#info_count").html($("#info_collapse br").length);
+                    $("#info_count").show();
+
+                    $("#error_collapse").collapse('show');
+                }
+            }
+
+            if (data.command == "info") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+
+                nest_id++;
+
+                if (data.value == -1) {
+                    $("#nest_info" + nest_id + " #info_list").fadeOut("fast", function () {
+                        $("#nest_info" + nest_id + " #info_list").html(""); // Clean fields
+
+                        if (!$("#info_collapse br").length) {
+                            $("#info_collapse").collapse('hide');
+                            $("#info_count").hide();
+                        }
+
+                        $("#info_count").html($("#info_collapse br").length);
+                    }); // Clean fields
+                } else {
+                    $("#nest_info" + nest_id + " #info_list").fadeIn("fast");
+
+                    if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image' src='data:image/jpg;base64, " + data.value + "' /><br>").fadeIn("fast");
+                    else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>").fadeIn("fast");
+
+                    $("#info_count").html($("#info_collapse br").length);
+                    $("#info_count").show();
+                }
+            }
+
+            if (data.command == "status") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+                nest_id++;
+
+                // If nests are threaded, show only main status
+                if (!threaded) nest_id = 0;
+
+                $("#nest_status" + nest_id).fadeOut("fast", function () {
+                    $("#nest_status" + nest_id).html(data.value);
+                });
+
+                $("#nest_status" + nest_id).fadeIn("fast");
+            }
+
+            if (data.command == "nests") {
+                var nests = data.value;
+
+                for (var timer = 0; timer < nests; timer++) {  // Make timers plus one (for non-threaded TN)
+                    stopwatch[timer] = new Stopwatch(timer);
+                    stopwatch[timer].reset();
+                }
+
+                for (var blink = 0; blink < nests; blink++) {  // Make timers plus one (for non-threaded TN)
+                    clearInterval(blinker[blink]);
+                }
+
+                $("#dynamic_gui").load("elements/template1.html", function () {
+
+                    if (threaded) $('#nest_time_container0').hide();
+                    else $('#nest_time_container0').show();
+                });
+
+                $.get("elements/semafor.html", function (data) {
+                    for (var current_nest = 0; current_nest < nests; current_nest++) {
+
+                        var data_temp = data.replaceAll('{id}', current_nest + 1);
+                        $("#semaphores").append(data_temp);
+
+                        if (!threaded) {
+                            $('#nest_time_container' + (current_nest + 1)).hide();
+                        } else {
+                            $('#nest_time_container' + (current_nest + 1)).show();
+                        }
+                    }
+                });
+
+                $.get("elements/nest_info.html", function (data) {
+                    for (var current_nest = 0; current_nest < nests; current_nest++) {
+                        data_temp = data.replaceAll('{id}', current_nest + 1);
+                        data_temp = data_temp.replaceAll('{type}', "error");
+                        data_temp = data_temp.replaceAll('{style}', "danger");
+                        $("#errors").append(data_temp);
+
+                        var data_temp = data.replaceAll('{id}', current_nest + 1);
+                        data_temp = data_temp.replaceAll('{type}', "info");
+                        data_temp = data_temp.replaceAll('{style}', "info");
+                        $("#infos").append(data_temp);
+                    }
+
+                    $("#errors #error_list").each(function () {
+                        $(this).hide();
+                    })
+
+                    $("#infos #info_list").each(function () {
+                        $(this).hide();
+                    })
+                });
+
+                $('#progressbar_whole').hide();
+            }
+            if (data.command == "title") {
+                document.title = data.value;
+
+                $("#gui_device_name").fadeOut("fast", function (event) {
+                    $("#gui_device_name").html("Testna naprava " + data.value);
+                });
+
+                $("#gui_device_name").fadeIn("fast");
+            }
+
+            if (data.command == "progress") {
+                var nest_id = data.nest;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+                nest_id++;
+
+                if (data.value > 1) {
+                    $('#semafor' + nest_id + " #info").fadeOut(100, function (event) {
+                        $('#semafor' + nest_id + " #info").html(data.value + "%");
+                    });
+
+                    $('#semafor' + nest_id + " #info").fadeIn(100);
+                }
+                else {
+                    $('#semafor' + nest_id + " #info").fadeOut(100, function (event) {
+                        $('#semafor' + nest_id + " #info").html("");
+                    });
+
+                    $('#semafor' + nest_id + " #info").fadeIn(100);
+                }
+
+                //$('#progressbar').css('width', data.value + "%");
+            }
+
+            // Change custom HTML depending on test device
+            if (data.command == "html") {
+                if (data.value) {
+                    $('#custom_html').append(data.value);
+                } else {
+                    $('#custom_html').html("");
+                }
+            }
+
+
+            if (data.command == "set_worker_data") {  // Change custom HTML  DB depending on test device
+                // Retrieve worker data from test device
+                var worker_id = data.worker_id;
+                var worker_type = data.worker_type;
+
+                // Set current worker and type on GUI
+                $('#worker_id').val(worker_id);
+                $('#worker_type').val(worker_type);
+
+                $('#set_worker_data_accordion #current').fadeOut("fast", function (event) {
+                    $('#set_worker_data_accordion #current').html("Trenutni: " + worker_id);
+                });
+                $('#set_worker_data_accordion #current').fadeIn("fast");
+            }
+
+
+            if (data.command == "time") {
+                // Retrieve worker data from test device
+                var mode = data.mode;
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;  // Use first timer if is signle-threaded
+                else nest_id = data.nest;
+
+                if (mode == "reset") {
+                    stopwatch[nest_id].reset();
+                } else if (mode == "start") {
+                    stopwatch[nest_id].reset();
+                    stopwatch[nest_id].start();
+                } else if (mode == "duration") {
+                    stopwatch[nest_id].stop(data.value);
+                }
+            }
+        }
+
+        $("#select_tn a").click(function (e) {
+            selected_test_device = $(this).attr('id').replace('tn', '');
+
+            e.preventDefault(); // cancel the link behaviour
+            $(this).parents(".dropdown").find('.btn').html($(this).text());
+            $(this).parents(".dropdown").find('.btn').val($(this).data('value'));
+
+            $("#connect_info").fadeOut("fast", function (event) {
+                $("#connect_info").html("IP: " + test_device_list[selected_test_device]['addr']);
+            });
+
+            $("#connect_info").fadeIn("fast");
+
+            $('#connect_tn').prop('disabled', false);
+        });
+
+        $("#shutdown_yes").click(function () {
+            sendJSON({"command": "shutdown"});
+        });
+
+        $("#reboot_yes").click(function () {
+            sendJSON({"command": "reboot"});
+        });
+
+        $("#connect_tn").click(function () {
+            $("#connect_tn_spinner").show();
+            $('#connect_tn').prop('disabled', true);
+
+            wsOpen(); // Attempt to open websocket
+        });
+
+        $("#refresh_db").click(function () {
+            if (!$('#refresh_db').is(':disabled')) {
+                //sendJSON({"command": "get_db_data"});
+                var test_device = test_device_list[connected_to]['name'];
+                $.getJSON("/db?tid=" + test_device, function (data) {
+
+
+                    $.each(data, function (index, val) {
+                        data[index]['datetime'] = moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
+
+                        if (data[index]['start_test'] != null) data[index]['start_test'] = moment.utc(data[index]['start_test']).local().format('x');  // Convert datetime to unix
+                    });
+
+                    $('#dbtable').dataTable().fnClearTable();
+                    $('#dbtable').dataTable().fnAddData(data);
+
+                    var date = moment(new Date());
+
+                    var datestring = "Zadnjič osveženo: " + date.format("DD.MM.YYYY ob HH:mm:ss");
+
+                    $('#refresh_db').prop('disabled', false); // Enable DB refresh button
+                    $("#db_spinner").fadeOut("fast"); // Hide spinner
+                    $("#db_refresh_info").fadeOut("fast", function () {
+                        $("#db_refresh_info").html(datestring);
+                        $("#db_refresh_info").fadeIn("fast");
+                    });
+
+                    $('#plotsite').fadeOut("fast", function () {
+                        $("#plotsite div").empty(); // Clean plot space
+
+                        // PLOTLY - Uspešnost po gnezdih
+                        var good1 = {
+                            x: [],
+                            y: [],
+                            type: "bar",
+                            name: "OK",
+                            marker: {
+                                color: 'rgb(30,167,69)',
+                                line: {
+                                    color: 'rgb(8,48,107)'
+                                }
+                            }
+                        };
+
+                        var bad1 = {
+                            x: [],
+                            y: [],
+                            type: "bar",
+                            name: "FAIL",
+                            marker: {
+                                color: 'rgb(220,53,69)',
+                                line: {
+                                    color: 'rgb(8,48,107)'
+                                }
+                            }
+                        };
+
+                        // PLOTLY - Dnevno testiranje
+                        var good = {
+                            x: [],
+                            y: [],
+                            type: "bar",
+                            name: "OK",
+                            text: [],
+                            marker: {
+                                color: 'rgb(30,167,69)',
+                                line: {
+                                    color: 'rgb(8,48,107)'
+                                }
+                            },
+                            transforms: [{
+                                type: 'sort',
+                                target: 'x',
+                                order: 'descending'
+                            }]
+                        };
+
+                        var bad = {
+                            x: [],
+                            y: [],
+                            type: "bar",
+                            name: "FAIL",
+                            text: [],
+                            marker: {
+                                color: 'rgb(220,53,69)',
+                                line: {
+                                    color: 'rgb(8,48,107)'
+                                }
+                            },
+                            transforms: [{
+                                type: 'sort',
+                                target: 'x',
+                                order: 'descending'
+                            }]
+                        };
+
+                        // PLOTLY - Dnevno testiranje
+                        var test_time = {
+                            x: [],
+                            y: [],
+                            type: "bar",
+                            name: "sekund",
+                            marker: {},
+                            text: [],
+                            hoverinfo: 'text',
+                            transforms: [{
+                                type: 'sort',
+                                target: 'x',
+                                order: 'descending'
+                            }]
+                        };
+
+                        var measurement_list = [];
+                        var measurement_traces = [];
+
+                        data.forEach(function (val) {
+                            if (val["result"]) {
+                                if (!good1.x.includes(val["nest"])) {
+                                    good1.x.push(val["nest"]);
+                                    good1.y[val["nest"]] = 0;
+                                }
+
+                                good1.y[val["nest"]]++;
+                            } else if (!val["result"]) {
+                                if (!bad1.x.includes(val["nest"])) {
+                                    bad1.x.push(val["nest"]);
+                                    bad1.y[val["nest"]] = 0;
+                                }
+
+                                bad1.y[val["nest"]]++;
+                            }
+
+                            var id = moment(val["datetime"], 'x').format('DD.MM.YYYY');
+
+                            if (val["result"]) {
+                                if (!good.x.includes(id)) {
+                                    good.x.push(id);
+                                    good.y[good.x.indexOf(id)] = 0;
+                                }
+
+                                good.y[good.x.indexOf(id)]++;
+                            }
+                            else {
+                                if (!bad.x.includes(id)) {
+                                    bad.x.push(id);
+                                    bad.y[bad.x.indexOf(id)] = 0;
+                                }
+
+                                bad.y[bad.x.indexOf(id)]++;
+                            }
+
+                            if (!test_time.x.includes(id)) {
+                                test_time.x.push(id);
+                                test_time.y[test_time.x.indexOf(id)] = 0;
+                            }
+
+                            try {
+                                var duration = moment.duration(val['datetime'] - val['start_test']).as('seconds');
+                                //console.log(duration);
+                                test_time.y[test_time.x.indexOf(id)] += duration;
+                            } catch (err) {
+                                // Pass invalid measurements (old data)
+                            }
+
+                            $.each(val['measurements'], function (measurement, value) {
+                                if (!Object.size(value)) return;  // Pass empty measurements
+
+                                // Foreach measurement make new subplot
+                                $.each(value, function (j, w) {
+                                    if (!measurement_list.includes(j)) {  // New measurement detected (array does not include measurement name)
+                                        var trace = {
+                                            x: [],
+                                            y: [],
+                                            type: "scatter",
+                                            name: j,
+                                            mode: 'markers'
+                                        };
+
+                                        measurement_list.push(j);
+                                        measurement_traces.push(trace);
+                                    }
+
+                                    id = measurement_list.indexOf(j);
+
+                                    measurement_traces[id].x.push(measurement_traces[id].x.length);
+                                    measurement_traces[id].y.push(w[0]);
+                                });
+                            });
+                        });
+
+                        //console.log(measurement_traces);
+
+                        var layout = {
+                            title: 'Raztros rezultatov meritev',
+                            xaxis: {
+                                title: {
+                                    text: "indeks meritve"
+                                }
+                            },
+                            yaxis: {
+                                title: {
+                                    text: "vrednost"
+                                }
+                            },
+                            showlegend: true
+                        };
+
+                        Plotly.newPlot('meas_vs_value', measurement_traces, layout);
+
+                        var layout = {
+                            barmode: 'group',
+                            title: 'Uspešnost testiranja glede na ležišča',
+                            xaxis: {
+                                title: {
+                                    text: "ležišče"
+                                }
+                            },
+                            yaxis: {
+                                title: {
+                                    text: "rezultat"
+                                }
+                            }
+                        };
+
+
+                        // Prettify nest ID
+                        good1.x.forEach(function (value, index) {
+                            good1.x[index] += 1;
+                        });
+                        bad1.x.forEach(function (value, index) {
+                            bad1.x[index] += 1;
+                        });
+
+
+                        Plotly.newPlot('nest_vs_result', [good1, bad1], layout);
+
+                        var layout = {
+                            barmode: 'stack',
+                            title: 'Uspešnost testiranja po dnevih uporabe',
+                            xaxis: {
+                                title: {
+                                    text: "datum testiranja"
+                                }
+                            },
+                            yaxis: {
+                                title: {
+                                    text: "rezultat"
+                                }
+                            }
+                        };
+
+                        // Add percentage to good counter plot
+                        good.x.forEach(function (value, index) {
+                            var all = (good.y[good.x.indexOf(value)] || 0) + (bad.y[bad.x.indexOf(value)] || 0);  // this operators are for NaN convert to 0
+
+                            good.text[index] = Math.round(((good.y[good.x.indexOf(value)] || 0) / all) * 100.0, 1) + "%";
+                        });
+
+                        // Add percentage to bad counter plot
+                        bad.x.forEach(function (value, index) {
+                            var all = (good.y[good.x.indexOf(value)] || 0) + (bad.y[bad.x.indexOf(value)] || 0);  // this operators are for NaN convert to 0
+
+                            bad.text[index] = Math.round(((bad.y[bad.x.indexOf(value)] || 0) / all) * 100.0, 1) + "%";
+                        });
+
+                        Plotly.newPlot('result_vs_time', [good, bad], layout);
+
+                        var layout = {
+                            barmode: 'group',
+                            title: 'Čas testiranja glede po dnevih uporabe',
+                            xaxis: {
+                                title: {
+                                    text: "datum testiranja"
+                                }
+                            },
+                            yaxis: {
+                                title: {
+                                    text: "skupen čas testiranja"
+                                }
+                            }
+                        };
+
+                        // Prettify datetimes
+                        test_time.y.forEach(function (value, index) {
+                            test_time.text[index] = moment.utc(value * 1000).format('HH:mm:ss');
+                        });
+
+                        Plotly.newPlot('resultproc_vs_time', [test_time], layout);
+                    });
+
+                    $('#plotsite').fadeIn("fast");
+
+
+                });
+
+                $('#refresh_db').prop('disabled', true);
+                $("#db_spinner").fadeIn("fast");
+            }
+        });
+
+        $("#save_worker_data").click(function () {
+            var worker_id = $("#worker_id").val();
+
+            if (worker_id < -1 || worker_id > 99 || isNaN(worker_id)) worker_id = -1;
+
+            sendJSON({"command": "save_worker_data", "worker_id": worker_id, "worker_type": $("#worker_type").find("option:selected").val()});
+        });
+
+
+        function Stopwatch(id) {
+            var startTime, endTime, instance = this, interval, nest = id;
+
+            this.start = function () {
+                startTime = new Date();
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                // Show timer
+                interval = setInterval(function () {
+                    var duration = (new Date() - startTime) / 1000;
+                    var seconds = Math.round(duration % 60);
+                    // remove seconds from the date
+                    duration = Math.floor(duration / 60);
+                    // get minutes
+                    var minutes = Math.round(duration % 60);
+                    // remove minutes from the date
+                    duration = Math.floor(duration / 60);
+                    // get hours
+                    var hours = Math.round(duration % 24);
+
+                    $('#nest_time' + id).html(pad(hours, 2) + ":" + pad(minutes, 2) + ":" + pad(seconds, 2));
+                }, 1000);
+
+            };
+
+            this.stop = function (seconds) {
+                clearInterval(interval);  // Stop updating timer
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                // Povecaj pisavo
+                duration_secs = Math.round(seconds);
+
+                var text_nice = "sekund";
+                if (duration_secs == 1) text_nice = "sekunda";
+                else if (duration_secs == 2) text_nice = "sekundi";
+                else if (duration_secs == 3) text_nice = "sekunde";
+
+                $('#nest_time' + id).fadeOut("fast", function (event) {
+                    $('#nest_time' + id).html('<b>' + duration_secs + ' ' + text_nice + '</b>');
+                });
+                $('#nest_time' + id).fadeIn("fast");  // Show elapsed
+            }
+
+            this.reset = function () {
+                startTime = null;
+                endTime = null;
+                clearInterval(interval);  // Stop updating timer
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                $('#nest_time' + id).fadeOut("fast", function (event) {
+                    $('#nest_time' + id).html('00:00:00');
+                });
+                $('#nest_time' + id).fadeIn("fast"); // Show 00:00:00
+            }
+        }
+
+        function pad(n, width, z) {
+            z = z || '0';
+            n = n + '';
+            return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+        }
+    })
+    ;
+</script>

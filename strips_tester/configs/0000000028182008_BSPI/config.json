@@ -43,6 +43,20 @@
     },
 
 
+    "LIMIT_1": {
+      "function": 1,
+      "pin": 26
+    },
+    "LIMIT_2": {
+      "function": 1,
+      "pin": 38
+    },
+    "LIMIT_3": {
+      "function": 1,
+      "pin": 40
+    },
+
+
     "STEP_1": {
       "function": 0,
       "initial": 0,

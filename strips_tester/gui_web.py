@@ -8,6 +8,8 @@ from config_loader import Settings
 import strips_tester
 import pymongo
 from bson import json_util
+import threading
+import datetime
 
 clients = []
 settings = Settings()
@@ -29,9 +31,15 @@ class SimpleChat(WebSocket):
         # Global parsing (all test devices)
 
         if "shutdown" in data['command']:
+            test_devices_col = strips_tester.data['db_database']["test_device"]
+            test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": False}})  # Update TN Status
+
             subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
         if "reboot" in data['command']:
+            test_devices_col = strips_tester.data['db_database']["test_device"]
+            test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": False}})  # Update TN Status
+
             subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
 
         if "save_worker_data" in data['command']:
@@ -87,17 +95,6 @@ class SimpleChat(WebSocket):
         print(self.address, 'closed')
 
 
-class PingServer(WebSocket):
-    def handleMessage(self):
-        pass
-
-    def handleConnected(self):
-        pass
-
-    def handleClose(self):
-        pass
-
-
 def send(message):
     for client in clients:
         client.sendMessage(json.dumps(message))
@@ -106,35 +103,19 @@ def send(message):
 def sendTo(client, message):
     client.sendMessage(json.dumps(message))
 
+def send_ping():
+    # Connect to DB with new temporary client
+    # Send date to database. Client on HTTP will calculate duration of last ping received
+    connection = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    database = connection["stripstester"]
+    date = datetime.datetime.utcnow()
 
-def send_spam():
-    messages = []
-    messages.append({"status": "Merjenje napetosti..."})
-    messages.append({"progress": random.randint(0, 100)})
-    messages.append({"status": "Odpri pokrov"})
-    messages.append({"status": "Merjenje temperature..."})
-    messages.append({"status": "Programiranje..."})
-    messages.append({"good_count": random.randint(0, 1000)})
-    messages.append({"bad_count": random.randint(0, 1000)})
-    messages.append({"semafor1": [random.randint(0, 1), random.randint(0, 1), random.randint(0, 1)]})
+    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
 
-    while True:
-        id = random.randint(0, len(messages) - 1)
-        message = json.dumps(messages[id])
-
-        print(message)
-        for client in clients:
-            client.sendMessage(message)
-
-        time.sleep(0.5)
-
+    connection.close()
+    threading.Timer(5, send_ping).start()
 
 def start_server():
     server = SimpleWebSocketServer('', 8000, SimpleChat)
+    send_ping()
     server.serveforever()
-
-
-def start_pingserver():
-    print("Ping server started on port 8001")
-    ping_server = SimpleWebSocketServer('', 8001, SimpleChat)
-    ping_server.serveforever()

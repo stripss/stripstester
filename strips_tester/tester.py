@@ -262,7 +262,6 @@ if __name__ == "__main__":
         # Retrieve last settings
         strips_tester.data['worker_id'] = test_device['worker_id']
         strips_tester.data['worker_type'] = test_device['worker_type']
-
     else:
         print("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
         strips_tester.data['new_db'] = False

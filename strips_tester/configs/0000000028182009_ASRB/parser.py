@@ -20,4 +20,5 @@ class Parser:
         pass
 
     def welcome(self, client):
-        gui_web.sendTo(client, {"command": "title", "value": "Photointerrupter"})
+        gui_web.sendTo(client, {"command": "new"})
+        gui_web.sendTo(client, {"command": "title", "value": "ASRB"})
