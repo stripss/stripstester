@@ -52,7 +52,13 @@ def main():
     #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar")
     #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
-    print("STATUS NEW :)")
+    update_tester()
+
+def update_tester():
+    os.system("sudo rm -rf /temp")
+    os.system("sudo git clone https://dajanchar:ljsr277\!ljsr277@github.com/dajanchar/StripsTesterProject.git /temp")
+    os.system("sudo cp -rf /temp/* /strips_tester_project/")
+    os.system("sudo rm -rf /temp")
 
 def print_sticker(test_status,printer):
     program = "S001"
