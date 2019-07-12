@@ -34,7 +34,7 @@ class StartProcedureTask(Task):
 
 
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "25"})
-        strips_tester.data['start_time'][self.nest_id] = datetime.datetime.now()  # Get start test date
+        strips_tester.data['start_time'][self.nest_id] = datetime.datetime.utcnow()  # Get start test date
         gui_web.send({"command": "time", "mode": "start", "nest": self.nest_id})  # Start count for test
         gui_web.send({"command": "error", "nest": self.nest_id, "value": -1})  # Clear all error messages
         gui_web.send({"command": "info", "nest": self.nest_id, "value": -1})  # Clear all info messages
@@ -70,13 +70,13 @@ class InitialTest(Task):
             time.sleep(0.0001 + acc)
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
 
-        end_time = datetime.datetime.now() + datetime.timedelta(seconds=5)
+        end_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=5)
 
 
         gui_web.send({"command": "status", "nest": self.nest_id, "value": "Test preklopov stikala"})  # Clear all info messages
         preklop = 0
         old_state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
-        while datetime.datetime.now() < end_time and preklop <= 5:
+        while datetime.datetime.utcnow() < end_time and preklop <= 5:
             state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
 
             if not old_state and state:

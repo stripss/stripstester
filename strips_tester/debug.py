@@ -21,13 +21,22 @@ import strips_tester
 import plotly
 from plotly.graph_objs import Bar, Scatter, Layout, Figure
 
-def insert_test_device(name, nests, address, description, author, date_of_creation):
+def insert_test_device(name, nests, address, description, author):
+    date_of_creation = datetime.datetime.utcnow()
     myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
     mydb = myclient["stripstester"]
     mycol = mydb['test_device']
 
     if mycol.find_one({'name': name}) is None:  # Test device does not exist
-        data = {'name': name, 'nests': nests, 'address': address, 'description': description, 'author': author, 'date_of_creation': date_of_creation, 'worker_id': -1, 'worker_type': -1}
+        data = {'name': name,
+                'nests': nests,
+                'address': address,
+                'description': description,
+                'author': author,
+                'date_of_creation': date_of_creation,
+                'worker_id': -1,
+                'worker_type': -1,
+                'status': date_of_creation}
         print("Test device {} is not found in database, so we create one.".format(name))
 
         x = mycol.insert_one(data)
@@ -39,7 +48,8 @@ def main():
     #g = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
     #print_sticker(1,g)
     #insert_test_device("GACS_A2 Bender", 1, "127.0.0.1", "Bender module", "Marcel Jancar", datetime.datetime.now())
-    #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar", datetime.datetime.now())
+    #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar")
+    insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
     '''    shifter = devices.HEF4094BT(24, 31, 26, 29)
 

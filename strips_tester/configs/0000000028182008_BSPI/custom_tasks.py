@@ -39,6 +39,7 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "0"})
 
         module_logger.info("Waiting for detection switch")
+
         while True:
             # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
             state_GPIO_SWITCH = GPIO.input(gpios.get(start_switch))
@@ -53,7 +54,7 @@ class StartProcedureTask(Task):
         shifter.set(int(custom_data['led_red_' + str(self.nest_id + 1)], 16))
 
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "25"})
-        strips_tester.data['start_time'][self.nest_id] = datetime.datetime.now()  # Get start test date
+        strips_tester.data['start_time'][self.nest_id] = datetime.datetime.utcnow()  # Get start test date
         gui_web.send({"command": "time", "mode": "start", "nest": self.nest_id})  # Start count for test
         gui_web.send({"command": "error", "nest": self.nest_id, "value": -1})  # Clear all error messages
         gui_web.send({"command": "info", "nest": self.nest_id, "value": -1})  # Clear all info messages
@@ -84,7 +85,7 @@ class LED_Indicator:
     def set(self, mask):
         strips_tester.data['lock'].acquire()  # Concurrency writing
         strips_tester.data['shifter'] = strips_tester.data['shifter'] | mask  # Assign shifter global memory
-        print("set {} to {}" . format(mask,strips_tester.data['shifter']))
+        #print("set {} to {}" . format(mask,strips_tester.data['shifter']))
         self.shiftOut()
         strips_tester.data['lock'].release()
 
@@ -115,43 +116,53 @@ class InitialTest(Task):
         pass
 
     def run(self) -> (bool, str):
-        end_time = datetime.datetime.now() + datetime.timedelta(seconds=2)
-
         gui_web.send({"command": "status", "nest": self.nest_id, "value": "Test preklopov stikala"})  # Clear all info messages
-        preklop = 0
+        interrupt = 0
 
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
         GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.LOW)
 
         old_state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
 
-        while datetime.datetime.now() < end_time and preklop <= 5:
+        module_logger.info("Stepper motor begin to trigger interrupts")
+        #while datetime.datetime.now() < end_time and preklop <= 5:
+        debounce_step = 0
 
+        for steps in range(3000):
             state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
 
             GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
             GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
             time.sleep(0.0001)
 
+            # Distance between gear teeth - so and strings from plastic do not trigger switch. Also serves as debounce
+            dist_between_gear = 10
+            num_of_interrupts = 10
             if not old_state and state:
-                preklop = preklop + 1
-                time.sleep(0.01)
+                if abs(debounce_step - steps) > dist_between_gear:
 
-                gui_web.send({"command": "info", "nest": self.nest_id, "value": "Preklop"})
+                    interrupt += 1
+
+                    if interrupt == num_of_interrupts:
+                        break
+
+                    debounce_step = steps
 
             old_state = state
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
 
-        gui_web.send({"command": "info", "nest": self.nest_id, "value": "Čas za preklope se je iztekel"})
+        module_logger.info("Trigger interrupts done")
 
         strips_tester.data['exist'][self.nest_id] = True
 
-        if preklop > 5:
-            self.add_measurement(self.nest_id, True, "switches", preklop, "")
-            gui_web.send({"command": "info", "nest": self.nest_id, "value": "Preklopi OK. ({})" . format(preklop)})
+        if interrupt > 5:
+            module_logger.info("Switches OK, detected {}" . format(interrupt))
+            self.add_measurement(self.nest_id, True, "switches", interrupt, "")
+            gui_web.send({"command": "info", "nest": self.nest_id, "value": "Preklopi OK. ({})" . format(interrupt)})
         else:
-            self.add_measurement(self.nest_id, False, "switches", preklop, "")
-            gui_web.send({"command": "error", "nest": self.nest_id, "value": "Nezadostno število preklopov! ({})" . format(preklop)})
+            module_logger.error("Switches FAIL, detected {}" . format(interrupt))
+            self.add_measurement(self.nest_id, False, "switches", interrupt, "")
+            gui_web.send({"command": "error", "nest": self.nest_id, "value": "Nezadostno število preklopov! ({})" . format(interrupt)})
 
         return
 
@@ -161,7 +172,7 @@ class InitialTest(Task):
 
 class ProductConfigTask(Task):
     def set_up(self):
-        module_logger.debug("ProductConfigTask init")
+        pass
 
     def run(self):
         if strips_tester.data['exist'][self.nest_id]:
@@ -176,7 +187,7 @@ class ProductConfigTask(Task):
 
 class FinishProcedureTask(Task):
     def set_up(self):
-        module_logger.debug("FinishProcedureTask init")
+        pass
 
     def run(self):
         self.calibrate()
@@ -200,6 +211,8 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "100"})
 
+        module_logger.info("Waiting for product to be removed")
+
         while self.lid_closed():
             time.sleep(0.01)
 
@@ -207,6 +220,7 @@ class FinishProcedureTask(Task):
         return
 
     def calibrate(self):
+        module_logger.info("Calibration of stepper motor")
         offset = 100
         GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
 
@@ -226,6 +240,8 @@ class FinishProcedureTask(Task):
             time.sleep(0.00015)
 
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
+
+        module_logger.info("Calibration done")
 
     def lid_closed(self):
         state = GPIO.input(gpios.get("START_SWITCH_" + str(self.nest_id + 1)))

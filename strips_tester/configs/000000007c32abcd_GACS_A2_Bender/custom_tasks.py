@@ -34,7 +34,7 @@ class StartProcedureTask(Task):
 
         gui_web.send({"command": "error", "value": -1})  # Clear all error messages
         gui_web.send({"command": "info", "value": -1})  # Clear all error messages
-        strips_tester.data['start_time'][0] = datetime.datetime.now()  # Get start test date
+        strips_tester.data['start_time'][0] = datetime.datetime.utcnow()  # Get start test date
         gui_web.send({"command": "time", "mode": "start"})  # Start count for test
         gui_web.send({"command": "status", "value": "Testiranje v teku..."})
 

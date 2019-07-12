@@ -11,7 +11,6 @@ import time
 import gui_web
 import threading
 import pymongo
-from log4mongo.handlers import MongoHandler
 
 # Imported for catching SegmentationFault like errors
 import faulthandler
@@ -53,8 +52,6 @@ def initialize_logging(level: int = logging.INFO):
     # Logging to database (works, but the document count will be large soon)
     #db_handler = MongoHandler(host='172.30.129.19', database_name='stripstester', collection='logs')
     #lgr.addHandler(db_handler)
-
-    # db_handler = logging. # todo database logging handler
     return lgr
 
 # Data handles all custom data of current test device (acts like RAM)

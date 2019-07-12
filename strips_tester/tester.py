@@ -52,7 +52,7 @@ class Task:
         #print("[{}] Added values to measurements: {}" . format(type(self).__name__, strips_tester.data['measurement'][nest_id][type(self).__name__]))
 
         if end_task:
-            print("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
+            module_logger.error("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
             self.test_data['end'] = True
 
     def end_test(self):
@@ -161,14 +161,14 @@ def reset_data():
 
 def update_database():
     strips_tester.data['lock'].acquire()
-    end_time = datetime.datetime.now()
+    end_time = datetime.datetime.utcnow()
 
     #########    PYMONGO    ##########
     # Find test device ID in database for relationships
     test_device_id = test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
 
     if test_device_id is not None:  # Check if test device exists in database
-        print("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
+        module_logger.info("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
 
         #try:
         # Insert new test info because new test has been made
@@ -185,7 +185,7 @@ def update_database():
 
             if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
                 if strips_tester.data['status'][current_nest] != -1:
-                    print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
+                    #print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
 
                     # Each nest test counts as one test individually
                     test_info_data = {"datetime": end_time,
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     test_device = test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
 
     if test_device is not None:
-        print("[StripsTesterDB] Test device {} found in database!" . format(test_device['name']))
+        module_logger.info("[StripsTesterDB] Test device {} found in database!" . format(test_device['name']))
 
         strips_tester.data['new_db'] = True
         strips_tester.data['test_device_nests'] = test_device['nests']
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         strips_tester.data['worker_id'] = test_device['worker_id']
         strips_tester.data['worker_type'] = test_device['worker_type']
     else:
-        print("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
+        module_logger.info("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
         strips_tester.data['new_db'] = False
 
         while True:  # Wait forever
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     strips_tester.data['lock'] = threading.Lock()
 
     if strips_tester.settings.thread_nests:
-        print("[StripsTester] Nests are THREADED. Each nest in seperate thread start.")
+        module_logger.info("[StripsTester] Nests are THREADED. Each nest in seperate thread start.")
         # Multiple instances or threads. Global lock is required so the shared variables are not overwritten
 
         threads = []
@@ -290,7 +290,7 @@ if __name__ == "__main__":
         for thread in range(strips_tester.data['test_device_nests']):
             threads[thread].join()
     else:
-        print("[StripsTester] Nests are non THREADED. Normal start.")
+        module_logger.info("[StripsTester] Nests are non THREADED. Normal start.")
 
         start_test_device()
 

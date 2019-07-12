@@ -66,7 +66,7 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "info", "nest": i, "value": -1})  # Clear all error messages
                 gui_web.send({"command": "semafor", "nest": i, "value": (0, 1, 0), "blink": (0, 0, 0)})
 
-                strips_tester.data['start_time'][i] = datetime.datetime.now()  # Get start test date
+                strips_tester.data['start_time'][i] = datetime.datetime.utcnow()  # Get start test date
                 gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
 
             GPIO.output(gpios['GREEN_LEFT'], True)
@@ -753,9 +753,9 @@ class ICT_VoltageVisualTest(Task):
             #     strips_tester.data['status'][1] = False
 
     def check_mask(self, mask=[], duration=0):
-        end_time = datetime.datetime.now() + datetime.timedelta(seconds=duration)
+        end_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=duration)
 
-        while datetime.datetime.now() < end_time:
+        while datetime.datetime.utcnow() < end_time:
             state_list = []
 
             for current in range(len(self.led_gpio)):
@@ -994,7 +994,7 @@ class PrintSticker(Task):
         code['S002'] = 552943
         qc_id = strips_tester.data['worker_id']
 
-        date = datetime.datetime.now().strftime("%d.%m.%Y")
+        date = datetime.datetime.utcnow().strftime("%d.%m.%Y")
 
         if test_status == True:  # Test OK
             inverse = '^L\r'

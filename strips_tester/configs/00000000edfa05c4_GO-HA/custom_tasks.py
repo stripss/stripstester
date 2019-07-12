@@ -42,7 +42,7 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "info", "nest": i, "value": -1})  # Clear all error messages
                 gui_web.send({"command": "semafor", "nest": i, "value": (0, 1, 0), "blink": (0, 0, 0)})
 
-                strips_tester.data['start_time'][i] = datetime.datetime.now()  # Get start test date
+                strips_tester.data['start_time'][i] = datetime.datetime.utcnow()  # Get start test date
                 gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
 
 

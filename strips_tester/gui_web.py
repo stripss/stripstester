@@ -10,6 +10,9 @@ import pymongo
 from bson import json_util
 import threading
 import datetime
+import logging
+
+module_logger = logging.getLogger(".".join(("strips_tester", "gui_web")))
 
 clients = []
 settings = Settings()
@@ -31,15 +34,9 @@ class SimpleChat(WebSocket):
         # Global parsing (all test devices)
 
         if "shutdown" in data['command']:
-            test_devices_col = strips_tester.data['db_database']["test_device"]
-            test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": False}})  # Update TN Status
-
             subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
         if "reboot" in data['command']:
-            test_devices_col = strips_tester.data['db_database']["test_device"]
-            test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": False}})  # Update TN Status
-
             subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
 
         if "save_worker_data" in data['command']:
@@ -115,7 +112,20 @@ def send_ping():
     connection.close()
     threading.Timer(5, send_ping).start()
 
+def update_address_info(server):
+    addr = server.serversocket.getsockname()
+
+    connection = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    database = connection["stripstester"]
+
+    # Save current port to DB
+    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": addr[1]}})
+    connection.close()
+
+    module_logger.info("[StripsTester] WebSocket server started on port {}" . format(addr[1]))
+
 def start_server():
     server = SimpleWebSocketServer('', 8000, SimpleChat)
-    send_ping()
+    update_address_info(server)  # Store address info to DB
+    send_ping()  # Signal DB that TN is alive
     server.serveforever()

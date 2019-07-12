@@ -651,7 +651,7 @@ class INA219:
     def __init__(self):  # Initialize sensor with 0.1 resistor
         self.ina = ina219.INA219(0.1)
 
-    def voltage(self, repeat=5):
+    def voltage(self, repeat=10):
         voltage = 0.0
 
         for x in range(0, repeat):
