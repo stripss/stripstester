@@ -52,13 +52,8 @@ def main():
     #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar")
     #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
-    os.system("Hello")
-    os.system("cd ~ && git pull ")
-    os.system("git clone https://github.com/dajanchar/StripsTesterProject.git")
-    os.system("git fetch")
-    os.system("git reset origin/master")
-    os.system("git checkout -t origin/master")
-
+    print("GIT IS WORKING :)")
+    
 def print_sticker(test_status,printer):
     program = "S001"
 
