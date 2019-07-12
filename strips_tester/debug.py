@@ -20,6 +20,7 @@ import pymongo
 import strips_tester
 import plotly
 from plotly.graph_objs import Bar, Scatter, Layout, Figure
+import os
 
 def insert_test_device(name, nests, address, description, author):
     date_of_creation = datetime.datetime.utcnow()
@@ -49,20 +50,14 @@ def main():
     #print_sticker(1,g)
     #insert_test_device("GACS_A2 Bender", 1, "127.0.0.1", "Bender module", "Marcel Jancar", datetime.datetime.now())
     #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar")
-    insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
+    #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
-    '''    shifter = devices.HEF4094BT(24, 31, 26, 29)
-
-
-    while True:
-        shifter.set("K9", True)
-        shifter.invertShiftOut()
-        time.sleep(2)
-        shifter.set("K9", False)
-        shifter.invertShiftOut()
-        time.sleep(2)
-    '''
-
+    os.system("Hello")
+    os.system("cd ~ && git pull ")
+    os.system("git clone https://github.com/dajanchar/StripsTesterProject.git")
+    os.system("git fetch")
+    os.system("git reset origin/master")
+    os.system("git checkout -t origin/master")
 
 def print_sticker(test_status,printer):
     program = "S001"
