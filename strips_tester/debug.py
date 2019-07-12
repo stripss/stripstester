@@ -53,7 +53,7 @@ def main():
     #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
     #()
-    print("WOW")
+    print("WOW autostart")
 def update_tester():
     os.system("sudo rm -rf /temp")
     os.system("sudo git clone https://dajanchar:ljsr277\!ljsr277@github.com/dajanchar/StripsTesterProject.git /temp")
