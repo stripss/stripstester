@@ -59,7 +59,7 @@ def update_tester():
     os.system("sudo git clone https://dajanchar:ljsr277\!ljsr277@github.com/dajanchar/StripsTesterProject.git /temp")
     os.system("sudo cp -rf /temp/* /strips_tester_project/")
     os.system("sudo rm -rf /temp")
-
+    sds
 def print_sticker(test_status,printer):
     program = "S001"
 
