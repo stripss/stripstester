@@ -33,7 +33,7 @@ def get_by_id(id):
     print(mycol.find_one({'_id': int(id)}))
     myclient.close()
 def main():
-    get_by_id('5d2ede20ad889d04a9059ca4')
+    #get_by_id('5d2ede20ad889d04a9059ca4')
     #g = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
     #print_sticker(1,g)
     #insert_test_device("GACS_A2 Bender", 1, "127.0.0.1", "Bender module", "Marcel Jancar", datetime.datetime.now())
