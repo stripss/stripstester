@@ -41,6 +41,7 @@ def main():
     #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
     #()
+    print("asodijaso")
     pass
 
 
