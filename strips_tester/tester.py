@@ -7,7 +7,7 @@ import sys
 import RPi.GPIO as GPIO
 import Colorer
 import time
-#asd
+
 
 # git password stripsstrips1
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
