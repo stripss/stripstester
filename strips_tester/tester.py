@@ -8,6 +8,8 @@ import RPi.GPIO as GPIO
 import Colorer
 import time
 
+
+# git password stripsstrips1
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 import strips_tester
 from strips_tester import settings
