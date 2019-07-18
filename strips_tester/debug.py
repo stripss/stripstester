@@ -15,12 +15,13 @@ def insert_test_device(name, nests, address, description, author):
                 'description': description,
                 'author': author,
                 'date_of_creation': date_of_creation,
-                'worker_id': -1,
-                'worker_type': -1,
+                'worker_id': 1,
+                'worker_type': 0,
+                'worker_comment': "",
                 'status': date_of_creation}
         print("Test device {} is not found in database, so we create one.".format(name))
 
-        x = mycol.insert_one(data)
+        mycol.insert_one(data)
     else:
         print("Test device {} is already in database.".format(name))
 
@@ -33,15 +34,7 @@ def get_by_id(id):
     print(mycol.find_one({'_id': int(id)}))
     myclient.close()
 def main():
-    #get_by_id('5d2ede20ad889d04a9059ca4')
-    #g = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
-    #print_sticker(1,g)
-    #insert_test_device("GACS_A2 Bender", 1, "127.0.0.1", "Bender module", "Marcel Jancar", datetime.datetime.now())
-    #insert_test_device("GO-HA-2", 2, "127.0.0.1", "GO Hall sensor test device", "Marcel Jancar")
-    #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
-    #g.close()
-    #()
-    print("asodijaso")
+  
     pass
 
 
