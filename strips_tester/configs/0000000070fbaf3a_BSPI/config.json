@@ -5,6 +5,7 @@
     "StartProcedureTask": 1,
     "InitialTest": 1,
     "ProductConfigTask": 1,
+    "Calibration": 1,
     "FinishProcedureTask": 1
   },
   "critical_event_tasks": {

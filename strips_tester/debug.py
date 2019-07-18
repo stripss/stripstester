@@ -1,26 +1,6 @@
 import time
-import serial
-# import cv2
-# from smbus2 import SMBusWrapper
-# global img
-import random
-import devices
-# import struct
-import numpy as np
-import RPi.GPIO as GPIO
-# import utils
-import cv2
-# import datetime
-# import re
-# import subprocess
 import datetime
-import multiprocessing
-import threading
 import pymongo
-import strips_tester
-import plotly
-from plotly.graph_objs import Bar, Scatter, Layout, Figure
-import os
 
 def insert_test_device(name, nests, address, description, author):
     date_of_creation = datetime.datetime.utcnow()
@@ -45,7 +25,15 @@ def insert_test_device(name, nests, address, description, author):
         print("Test device {} is already in database.".format(name))
 
 
+def get_by_id(id):
+    myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    mydb = myclient["stripstester"]
+    mycol = mydb['test_info']
+
+    print(mycol.find_one({'_id': int(id)}))
+    myclient.close()
 def main():
+    get_by_id('5d2ede20ad889d04a9059ca4')
     #g = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
     #print_sticker(1,g)
     #insert_test_device("GACS_A2 Bender", 1, "127.0.0.1", "Bender module", "Marcel Jancar", datetime.datetime.now())
@@ -53,13 +41,10 @@ def main():
     #insert_test_device("ASRB", 1, "127.0.0.1", "AS RB Relay board", "Marcel Jancar")
     #g.close()
     #()
-    print("WOW autostart123")
-def update_tester():
-    os.system("sudo rm -rf /temp")
-    os.system("sudo git clone https://dajanchar:ljsr277\!ljsr277@github.com/dajanchar/StripsTesterProject.git /temp")
-    os.system("sudo cp -rf /temp/* /strips_tester_project/")
-    os.system("sudo rm -rf /temp")
-    sds
+    pass
+
+
+
 def print_sticker(test_status,printer):
     program = "S001"
 

@@ -1,0 +1,84 @@
+{
+  "test_device_name": "ASRB",
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "VisualTest": 1,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 15
+    },
+
+
+
+    "IN_IV1": {
+      "function": 0,
+      "pin": 12,
+      "initial": 0
+    },
+    "IN_IV2": {
+      "function": 0,
+      "pin": 16,
+      "initial": 0
+    },
+    "IN_IV3": {
+      "function": 0,
+      "pin": 18,
+      "initial": 0
+    },
+
+    "OUT_IV1": {
+      "function": 1,
+      "pin": 24
+    },
+    "OUT_IV2": {
+      "function": 1,
+      "pin": 26
+    },
+    "OUT_IV3": {
+      "function": 1,
+      "pin": 32
+    },
+    "P1": {
+      "function": 1,
+      "pin": 36
+    },
+    "P2": {
+      "function": 1,
+      "pin": 38
+    },
+    "P3": {
+      "function": 1,
+      "pin": 40
+    },
+
+
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 21,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
+    }
+
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+    "pin_order": ["OUT_IV1","OUT_IV2","OUT_IV3","P1","P2","P3"]
+  }
+}

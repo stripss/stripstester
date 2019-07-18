@@ -16,6 +16,7 @@ import config_loader
 from strips_tester import gui_web
 import threading
 import signal
+import traceback
 
 # name hardcoded, because program starts here so it would be "main" otherwise
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
@@ -52,17 +53,42 @@ class Task:
         #print("[{}] Added values to measurements: {}" . format(type(self).__name__, strips_tester.data['measurement'][nest_id][type(self).__name__]))
 
         if end_task:
-            module_logger.error("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
             self.test_data['end'] = True
 
     def end_test(self):
+        module_logger.error("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
         self.test_data['end'] = True
 
-    def is_product_ready(self, nest_id = 0):
+    def is_product_ready(self, nest_id = 0):  # Product is either untested or good
         if strips_tester.data['exist'][nest_id] and strips_tester.data['status'][nest_id] is not False:
             return True
         else:
             return False
+
+    # Lid of TN (or DUT detection switch)
+    def lid_closed(self):
+        if strips_tester.settings.thread_nests:
+            start_switch = strips_tester.settings.gpios_settings["START_SWITCH_" + str(self.nest_id + 1)].get("pin")
+        else:
+            start_switch = strips_tester.settings.gpios_settings["START_SWITCH"].get("pin")
+
+        if GPIO.input(start_switch):
+            return False
+        else:
+            return True
+
+    def safety_check(self):
+        # Check if lid is closed
+        if not self.lid_closed():
+            self.end_test()
+
+            if strips_tester.settings.thread_nests:
+                gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!", "nest": self.nest_id})
+            else:
+                for current_nest in range(strips_tester.data['test_device_nests']):
+                    gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!", "nest": current_nest})
+
+            return self
 
     def _execute(self):
         # Prepare measurement variables
@@ -74,16 +100,14 @@ class Task:
                 strips_tester.data['measurement'][current_nest][type(self).__name__] = {}
 
         try:
-            #print("SETUP {}" . format(type(self).__name__))
             self.set_up()
 
-            #print("RUN {}" . format(type(self).__name__))
             self.run()
-        except Exception:
-            self.test_data['end'] = True
-            raise
+        except Exception as e:
+            self.test_data['end'] = True  # End current task, execute critical tasks
+            module_logger.error("[StripsTester] %s - Error in program: (%s)", type(self).__name__, traceback.format_exc())
 
-        #print("TEARDOWN {}" . format(type(self).__name__))
+        # Tear down must be executed after fail to close all devices
         self.tear_down()
 
         return self.test_data  # to indicate further testing
@@ -124,7 +148,7 @@ def run_custom_tasks():
                 test_data = custom_task._execute()
 
                 if test_data['end']:
-                    print("EXEUCING CRITICAL TASKS")
+                    module_logger.error("Executing critical tasks")
                     for task_name in settings.critical_event_tasks:
                         if settings.critical_event_tasks[task_name]:
                             CustomTask = getattr(custom_tasks, task_name)
@@ -170,45 +194,39 @@ def update_database():
     if test_device_id is not None:  # Check if test device exists in database
         module_logger.info("[StripsTesterDB] Test device {} found in database." . format(strips_tester.settings.test_device_name))
 
-        #try:
-        # Insert new test info because new test has been made
-        for current_nest in range(strips_tester.data['test_device_nests']):
-            if strips_tester.settings.thread_nests:  # If nests are threaded, update only current nest
-                nest_id = int((threading.current_thread().name)[-1])
+        try:
+            # Insert new test info because new test has been made
+            for current_nest in range(strips_tester.data['test_device_nests']):
+                if strips_tester.settings.thread_nests:  # If nests are threaded, update only current nest
+                    nest_id = int((threading.current_thread().name)[-1])
 
-                if current_nest != nest_id:
-                    #print("Nest '{}' is threaded, skip it to '{}'".format(current_nest,nest_id))
-                    continue  # Skip current nest if not from this thread
+                    if current_nest != nest_id:
+                        #print("Nest '{}' is threaded, skip it to '{}'".format(current_nest,nest_id))
+                        continue  # Skip current nest if not from this thread
 
-            duration = (end_time - strips_tester.data['start_time'][current_nest]).total_seconds()  # Get start test date
-            gui_web.send({"command": "time", "mode": "duration", "nest": current_nest, "value": duration})
+                duration = (end_time - strips_tester.data['start_time'][current_nest]).total_seconds()  # Get start test date
+                gui_web.send({"command": "time", "mode": "duration", "nest": current_nest, "value": duration})
 
-            if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
-                if strips_tester.data['status'][current_nest] != -1:
-                    #print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
+                if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
+                    if strips_tester.data['status'][current_nest] != -1:
+                        #print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
 
-                    # Each nest test counts as one test individually
-                    test_info_data = {"datetime": end_time,
-                                      "start_test": strips_tester.data['start_time'][current_nest],
-                                      "test_device": test_device_id['_id'],
-                                      "worker": strips_tester.data['worker_id'],
-                                      "type": strips_tester.data['worker_type'],
-                                      "result": strips_tester.data['status'][current_nest] * 1,
-                                      "nest": current_nest,
-                                      "measurements": strips_tester.data['measurement'][current_nest]}
+                        # Each nest test counts as one test individually
+                        test_info_data = {"datetime": end_time,
+                                          "start_test": strips_tester.data['start_time'][current_nest],
+                                          "test_device": test_device_id['_id'],
+                                          "worker": strips_tester.data['worker_id'],
+                                          "comment": strips_tester.data['worker_comment'],
+                                          "type": strips_tester.data['worker_type'],
+                                          "result": strips_tester.data['status'][current_nest] * 1,
+                                          "nest": current_nest,
+                                          "measurements": strips_tester.data['measurement'][current_nest]}
 
-                    test_info_data_id = test_info_col.insert_one(test_info_data)
-
-                    #test_data_col = strips_tester.data['db_database']["test_data"]
-                    # Insert test data into database by tasks
-                    #test_data_data = {"test_info": test_info_data_id.inserted_id,
-                    #                  "data": strips_tester.data['measurement'][current_nest]}
-                    #test_data_col.insert_one(test_data_data)
-                else:
-                    print("Product {} is not tested, so we skip it." . format(current_nest))
-            #except ExceptioKeyError as e:
-            #    raise
-            #    #print("[StripsTesterDB] Error -> KeyError ({})" . format(e))
+                        test_info_col.insert_one(test_info_data)
+                    else:
+                        print("Product {} is not tested, so we skip it." . format(current_nest))
+        except KeyError as e:
+            module_logger.error("[StripsTesterDB] One of the nests ({}) have not configured start_time!" . format(e))
 
     # Lets print good tested today
     strips_tester.data['good_count'] = test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
@@ -221,6 +239,7 @@ def update_database():
 
     gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                    "bad_count_today": strips_tester.data['bad_count_today']})
+
     strips_tester.data['lock'].release()
 
 
@@ -241,7 +260,6 @@ if __name__ == "__main__":
     if test_device is not None:
         module_logger.info("[StripsTesterDB] Test device {} found in database!" . format(test_device['name']))
 
-        strips_tester.data['new_db'] = True
         strips_tester.data['test_device_nests'] = test_device['nests']
         strips_tester.data['exist'] = {}
         strips_tester.data['status'] = {}
@@ -262,9 +280,9 @@ if __name__ == "__main__":
         # Retrieve last settings
         strips_tester.data['worker_id'] = test_device['worker_id']
         strips_tester.data['worker_type'] = test_device['worker_type']
+        strips_tester.data['worker_comment'] = test_device['worker_comment']
     else:
         module_logger.info("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
-        strips_tester.data['new_db'] = False
 
         while True:  # Wait forever
             time.sleep(1)

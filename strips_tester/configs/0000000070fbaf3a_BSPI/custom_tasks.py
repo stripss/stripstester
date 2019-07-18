@@ -32,23 +32,15 @@ custom_data = strips_tester.settings.custom_data
 
 class StartProcedureTask(Task):
     def run(self) -> (bool, str):
-
-        start_switch = "START_SWITCH_" + str(self.nest_id + 1)
-
         gui_web.send({"command": "status", "value": "Za začetek testiranja vstavi kos.", "nest": self.nest_id})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "0"})
 
         module_logger.info("Waiting for detection switch")
 
-        while True:
-            # GPIO.wait_for_edge(gpios.get("START_SWITCH"), GPIO.FALLING)
-            state_GPIO_SWITCH = GPIO.input(gpios.get(start_switch))
-            if not state_GPIO_SWITCH:
-                # module_logger.info("START_SWITCH pressed(lid closed)")
-                break
-
+        while not self.lid_closed():
             time.sleep(0.01)
 
+        # Set working light on
         shifter = LED_Indicator()
         shifter.set(int(custom_data['led_green_' + str(self.nest_id + 1)], 16))
         shifter.set(int(custom_data['led_red_' + str(self.nest_id + 1)], 16))
@@ -125,7 +117,6 @@ class InitialTest(Task):
         old_state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
 
         module_logger.info("Stepper motor begin to trigger interrupts")
-        #while datetime.datetime.now() < end_time and preklop <= 5:
         debounce_step = 0
 
         for steps in range(3000):
@@ -184,14 +175,50 @@ class ProductConfigTask(Task):
     def tear_down(self):
         pass
 
+class Calibration(Task):
+    def set_up(self):
+        pass
+
+    def run(self):
+        module_logger.info("Calibration of stepper motor")
+        offset = 100
+        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
+
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
+
+        end_time = datetime.datetime.now() + datetime.timedelta(seconds=2)  # 2 seconds timeout
+        while GPIO.input(gpios['LIMIT_' + str(self.nest_id + 1)]):
+            if datetime.datetime.now() > end_time:
+                module_logger.error("Stepper cannot be calibrated! Reached timeout of 2 seconds")
+
+                gui_web.send({"command": "semafor", "nest": self.nest_id, "value": (1, 0, 0), "blink": (1, 0, 0)})
+                gui_web.send({"command": "error", "nest": self.nest_id, "value": "Kalibracija motorja ni uspela!"})
+
+                break
+
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
+
+            time.sleep(0.0001)
+
+        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.LOW)  # Reverse stepper direction
+        for i in range(offset):
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
+            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
+            time.sleep(0.00015)
+
+        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
+
+        module_logger.info("Calibration done")
+
+    def tear_down(self):
+        pass
 
 class FinishProcedureTask(Task):
     def set_up(self):
         pass
 
     def run(self):
-        self.calibrate()
-
         gui_web.send({"command": "status", "nest": self.nest_id, "value": "Odstrani kos iz ležišča."})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": self.nest_id, "value": "90"})
 
@@ -218,38 +245,6 @@ class FinishProcedureTask(Task):
 
         time.sleep(1)
         return
-
-    def calibrate(self):
-        module_logger.info("Calibration of stepper motor")
-        offset = 100
-        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
-
-        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
-
-        while GPIO.input(gpios['LIMIT_' + str(self.nest_id + 1)]):
-
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
-
-            time.sleep(0.0001)
-
-        GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.LOW)  # Reverse stepper direction
-        for i in range(offset):
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
-            GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.LOW)
-            time.sleep(0.00015)
-
-        GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.HIGH)
-
-        module_logger.info("Calibration done")
-
-    def lid_closed(self):
-        state = GPIO.input(gpios.get("START_SWITCH_" + str(self.nest_id + 1)))
-
-        if state:
-            return False
-        else:
-            return True
 
     def tear_down(self):
         pass

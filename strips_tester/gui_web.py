@@ -45,13 +45,14 @@ class SimpleChat(WebSocket):
             database = connection["stripstester"]
 
             test_device = database['test_device']
-            test_device.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type']}})
+            test_device.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
 
             strips_tester.data['worker_id'] = data['worker_id']
             strips_tester.data['worker_type'] = data['worker_type']
+            strips_tester.data['worker_comment'] = data['worker_comment']
 
             # Update other GUIs with current worker info (broadcast)
-            send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type']})
+            send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
             connection.close()  # Close pymongo connection
 
         if custom_parser:
@@ -79,7 +80,7 @@ class SimpleChat(WebSocket):
                        "bad_count_today": strips_tester.data['bad_count_today']}))
 
         # Update worker info
-        sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type']})
+        sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type'], "worker_comment": strips_tester.data['worker_comment']})
 
         if custom_parser:
             Parser = getattr(parser, "Parser")
