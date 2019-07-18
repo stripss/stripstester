@@ -247,7 +247,7 @@ if __name__ == "__main__":
     # parameter = str(sys.argv[1])  # We use that if we want to provide extra parameters
 
     for i in range(20):
-        module_logger.info("Auto update working :)...")
+        module_logger.info("Auto update workindddd :)...")
     module_logger.info("Starting StripsTester ...")
     initialize_gpios()
 
