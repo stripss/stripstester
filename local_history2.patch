@@ -1,0 +1,24 @@
+Index: strips_tester/abstract_devicesThread.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- strips_tester/abstract_devicesThread.py	(date 1522312103507)
++++ strips_tester/abstract_devicesThread.py	(date 1522312103507)
+@@ -30,7 +30,7 @@
+             return False
+ 
+ 
+-class AbstractFlasher(threading.Thread):
++class AbstractFlasher():
+     def __init__(self,que, reset, dtr, retries: int = 5):
+         self.retries = retries
+         self.reset = reset
+@@ -42,6 +42,7 @@
+             self.setup(self.reset, self.dtr)
+             success = False
+             module_logger.info("Programiranje...")
++            print("Programiranje")
+             for retry_number in range(5):
+                 if self.run_flashing():
+                     module_logger.info("Programiranje uspelo")

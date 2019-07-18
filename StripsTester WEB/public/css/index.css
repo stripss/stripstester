@@ -104,18 +104,8 @@ html, body {
     height: 100%;
 }
 
-.fa-power-off, .fa-save, .fa-cog, .fa-sync, .fa-angle-double-down, .fa-sign-out-alt, .fa-sign-in-alt {
+.fa-power-off, .fa-save, .fa-cog, .fa-sync, .fa-angle-double-down, .fa-sign-out-alt, .fa-sign-in-alt, .fa-trash-alt, .fa-plug {
     padding-right: 10px;
-}
-
-.db_table {
-    font-size: 13px;
-}
-
-.db_table td.title {
-    padding-right: 20px;
-    white-space: nowrap;
-    width: 1%;
 }
 
 .nest_time {
@@ -130,19 +120,6 @@ html, body {
 
 .mb-0 button {
     background-color: #e6e6e6;
-}
-
-.task_name {
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.task_data {
-    list-style-type: none;
-}
-
-.fail {
-    color: red;
 }
 
 .dataTables_wrapper {
@@ -164,4 +141,53 @@ html, body {
 
 .svg-container {
     margin: auto !important;
+}
+
+.small-counter {
+    margin-left: 5px;
+}
+
+#tntable, #dbtable {
+    font-size: 14px;
+}
+
+.db_more_button {
+    margin: 5px;
+    float: right;
+}
+
+.h5-subtitle {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.jumbotron {
+    margin-top: 2rem;
+    margin-bottom: 0px;
+}
+
+.footer {
+    margin-top: 2rem;
+}
+
+#dbtable tbody td {
+  vertical-align: top;
+}
+
+#dbtable .task_name {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#dbtable li {
+    list-style-type: none;
+    font-size: 13px;
+}
+
+#dbtable .fail{
+    color: red;
+}
+
+#test_device_more {
+    margin-bottom: 20px;
 }

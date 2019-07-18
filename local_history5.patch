@@ -1,0 +1,181 @@
+Index: strips_tester/StripsTester/v1.3/gui_strips.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- strips_tester/StripsTester/v1.3/gui_strips.py	(date 1542810474024)
++++ strips_tester/StripsTester/v1.3/gui_strips.py	(date 1542810474024)
+@@ -30,7 +30,8 @@
+ from dateutil import parser
+ import socket
+ 
+-from twisted.internet import tksupport, reactor, protocol, error
++from twisted.internet import tksupport, reactor
++from twisted.internet import reactor, protocol
+ from twisted.protocols.basic import LineReceiver
+ 
+ from collections import OrderedDict
+@@ -733,8 +734,15 @@
+         self.make_login_frame()
+ 
+         self.make_left_frame()
++        self.make_logout_frame()
++        self.make_log_frame()
++        self.make_shutdown_frame()
++
+         self.make_center_frame()
++
+         self.make_right_frame()
++        self.make_stats_frame()
++        self.make_factory_frame()
+ 
+         self.show_title()
+         self.display_login_frame()
+@@ -803,15 +811,11 @@
+             self.login_text_label.grid(row=3, column=0, sticky="nw",columnspan=2)
+ 
+ 
++
+     # Left Frame
+     def make_left_frame(self):
+         self.left_frame = Frame(self)
+ 
+-        self.make_logout_frame()
+-        self.make_log_frame()
+-        self.make_shutdown_frame()
+-        self.make_manual_frame()
+-
+     def display_left_frame(self):
+         self.left_frame.grid(row=1,column=0, sticky="news")
+ 
+@@ -1090,38 +1094,6 @@
+ 
+ 
+ 
+-
+-
+-    # Manual Frame
+-    def make_manual_frame(self):
+-        # Logout frame
+-        self.manual_frame = Frame(self.left_frame)
+-        self.manual_title = Label(self.manual_frame, text="NAVODILA ZA UPORABO", font=self.controller.subtitle_font)
+-
+-        self.manual_text = Label(self.manual_frame, text="")
+-        self.manual_link = Label(self.manual_frame, text="", foreground="blue", cursor="hand2")
+-
+-        self.manual_link.bind("<Button-1>", self.show_manual)
+-
+-    def display_manual_frame(self):
+-        self.manual_frame.grid(row=5, column=0, sticky="news")
+-        self.manual_title.grid(row=0, column=0, sticky="nw", pady=10)
+-        self.manual_text.config(text="Navodila za uporabo testne naprave\n{} so dostopna na spodnji povezavi:" . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']))
+-        self.manual_link.config(text="Navodila za uporabo {}" . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']))
+-
+-        self.manual_text.grid(row=1, column=0, sticky="w", pady=5)
+-        self.manual_link.grid(row=2, column=0, pady=5, sticky="w")
+-
+-    def show_manual(self, event):  # Open test device manual (preffered in PDF)
+-        webbrowser.open(self.controller.userdata.path_manual)
+-
+-
+-
+-
+-
+-
+-
+-
+     # Center Frame
+     def make_center_frame(self):
+         self.center_frame = Frame(self)
+@@ -1283,9 +1255,6 @@
+         self.right_frame.columnconfigure(0,weight=1)
+         self.right_frame.rowconfigure(1,weight=1)
+ 
+-        self.make_stats_frame()
+-        self.make_factory_frame()
+-
+     def display_right_frame(self):
+         self.right_frame.grid(row=1,column=2, sticky="news", padx=10)
+ 
+@@ -1519,6 +1488,11 @@
+ 
+ 
+ 
++    def show_manual(self, event):
++        webbrowser.open(self.controller.userdata.path_manual)
++
++
++
+ class SplashScreen(Frame):
+     def __init__(self, parent, controller):
+         # Initialisation header
+@@ -1701,7 +1675,6 @@
+ class ClientProtocol(LineReceiver):
+     def __init__(self,controller):
+         self.controller = controller
+-        self.buffer = None
+ 
+     def sendData(self, data):
+         print("sending %s...." % data)
+@@ -1793,7 +1766,6 @@
+                 self.controller.get_frame("PropertiesPage").display_left_frame()
+                 self.controller.get_frame("PropertiesPage").display_log_frame()
+                 self.controller.get_frame("PropertiesPage").display_shutdown_frame()
+-                self.controller.get_frame("PropertiesPage").display_manual_frame()
+ 
+                 self.controller.get_frame("PropertiesPage").display_center_frame()
+ 
+@@ -1855,36 +1827,16 @@
+             self.controller.get_frame("PropertiesPage").cal_day_variable.set(date.day)
+             self.controller.get_frame("PropertiesPage").cal_month_variable.set(self.controller.get_frame("PropertiesPage").month_list[date.month - 1])
+             self.controller.get_frame("PropertiesPage").cal_year_variable.set(date.year)
+-
+         elif command == "factory_reset":
+             status = message['status']
+ 
+             if status == "ok":
+-                self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Nastavitve uspešno povrnjene", foreground="green")
++                self.factory_info_label.config(text="Nastavitve uspešno povrnjene", foreground="green")
+ 
+             elif status == "fail":
+-                self.controller.get_frame("PropertiesPage").factory_info_label.config(text="Napaka pri povrnitvi nastavitev.", foreground="red")
+-
+-            self.controller.get_frame("PropertiesPage").factory_info_label.grid(row=4, column=0, sticky="w", pady=5, columnspan=2)
+-
+-        elif command == "file":
+-            self.buffer = message['size']  # Get the size of the file
+-
+-            # Set server in chunk-mode
+-            self.setRawMode()
+-
+-    def rawDataReceived(self, data):
+-        self.remain = self.remain - size(data)  # Reduce remaining size
+-        self.buffer = self.buffer + data
++                self.factory_info_label.config(text="Napaka pri povrnitvi nastavitev.", foreground="red")
+ 
+-        print(data)
+-
+-        if not self.remain:
+-            self.remain = None
+-            print("File sent successfully!")
+-
+-            print(buffer)
+-            self.setLineMode()  # Set mode back to normal
++            self.factory_info_label.grid(row=4, column=0, sticky="w", pady=5, columnspan=2)
+ 
+ 
+     # Connection established with server
+@@ -2007,12 +1959,7 @@
+         # Close only on login page, change title in case of reconnect
+         self.controller.title("StripsTester v{}" . format(self.controller.userdata.version))
+ 
+-        if reason.type == error.ConnectionDone:  # Connection was closed cleanly
+-            print("Connection DONE")
+-            pass
+-
+-        elif reason.type == error.ConnectionLost:  # Connection lost (attempt reconnect?)
+-            self.controller.get_frame("LoginPage").login_status_label.config(text="Prekinjena povezava s testno napravo {}." . format(self.controller.userdata.test_devices[self.controller.userdata.test_device]['name']), foreground="red")
++        print("CONNECTION LOST: {}" . format(reason.getErrorMessage()))
+ 
+ 
+ class Program(Tk):

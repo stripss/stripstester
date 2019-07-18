@@ -7,11 +7,11 @@
     <link rel="icon" href="/img/icon.ico">
     <title>StripsTester</title>
 
-    <link rel="stylesheet" href="./css/index.css">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity
     "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="./css/index.css">
 
     <script
             src="http://code.jquery.com/jquery-3.3.1.js"
@@ -22,7 +22,7 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
             crossorigin="anonymous"></script>
 
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="./js/plotly-latest.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
     <script src="https:////cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
     <script src="https://cdn.datatables.net/plug-ins/1.10.19/dataRender/datetime.js"></script>
@@ -37,7 +37,7 @@
     <div class="row">
         <div class="col">
             <nav class="navbar navbar-expand-md navbar-light bg-light">
-                <a href="../index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail"></a>
+                <a href="../index.html"><img class="navbar-brand larger" src="/img/stripstester.gif" class="img-thumbnail"></a>
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-toggle" aria-controls="navbar-toggle" aria-expanded="false"
                         aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -54,7 +54,7 @@
                             <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Nastavitve</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link disabled" id="database-tab" data-toggle="tab" href="#database" role="tab" aria-controls="database" aria-selected="false">Baza meritev</a>
+                            <a class="nav-link" id="database-tab" data-toggle="tab" href="#database" role="tab" aria-controls="database" aria-selected="false">Baza meritev</a>
                         </li>
                     </ul>
                 </div>
@@ -86,13 +86,36 @@
         </div>
     </div>
 
+
+    <!-- Modal -->
+    <div class="modal fade" id="db_confirm_delete_row" tabindex="-1" role="dialog" aria-labelledby="db_confirm_delete_row" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Izbris opravljenega testa</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Ali želite izbrisati željen test?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" id="db_confirm_delete_row_yes">Da</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Ne</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <div class="container">
         <div class="row">
             <div class="col">
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
 
-                        <div class="jumbotron" style="margin-top: 2rem;">
+                        <div class="jumbotron">
 
                             <h1 class="display-4">Pozdravljeni na uporabniškem vmesniku</h1>
                             <p class="lead">StripsTester omogoča pregledno sledenje in indikacijo postopka testiranja proizvodnjih kosov.</p>
@@ -109,7 +132,7 @@
 
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-success inline btn-lg" id="connect_tn" disabled>Poveži
+                            <button type="button" class="btn btn-success inline btn-lg" id="connect_tn" disabled><i class="fas fa-plug"></i>Poveži
                                 <div style="display:none;" id="connect_tn_spinner" class="spinner-border spinner-border-sm" role="status"></div>
                             </button>
                             <p id="connect_info" class="inline" style="color: gray; margin-left: 20px;"></p>
@@ -210,6 +233,16 @@
                                             </select>
                                         </div>
 
+                                        <div id="comment-input">
+                                            <div class="input-group mb-3">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text" id="basic-addon2">Komentar</span>
+                                                </div>
+                                                <input type="text" id="worker_comment" class="form-control" placeholder="Komentar testa" aria-label="Komentar testa" aria-describedby="basic-addon2"
+                                                       value="">
+                                            </div>
+                                        </div>
+
                                         <button type="button" class="btn btn-primary" id="save_worker_data"><i class="far fa-save"></i>Shrani</button>
                                     </div>
                                 </div>
@@ -244,51 +277,59 @@
                                 <tr>
                                     <th>Ime</th>
                                     <th>IP Naslov</th>
-                                    <th>Datum izdelave</th>
-                                    <th>Opis</th>
                                     <th>Število gnezd</th>
                                     <th>Delavec</th>
                                     <th>Tip testiranja</th>
-                                    <th>Avtor</th>
                                     <th>Status</th>
-                                    <th>Extra</th>
+                                    <th>Statistika</th>
                                 </tr>
                                 </thead>
                                 <tfoot>
                                 <tr>
                                     <th>Ime</th>
                                     <th>IP Naslov</th>
-                                    <th>Datum izdelave</th>
-                                    <th>Opis</th>
                                     <th>Število gnezd</th>
                                     <th>Delavec</th>
                                     <th>Tip testiranja</th>
-                                    <th>Avtor</th>
                                     <th>Status</th>
-                                    <th>Extra</th>
+                                    <th>Statistika</th>
                                 </tr>
                                 </tfoot>
                             </table>
 
+                            <div id="test_device_more"></div>
 
+                            <h2>Legenda</h2>
+                            <p><i class='fas fa-circle' style="color: green;"></i> - testna naprava je vklopljena</p>
+                            <p><i class='fas fa-circle' style="color: goldenrod;"></i> - testna naprava je vklopljena in trenutno v uporabi (test bil izveden zadnji 2 minuti)</p>
+                            <p><i class='fas fa-circle' style="color: red;"></i> - testna naprava je izklopljena</p>
+                            <p><i class='fas fa-circle' style="color: gray;"></i> - stanje ni znano</p>
+
+                            <p>Za odjavo iz nastavitev pritisnite na spodnji gumb.</p>
                             <button class="btn btn-primary mb-2" id="settings_logout"><i class="fas fa-sign-out-alt"></i>Odjava</button>
                         </div>
                     </div>
 
                     <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="dbsite-tab">
                         <h1>Baza opravljenih testov in meritev</h1>
+
+                        <p>Prosimo, izberite testno napravo za prikaz meritev:</p>
+
+                        <div class="dropdown show inline">
+                            <a class="btn btn-light dropdown-toggle btn-lg" href="#" role="button" id="dropdownMenuLink2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Testna naprava
+                            </a>
+
+                            <div class="dropdown-menu" id="db_test_device_names" aria-labelledby="dropdownMenuLink2">
+
+                            </div>
+                        </div>
+
                         <button id="refresh_db" type="button" class="btn btn-primary"><i class="fas fa-sync"></i>Posodobi podatke
                             <div style="display:none;" id="db_spinner" class="spinner-border spinner-border-sm" role="status"></div>
                         </button>
-
+                        <h5 class="h5-subtitle">Tabela meritev</h5>
                         <p id="db_refresh_info"></p>
-
-                        <div id="plotsite">
-                            <div id="nest_vs_result"></div>
-                            <div id="result_vs_time"></div>
-                            <div id="resultproc_vs_time"></div>
-                            <div id="meas_vs_value"></div>
-                        </div>
 
                         <table id="dbtable" class="display">
                             <thead>
@@ -300,6 +341,7 @@
                                 <th>Tip</th>
                                 <th>Delavec</th>
                                 <th>Rezultati meritev</th>
+                                <th>Dodatno</th>
                             </tr>
                             </thead>
                             <tfoot>
@@ -311,10 +353,18 @@
                                 <th>Tip</th>
                                 <th>Delavec</th>
                                 <th>Rezultati meritev</th>
+                                <th>Dodatno</th>
                             </tr>
                             </tfoot>
                         </table>
 
+                        <div id="plotsite">
+                            <h1>Statistika</h1>
+                            <div id="nest_vs_result"></div>
+                            <div id="result_vs_time"></div>
+                            <div id="resultproc_vs_time"></div>
+                            <div id="meas_vs_value"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -324,7 +374,7 @@
 
     <div class="row">
         <div class="col">
-            <nav class="navbar navbar-light bg-light" style="width: inherit;">
+            <nav class="footer navbar navbar-light bg-light" style="width: inherit;">
                 <ul class="nav navbar-nav" id="myTab" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link disabled" style="font-size: 12px;">Made by Marcel Jančar | StripsTester &copy; | v1.2</a>
@@ -343,8 +393,24 @@
 <script>
     $(document).ready(function () {
         var tn_timer = 0;
+        var admin_logged = false;
 
         $('#settings_page').hide();
+        $('#plotsite').hide();
+        $("#test_device_more").hide();
+
+        $('#refresh_db').prop('disabled', true);
+
+        $('#worker_type').change(function () {
+            if ($(this).val() == 3) {
+                $('#comment-input').fadeIn('fast');
+            } else {
+
+                $('#comment-input').fadeOut('fast', function () {
+                    $('#worker_comment').val("");
+                });
+            }
+        });
 
         $('#settings_login').click(function () {
             $('#input_pass').removeClass('is-invalid');
@@ -356,6 +422,7 @@
                 data: $('#settings_form').serialize(),
                 success: function (data) {
                     if (data.logged) {
+                        admin_logged = true;
                         $('#input_pass').addClass('is-valid');
 
                         $('#settings_page').fadeIn('fast');
@@ -372,6 +439,7 @@
         });
 
         $('#settings_logout').click(function () {
+            admin_logged = false;
             $('#input_pass').removeClass('is-valid');
 
             $('#settings_form').fadeIn('fast');
@@ -387,7 +455,9 @@
                 $.each(data, function (index) {
 
                     if (data[index]['status'] == null) data[index]['status'] = -1;
-                    data[index]['status'] = moment.utc(data[index]['status']).format('x');  // Convert datetime to unix
+                    else data[index]['status'] = moment.utc(data[index]['status']).format('x');  // Convert datetime to unix
+
+                    if (data[index]['last_test'] != -1) data[index]['last_test'] = moment.utc(data[index]['last_test']).format('x');  // Convert datetime to unix
 
                     data[index]['date_of_creation'] = moment.utc(data[index]['date_of_creation']).local().format('x');  // Convert datetime to unix
                 });
@@ -396,6 +466,22 @@
                 $('#tntable').dataTable().fnAddData(data);
             });
         };
+
+        $.getJSON("/tn", function (data) {
+            $.each(data, function (index, value) {
+                $('#db_test_device_names').append("<a class='dropdown-item' href='#' id='dbtn" + index + "'>" + value['name'] + "</a>");
+            });
+
+            $("#db_test_device_names a").click(function (e) {
+                //selected_test_device = $(this).attr('id').replace('dbtn', '');
+
+                $('#refresh_db').prop('disabled', false);
+                e.preventDefault(); // cancel the link behaviour
+
+                $(this).parents(".dropdown").find('.btn').html($(this).text());
+                $(this).parents(".dropdown").find('.btn').val($(this).data('value'));
+            });
+        });
 
         Object.size = function (obj) {
             var size = 0, key;
@@ -417,12 +503,6 @@
                         "data": "address"
                     },
                     {
-                        "data": "date_of_creation", "render": $.fn.dataTable.render.moment('x', 'DD.MM.YYYY HH:mm:ss')
-                    },
-                    {
-                        "data": "description"
-                    },
-                    {
                         "data": "nests"
                     },
                     {
@@ -440,31 +520,66 @@
                         }
                     },
                     {
-                        "data": "author"
-                    },
-                    {
-                        "data": "status", "render": function (data) {
+                        "data": "status", "render": function (data, type, row) {
                             //moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
 
                             return "<i class='fas fa-circle'></i>";
 
                         }, "createdCell": function (td, cellData, rowData, row, col) {
-                            if(cellData == -1) $(td).css('color', 'grey');
+                            if (cellData == -1) $(td).css('color', 'grey');
                             else {
                                 var now = moment.utc().unix() * 1000;
-                                var duration = Math.round(moment.duration(now - cellData).as("seconds"), 1);
 
-                                if (duration > 5) $(td).css('color', 'red');
-                                else $(td).css('color', 'green');
+                                var duration = Math.round(moment.duration(now - cellData).as("seconds"), 1);
+                                var standby = Math.round(moment.duration(now - rowData['last_test']).as("seconds"), 1);
+
+                                if (duration > 6) $(td).css('color', 'red');
+                                else {
+                                    if (standby > 2 * 60) $(td).css('color', 'green');  // Currently in standby (if test was not made in 2 mins)
+                                    else $(td).css('color', 'goldenrod');  // Currently in use
+                                }
                             }
                         }
                     },
                     {
-                        "data": "extra", "render": function(data) {
-                            return "Good: " + data['good'] + "<br>Bad: " + data['bad'];
+                        "data": "extra", "render": function (data) {
+                            var percent_good_today = Math.round((data['good_today'] / (data['good_today'] + data['bad_today'])) * 100, 2);
+                            var percent_bad_today = Math.round((data['bad_today'] / (data['good_today'] + data['bad_today'])) * 100, 2);
+
+                            var percent_good = Math.round((data['good'] / (data['good'] + data['bad'])) * 100, 2);
+                            var percent_bad = Math.round((data['bad'] / (data['good'] + data['bad'])) * 100, 2);
+
+                            var response = "Danes: <span class='small-counter badge badge-success'>" + data['good_today'] + "</span>";
+                            response += "<span class='small-counter badge badge-light'>" + percent_good_today + "%</span>";
+                            response += "<span class='small-counter badge badge-danger'>" + data['bad_today'] + "</span>";
+                            response += "<span class='small-counter badge badge-light'>" + percent_bad_today + "%</span><br>";
+                            response += "Skupaj: <span class='small-counter badge badge-success'>" + data['good'] + "</span>";
+                            response += "<span class='small-counter badge badge-light'>" + percent_good + "%</span>";
+                            response += "<span class='small-counter badge badge-danger'>" + data['bad'] + "</span>";
+                            response += "<span class='small-counter badge badge-light'>" + percent_bad + "%</span>";
+
+                            return response;
                         }
                     }
-                ]
+                ], "initComplete": function (settings, json) {
+
+                $('#tntable tbody').on('click', 'tr', function () {
+                    var selected = $('#tntable').dataTable().fnGetData(this);
+
+                    $("#test_device_more").empty();
+
+                    $("#test_device_more").append("<h2>Testna naprava " + selected['name'] + "</h2>");
+                    $("#test_device_more").append("<h5>" + selected['description'] + "</h5>");
+                    $("#test_device_more").append("Ustvaril: " + selected['author'] + "<br>");
+                    $("#test_device_more").append("Datum izvedbe: " + moment.unix(selected['date_of_creation'] / 1000).format('DD.MM.YYYY HH:mm:ss') + "<br>");
+
+                    if (selected['status'] != "-1") $("#test_device_more").append("Zadnjič dosegljiva: " + moment.unix(selected['status'] / 1000).utc().local().format('DD.MM.YYYY HH:mm:ss'));
+
+                    $("#test_device_more").show();
+
+                    //console.log(selected);
+                });
+            }
         });
 
         $('#dbtable').DataTable({
@@ -479,7 +594,7 @@
                 "sLengthMenu": "Prikaži _MENU_ opravljenih testiranj",
                 "sLoadingRecords": "Nalagam...",
                 "sProcessing": "Obdelujem...",
-                "sSearch": "Iskanje po meritvah",
+                "sSearch": "",
                 "sZeroRecords": "Nobeden zapis ne ustreza",
                 "oPaginate": {
                     "sFirst": "Prvi",
@@ -494,6 +609,17 @@
 
             },
             "order": [[0, 'desc']], // Default ordering by date
+            "columnDefs": [
+                {
+                    "targets": 7,
+                    "data": null,
+                    "defaultContent": '',
+                    "orderable": false
+                }, {
+                    "targets": 6,
+                    "defaultContent": ''
+                }
+            ],
             "columns":
                 [
                     {
@@ -508,28 +634,22 @@
                         "data": "result", "render": function (data) {
                             if (data == "1") return "OK";
                             else if (data == "0") return "FAIL";
-                            else return "";
+                            else return "Neznano";
                         },
                         "createdCell": function (td, cellData, rowData, row, col) {
                             if (cellData == "1") {
                                 $(td).css('color', 'green');
-                            } else {
+                            } else if (cellData == "0") {
                                 $(td).css('color', 'red');
+                            } else {
+                                $(td).css('color', 'gray');
                             }
                         }
                     },
                     {
-                        "data": "start_test", "render": function (data, type, row, meta) {
-                            var duration;
-
-                            if (data != null) {
-                                duration = moment.duration(row['datetime'] - data);
-                                duration = "<b>" + Math.round(duration.as('seconds'), 1) + " sekund</b>";
-                            } else {
-                                duration = "<span style='color: gray;'>Neznan</span>";
-                            }
-
-                            return duration;
+                        "data": "start_test", "createdCell": function (td, cellData) {
+                            if (cellData != -1) $(td).html("<b>" + cellData + " sekund</b>");
+                            else $(td).html("<span style='color: gray;'>Neznan</span>");
                         }
                     },
                     {
@@ -553,33 +673,104 @@
                     },
                     {
                         "data": "measurements", "render": function (value, type, row) {
+                            // https://datatables.net/examples/api/row_details.html
                             var val = "";
 
                             $.each(value, function (i, v) {
-                                if (!Object.size(v)) return;
+                                if (!Object.size(v)) return true;
 
                                 val = val + "<span class='task_name'>" + i + "</span><ul>";
 
                                 $.each(v, function (j, w) {
                                     var add = ""
-                                    if (!w[1]) add = "fail";
+                                    if (!w[1]) add = "class='fail'";
                                     if (w[2] == "N/A") w[2] = "";
 
-                                    val = val + "<li class='task_data " + add + "'>" + j + ": " + w[0] + " " + w[2] + "</li>";
+                                    val = val + "<li " + add + ">" + j + ": " + w[0] + " " + w[2] + "</li>";
                                 });
 
                                 val = val + "</ul>";
-
                             });
 
                             return val;
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if ($(td).text() == "") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Brez meritev");
+                            } else {
+                                if ($(td).find("li").length > 10) {
+                                    var $cell = $(td);
+
+                                    $(td).contents().wrapAll("<div class='content'></div>");
+                                    var $content = $cell.find(".content");
+
+                                    $(td).append($("<button class='btn btn-sm btn-primary db_more_button'>Podrobnosti</button>"));
+                                    $btn = $(td).find("button");
+
+                                    $content.css({
+                                        "height": "100px",
+                                        "overflow": "hidden"
+                                    });
+                                    $cell.data("isLess", true);
+
+                                    $btn.click(function () {
+                                        var isLess = $cell.data("isLess");
+                                        $content.css("height", isLess ? "auto" : "100px");
+                                        $(this).text(isLess ? "Skrij podrobnosti" : "Podrobnosti");
+                                        $cell.data("isLess", !isLess)
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "data": null, "render": function (value, type, row) {
+                            var val = "";
+
+                            if (parseInt(row['type']) == 3 && row['comment']) val = row['comment'];
+
+                            return val;
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if (parseInt(rowData['type']) == 3 && rowData['comment']) {
+                                $(td).html("<p>Komentar: <i>" + rowData['comment'] + "</i></p>");
+                            }
+
+                            if (admin_logged) {
+                                $(td).append($('<button type="button" class="btn btn-sm btn-danger"><i class="fas fa-trash-alt"></i>Izbriši test</button>'));
+
+                                $(td).find("button").click(function () {
+                                    if (admin_logged) {
+                                        $("#db_confirm_delete_row_yes").data("data", rowData['_id']);
+
+                                        $("#db_confirm_delete_row_yes").data("td", td);
+                                        $('#db_confirm_delete_row').modal('show');
+                                    } else {
+                                        alert("No admin privileges!");
+                                    }
+                                });
+                            }
                         }
                     }
                 ]
+            , "initComplete": function (settings, json) {
+                $(".dbsearch input").addClass("form-control");
+                $(".dbsearch input").attr("placeholder", "Iskanje po meritvah");
+                $(".dbsearch input").attr("aria-label", "Iskanje po meritvah");
+                $(".dbsearch input").css("width", "300px");
+
+
+                $('#dbtable tbody').on('click', 'tr', function () {
+                    var selected = $('#dbtable').dataTable().fnGetData(this);
+
+                    // Get JSON about this TN
+                    console.log(selected);
+                });
+            }
         });
 
         var selected_test_device = 0;
         var connected_to = -1;
+
 
         // Websocket list for test devices
         var test_device_list = [
@@ -597,8 +788,20 @@
             {"name": "GACS_A2 Bender", "addr": "192.168.88.242:8000", "loc": "debug"},
             {"name": "Photointerrupter", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
             {"name": "Photointerrupter", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
-            {"name": "Photointerrupter", "addr": "192.168.88.227:8000", "loc": "debug"}
+            {"name": "Photointerrupter", "addr": "192.168.88.221:8000", "loc": "debug"},
+            {"name": "ASRB", "addr": "192.168.88.220:8000", "loc": "debug"}
         ];
+
+        /*
+
+        // Detection of TN by their IP address
+        $.getJSON("/stats", function (data) {
+            $.each(data, function(index, value) {
+                console.log(value,index);
+                test_device_list.push({name: value['name'] + "aa", addr: value['address'], loc: "debug"});
+            });
+        });
+        */
 
         $('#select_tn').append("</div><h6 class='dropdown-header'>Proizvodnja</h6>");
 
@@ -606,21 +809,6 @@
         for (var index = 0; index < test_device_list.length; ++index) {
             if (test_device_list[index]['loc'] == "proizvodnja") {
                 $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
-                /*
-                try {
-                    pingsocket = new WebSocket("ws://" + test_device_list[index]['addr'][-5] + ":8001");
-
-                    pingsocket.onopen = function () {
-                        console.log("OPEN")
-                    }
-                    pingsocket.onerror = function () {
-                        console.log("OPEN")
-                    }
-                }
-                catch (error) {
-
-                }
-                */
             }
         }
 
@@ -641,6 +829,7 @@
                 $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
             }
         }
+
 
         // Make stopwatches for nests
         var stopwatch = [];
@@ -673,6 +862,13 @@
 
                     $('#gui_device_name').html("Testna naprava " + test_device_list[selected_test_device]['name']);
                     connected_to = selected_test_device;
+
+                    // Preselect in DB dropdown menu connected TN
+                    $('#db_test_device_names').val(test_device_list[selected_test_device]['name']);
+
+                    $("#dropdownMenuLink2").parents(".dropdown").find('.btn').html(test_device_list[selected_test_device]['name']);
+                    $("#dropdownMenuLink2").parents(".dropdown").find('.btn').val(test_device_list[selected_test_device]['name']);
+                    $('#refresh_db').prop('disabled', false);
                 };
 
                 socket.onerror = function () {
@@ -699,7 +895,6 @@
         function handleError(message) {
             connected_to = -1;
             $("#profile-tab").addClass("disabled");
-            $("#database-tab").addClass("disabled");
             $('#myTab a[href="#home"]').tab('show')
             $("#connect_status").html(message);
             $('#tn_shutdown').fadeOut("fast");
@@ -723,6 +918,7 @@
             $("#plotsite div").empty(); // Clean plot space
             $('#dbtable').dataTable().fnClearTable();
             $('#tntable').dataTable().fnClearTable();
+            $('#plotsite').hide();
         }
 
         function sendJSON(txt) {
@@ -875,22 +1071,22 @@
                 nest_id++;
 
                 if (data.value == -1) {
-                    $("#nest_error" + nest_id + " #error_list").fadeOut("fast", function () {
-                        $("#nest_error" + nest_id + " #error_list").html(""); // Clean fields
+                    $("#nest_error" + nest_id + " #error_list").hide();
 
-                        if (!$("#error_collapse br").length) {
-                            $("#error_collapse").collapse('hide');
-                            $("#error_count").hide();
-                        }
+                    $("#nest_error" + nest_id + " #error_list").html(""); // Clean fields
 
-                        $("#error_count").html($("#error_collapse br").length);
-                    }); // Clean fields
+                    if (!$("#error_collapse br").length) {
+                        $("#error_collapse").collapse('hide');
+                        $("#error_count").hide();
+                    }
+
+                    $("#error_count").html($("#error_collapse br").length);
                 } else {
                     //var html = "- " + data.value + "<br>";
-                    $("#nest_error" + nest_id + " #error_list").fadeIn("fast");
+                    $("#nest_error" + nest_id + " #error_list").show();
                     //$(html).appendTo("#error_list p").fadeIn("fast");
-                    $("#nest_error" + nest_id + " #error_list").append("- " + data.value + "<br>").fadeIn("fast");
-                    $("#nest_info" + nest_id + " #info_list").append("<span style='color: red;'>- " + data.value + "</span><br>").fadeIn("fast");
+                    $("#nest_error" + nest_id + " #error_list").append("- " + data.value + "<br>");
+                    $("#nest_info" + nest_id + " #info_list").append("<span style='color: red;'>- " + data.value + "</span><br>");
 
                     $("#error_count").html($("#error_collapse br").length);
                     $("#error_count").show();
@@ -910,21 +1106,20 @@
                 nest_id++;
 
                 if (data.value == -1) {
-                    $("#nest_info" + nest_id + " #info_list").fadeOut("fast", function () {
-                        $("#nest_info" + nest_id + " #info_list").html(""); // Clean fields
+                    $("#nest_info" + nest_id + " #info_list").hide()
+                    $("#nest_info" + nest_id + " #info_list").html(""); // Clean fields
 
-                        if (!$("#info_collapse br").length) {
-                            $("#info_collapse").collapse('hide');
-                            $("#info_count").hide();
-                        }
+                    if (!$("#info_collapse br").length) {
+                        $("#info_collapse").collapse('hide');
+                        $("#info_count").hide();
+                    }
 
-                        $("#info_count").html($("#info_collapse br").length);
-                    }); // Clean fields
+                    $("#info_count").html($("#info_collapse br").length);
                 } else {
-                    $("#nest_info" + nest_id + " #info_list").fadeIn("fast");
+                    $("#nest_info" + nest_id + " #info_list").show();
 
-                    if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image' src='data:image/jpg;base64, " + data.value + "' /><br>").fadeIn("fast");
-                    else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>").fadeIn("fast");
+                    if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image' src='data:image/jpg;base64, " + data.value + "' /><br>");
+                    else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>");
 
                     $("#info_count").html($("#info_collapse br").length);
                     $("#info_count").show();
@@ -964,45 +1159,42 @@
 
                     if (threaded) $('#nest_time_container0').hide();
                     else $('#nest_time_container0').show();
-                });
+                    $.get("elements/semafor.html", function (data) {
+                        for (var current_nest = 0; current_nest < nests; current_nest++) {
 
-                $.get("elements/semafor.html", function (data) {
-                    for (var current_nest = 0; current_nest < nests; current_nest++) {
+                            var data_temp = data.replaceAll('{id}', current_nest + 1);
+                            $("#semaphores").append(data_temp);
 
-                        var data_temp = data.replaceAll('{id}', current_nest + 1);
-                        $("#semaphores").append(data_temp);
-
-                        if (!threaded) {
-                            $('#nest_time_container' + (current_nest + 1)).hide();
-                        } else {
-                            $('#nest_time_container' + (current_nest + 1)).show();
+                            if (!threaded) {
+                                $('#nest_time_container' + (current_nest + 1)).hide();
+                            } else {
+                                $('#nest_time_container' + (current_nest + 1)).show();
+                            }
                         }
-                    }
+                    });
+
+                    $.get("elements/nest_info.html", function (data) {
+                        for (var current_nest = 0; current_nest < nests; current_nest++) {
+                            data_temp = data.replaceAll('{id}', current_nest + 1);
+                            data_temp = data_temp.replaceAll('{type}', "error");
+                            data_temp = data_temp.replaceAll('{style}', "danger");
+                            $("#errors").append(data_temp);
+
+                            var data_temp = data.replaceAll('{id}', current_nest + 1);
+                            data_temp = data_temp.replaceAll('{type}', "info");
+                            data_temp = data_temp.replaceAll('{style}', "info");
+                            $("#infos").append(data_temp);
+                        }
+
+                        $("#errors #error_list").each(function () {
+                            $(this).hide();
+                        })
+
+                        $("#infos #info_list").each(function () {
+                            $(this).hide();
+                        })
+                    });
                 });
-
-                $.get("elements/nest_info.html", function (data) {
-                    for (var current_nest = 0; current_nest < nests; current_nest++) {
-                        data_temp = data.replaceAll('{id}', current_nest + 1);
-                        data_temp = data_temp.replaceAll('{type}', "error");
-                        data_temp = data_temp.replaceAll('{style}', "danger");
-                        $("#errors").append(data_temp);
-
-                        var data_temp = data.replaceAll('{id}', current_nest + 1);
-                        data_temp = data_temp.replaceAll('{type}', "info");
-                        data_temp = data_temp.replaceAll('{style}', "info");
-                        $("#infos").append(data_temp);
-                    }
-
-                    $("#errors #error_list").each(function () {
-                        $(this).hide();
-                    })
-
-                    $("#infos #info_list").each(function () {
-                        $(this).hide();
-                    })
-                });
-
-                $('#progressbar_whole').hide();
             }
             if (data.command == "title") {
                 document.title = data.value;
@@ -1035,8 +1227,6 @@
 
                     $('#semafor' + nest_id + " #info").fadeIn(100);
                 }
-
-                //$('#progressbar').css('width', data.value + "%");
             }
 
             // Change custom HTML depending on test device
@@ -1053,10 +1243,20 @@
                 // Retrieve worker data from test device
                 var worker_id = data.worker_id;
                 var worker_type = data.worker_type;
+                var worker_comment = data.worker_comment;
 
                 // Set current worker and type on GUI
                 $('#worker_id').val(worker_id);
                 $('#worker_type').val(worker_type);
+
+                if (worker_type == 3) {
+                    $('#worker_comment').val(worker_comment);
+                    $('#comment-input').fadeIn('fast');
+                } else {
+                    $('#comment-input').fadeOut('fast', function () {
+                        $('#worker_comment').val("");
+                    });
+                }
 
                 $('#set_worker_data_accordion #current').fadeOut("fast", function (event) {
                     $('#set_worker_data_accordion #current').html("Trenutni: " + worker_id);
@@ -1104,6 +1304,28 @@
             sendJSON({"command": "shutdown"});
         });
 
+        $("#db_confirm_delete_row_yes").click(function () {
+            $.ajax({
+                url: '/delmeas',
+                type: 'post',
+                dataType: 'json',
+                data: {'tid': $("#db_confirm_delete_row_yes").data("data")},
+
+                success: function (data) {
+                    if (data.success) {
+                        //alert("Row successfully deleted. - add modal");
+                        var td = $("#db_confirm_delete_row_yes").data("td");
+                        var target_row = $(td).closest("tr").get(0); // this line did the trick
+                        var aPos = $("#dbtable").dataTable().fnGetPosition(target_row);
+
+                        $("#dbtable").dataTable().fnDeleteRow(aPos);
+                    } else {
+                        alert("Meritve ni v bazi podatkov!");
+                    }
+                }
+            });
+        });
+
         $("#reboot_yes").click(function () {
             sendJSON({"command": "reboot"});
         });
@@ -1117,15 +1339,21 @@
 
         $("#refresh_db").click(function () {
             if (!$('#refresh_db').is(':disabled')) {
-                //sendJSON({"command": "get_db_data"});
-                var test_device = test_device_list[connected_to]['name'];
-                $.getJSON("/db?tid=" + test_device, function (data) {
 
+                // Assume that name is valid
+                var test_device = $("#dropdownMenuLink2").html();
+
+                $.getJSON("/db?tid=" + test_device, function (data) {
 
                     $.each(data, function (index, val) {
                         data[index]['datetime'] = moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
 
-                        if (data[index]['start_test'] != null) data[index]['start_test'] = moment.utc(data[index]['start_test']).local().format('x');  // Convert datetime to unix
+                        // start_time is known as duration from now on!
+                        if (data[index]['start_test'] != null) {
+                            data[index]['start_test'] = moment.utc(data[index]['start_test']).local().format('x');
+                            data[index]['start_test'] = Math.round(moment.duration(data[index]['datetime'] - data[index]['start_test']).as('seconds'), 1)
+                        }  // Convert datetime to unix
+                        else data[index]['start_test'] = -1;
                     });
 
                     $('#dbtable').dataTable().fnClearTable();
@@ -1133,7 +1361,7 @@
 
                     var date = moment(new Date());
 
-                    var datestring = "Zadnjič osveženo: " + date.format("DD.MM.YYYY ob HH:mm:ss");
+                    var datestring = "Zadnjič osveženo: " + date.format("DD.MM.YYYY ob HH:mm:ss") + " za testno napravo " + test_device;
 
                     $('#refresh_db').prop('disabled', false); // Enable DB refresh button
                     $("#db_spinner").fadeOut("fast"); // Hide spinner
@@ -1144,7 +1372,7 @@
 
                     $('#plotsite').fadeOut("fast", function () {
                         $("#plotsite div").empty(); // Clean plot space
-
+                        /*
                         // PLOTLY - Uspešnost po gnezdih
                         var good1 = {
                             x: [],
@@ -1272,9 +1500,8 @@
                             }
 
                             try {
-                                var duration = moment.duration(val['datetime'] - val['start_test']).as('seconds');
                                 //console.log(duration);
-                                test_time.y[test_time.x.indexOf(id)] += duration;
+                                test_time.y[test_time.x.indexOf(id)] += val['start_test'];
                             } catch (err) {
                                 // Pass invalid measurements (old data)
                             }
@@ -1403,6 +1630,7 @@
                         });
 
                         Plotly.newPlot('resultproc_vs_time', [test_time], layout);
+*/
                     });
 
                     $('#plotsite').fadeIn("fast");
@@ -1417,10 +1645,12 @@
 
         $("#save_worker_data").click(function () {
             var worker_id = $("#worker_id").val();
+            var worker_type = $("#worker_type").find("option:selected").val();
+            var worker_comment = $("#worker_comment").val();
 
             if (worker_id < -1 || worker_id > 99 || isNaN(worker_id)) worker_id = -1;
 
-            sendJSON({"command": "save_worker_data", "worker_id": worker_id, "worker_type": $("#worker_type").find("option:selected").val()});
+            sendJSON({"command": "save_worker_data", "worker_id": worker_id, "worker_type": worker_type, "worker_comment": worker_comment});
         });
 
 

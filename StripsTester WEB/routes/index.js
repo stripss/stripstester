@@ -8,7 +8,7 @@ const ObjectId = require('mongodb').ObjectID;
 const db_url = 'mongodb://172.30.129.19:27017/';
 
 router.get('/', (req, res) => { // Respond with HTML page
-    res.sendFile(path.join(HOMEDIR, 'public', 'index_debug.html'));
+    res.sendFile(path.join(HOMEDIR, 'public', 'index.html'));
 });
 
 router.post('/login', (req, res) => { // Respond with HTML page
@@ -24,21 +24,27 @@ router.post('/login', (req, res) => { // Respond with HTML page
 });
 
 router.get('/stats', async (req, res, next) => { // Asynchronous because of nested queries
-    var connection = await MongoClient.connect(db_url);
+    var connection = await MongoClient.connect(db_url,{ useNewUrlParser: true });
     var dbo = connection.db("stripstester");
 
     var test_devices = await dbo.collection("test_device").find({}).toArray();
-    var counter = 0;
+
+    var date_at_midnight = new Date(new Date().setHours(0, 0, 0, 0));
 
     for (const element of test_devices) {
+        var index = test_devices.indexOf(element);
 
-        //console.log(json_data[json_data.length-1].good);
         var good = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 1}).count();
+
         var bad = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 0}).count();
+        var good_today = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 1, "datetime": {"$gt": date_at_midnight}}).count();
+        var bad_today = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 0, "datetime": {"$gt": date_at_midnight}}).count();
 
-        test_devices[counter]['extra'] = {good: good, bad: bad};
+        var last_test = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id'])}).sort({"_id": -1}).limit(1).toArray();
 
-        counter++;
+        if (last_test.length) test_devices[index]['last_test'] = last_test[0]['datetime'];
+
+        test_devices[index]['extra'] = {good: good, bad: bad, good_today: good_today, bad_today: bad_today};
     }
 
     res.setHeader('Content-Type', 'application/json');
@@ -50,13 +56,13 @@ router.get('/stats', async (req, res, next) => { // Asynchronous because of nest
 router.get('/db', (req, res) => {
     var id = req.query.tid;  // Get ID from URL
 
-    MongoClient.connect(db_url, function (err, db) {
+    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
         if (err) throw err;
         var dbo = db.db("stripstester");
 
         dbo.collection("test_device").findOne({'name': id}, function (err, result) {
             if (err) throw err;
-            console.log(result['_id']);
+            //console.log(result['_id']);
             dbo.collection("test_info").find({'test_device': ObjectId(result['_id'])}).sort('datetime', -1).toArray(function (err, result) {
                 if (err) throw err;
 
@@ -70,6 +76,61 @@ router.get('/db', (req, res) => {
 
 
 //res.send(path.join(HOMEDIR,'public','test.html'));
+});
+
+router.get('/tn', (req, res) => {
+
+    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+        if (err) throw err;
+        var dbo = db.db("stripstester");
+
+        dbo.collection("test_device").find({}).toArray(function (err, result) {
+            if (err) throw err;
+
+            res.setHeader('Content-Type', 'application/json');
+            res.json(result);
+            //console.log(result);
+            db.close();
+        });
+    });
+});
+
+router.get('/idinfo', (req, res) => {
+    var id = req.query.id;
+
+    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+        if (err) throw err;
+        var dbo = db.db("stripstester");
+
+        dbo.collection("test_info").find({'_id': ObjectId(id)}).toArray(function (err, result) {
+            if (err) throw err;
+
+            res.setHeader('Content-Type', 'application/json');
+            res.json(result);
+            //console.log(result);
+            db.close();
+        });
+    });
+});
+
+router.post('/delmeas', (req, res) => { // Respond with HTML page
+    var id = req.body.tid;  // Get ID from POST
+
+    res.setHeader('Content-Type', 'application/json');
+    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+        if (err) throw err;
+        var dbo = db.db("stripstester");
+
+        dbo.collection("test_info").deleteOne({'_id': ObjectId(id)}, function (err, result) {
+            res.setHeader('Content-Type', 'application/json');
+
+            if (err) throw err;
+            //console.log("Measurement deleted for id " + id + " with success of " + result['deletedCount']);
+            res.json({'success': result['deletedCount']});
+
+            db.close();
+        });
+    });
 });
 
 module.exports = router;

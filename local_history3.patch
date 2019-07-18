@@ -1,0 +1,74 @@
+Index: strips_tester/FlashThread.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- strips_tester/FlashThread.py	(date 1522312225575)
++++ strips_tester/FlashThread.py	(date 1522312225575)
+@@ -14,8 +14,8 @@
+ from abstract_devicesThread import AbstractFlasher
+ 
+ 
+-module_logger = logging.getLogger("strips_tester.garo.flash")
+-
++module_logger = logging.getLogger("strips_tester.flashthread")
++module_logger.debug("test")
+ chip_ids = {
+     0x412: "STM32 Low-density",
+     0x410: "STM32 Medium-density",
+@@ -74,9 +74,9 @@
+         self.erase_before_flash = False
+         self.mode = "qio"
+         self.firmware_path = None
+-        self.port = "/dev/ttyAMA0"
+-        self.resetPin =6
+-        self.bootPin = 13
++        self.port = "/dev/ttyS0"
++        self.resetPin = 18
++        self.bootPin = 22
+     @classmethod
+     def load(cls, file_path):
+         conf = cls()
+@@ -165,7 +165,7 @@
+     :return:
+     '''
+     def __init__(self,que,reset, dtr, retries, configFile='/stmConfig.json', UCbinFile='bin/mcu0'):
+-        super().__init__(que,reset, dtr, retries)
++        super().__init__(reset, dtr, retries)
+         self.cmd = None
+         #self.UCbinFile = get_latest_file('/strips_tester_project/strips_tester/configs/000000005e16aa11_MVC2/garo/bin/mcu*')
+         self.UCbinFile = UCbinFile
+@@ -178,15 +178,16 @@
+         self.cmd.open( self.config.port,  self.config.baud)
+         module_logger.debug("Open port %s, baud %s",  self.config.port,  self.config.baud)
+         module_logger.debug("Open port %s", self.cmd.sp.get_settings())
+-
++        print("open port")
+ 
+         try:
+             self.cmd.initChip()
+             module_logger.debug("Init done")
+-            print("init ok")
++            print("init done")
+         except Exception as ex:
+-            print("cant init")
+             module_logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
++            print("cant init")
++            self.que.put(False)
+             return False
+ 
+         bootversion = self.cmd.cmdGet()
+@@ -196,11 +197,12 @@
+         dir = os.path.dirname(__file__) + '/' + self.UCbinFile
+         # data = map(lambda c: ord(c), file(dir, 'relay_board').read())
+         data = open(dir, 'rb').read()
+-
++        print("write memory")
+         self.cmd.cmdEraseMemory()
+         self.cmd.writeMemory(0x08000000, data)
+ 
+         self.cmd.unreset()
++        self.que.put(True)
+         return True
+ 
+     def setup(self, reset, dtr):
