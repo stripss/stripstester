@@ -43,6 +43,10 @@ class StartProcedureTask(Task):
         for i in range(2):
             gui_web.send({"command": "progress", "value": "20", "nest": i})
 
+        # Move stepper to end
+        arduino = devices.ArduinoSerial('/dev/ttyUSB0', baudrate=9600)
+        status = arduino.write("servo 1 40", 5)
+
         return
 
     def tear_down(self):
