@@ -3,7 +3,7 @@
   "test_device_name": "GAHF",
 
   "task_execution_order": {
-    "StartProcedureTask": 1,
+    "StartProcedureTask": 1
   },
 
   "critical_event_tasks": {
