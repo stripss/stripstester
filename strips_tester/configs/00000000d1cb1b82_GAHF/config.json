@@ -1,0 +1,106 @@
+{
+  "thread_nests": 0,
+  "test_device_name": "GAHF",
+
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+  },
+
+  "critical_event_tasks": {
+    "FinishProcedureTask": 1
+  },
+
+  "gpio_settings": {
+
+    "left_red_led": {
+      "function": 0,
+      "pin": 23,
+      "initial": 0
+    },
+    "left_green_led": {
+      "function": 0,
+      "pin": 21,
+      "initial": 0
+    },
+    "left_blue_led": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
+    },
+    "right_red_led": {
+      "function": 0,
+      "pin": 15,
+      "initial": 0
+    },
+    "right_green_led": {
+      "function": 0,
+      "pin": 13,
+      "initial": 0
+    },
+    "right_blue_led": {
+      "function": 0,
+      "pin": 11,
+      "initial": 0
+    },
+
+
+
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 37,
+      "pull": 20
+    },
+    "DUT_LEFT_DETECT": {
+      "function": 1,
+      "pin": 5,
+      "pull": 20
+    },
+    "DUT_RIGHT_DETECT": {
+      "function": 1,
+      "pin": 7,
+      "pull": 20
+    },
+
+
+
+    "DUT_LEFT_P_CTRL": {
+      "function": 1,
+      "pin": 18,
+      "pull": 20
+    },
+    "DUT_LEFT_M_CTRL": {
+      "function": 1,
+      "pin": 22,
+      "pull": 20
+    },
+    "DUT_LEFT_TMP_SW": {
+      "function": 0,
+      "pin": 26,
+      "initial": 0
+    },
+
+
+
+    "DUT_RIGHT_P_CTRL": {
+      "function": 1,
+      "pin": 32,
+      "pull": 20
+    },
+    "DUT_RIGHT_M_CTRL": {
+      "function": 1,
+      "pin": 36,
+      "pull": 20
+    },
+    "DUT_RIGHT_TMP_SW": {
+      "function": 0,
+      "pin": 38,
+      "initial": 0
+    }
+  },
+  "relay_settings": {
+
+  },
+  "data": {
+
+  }
+}
