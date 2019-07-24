@@ -178,7 +178,7 @@ class VoltageTest(Task):
 
         GPIO.output(gpios["relay2"], True) # Turn VCC FF
 
-        if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.0 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
+        if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.5 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
             strips_tester.data['exist'][0] = False
 
         if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
@@ -194,7 +194,7 @@ class VoltageTest(Task):
                 self.add_measurement(0, False, "normal_off", normal_left_off,"V")
                 gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti levega hall senzorja brez magneta: {}V\n".format(normal_left_off)})
 
-            if self.in_range(normal_left_on,0,0.5,False):
+            if self.in_range(normal_left_on,0,1,False):
                 self.add_measurement(0, True, "normal_on", normal_left_on,"V")
                 gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti levega hall senzorja v okolici magneta: {}V\n".format(normal_left_on)})
             else:
@@ -211,7 +211,7 @@ class VoltageTest(Task):
                 self.add_measurement(1, False, "normal_off", normal_right_off,"V")
                 gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti desnega hall senzorja brez magneta: {}V\n".format(normal_right_off)})
 
-            if self.in_range(normal_right_on,0,0.5,False):
+            if self.in_range(normal_right_on,0,1,False):
                 self.add_measurement(1, True, "normal_on", normal_right_on,"V")
                 gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti desnega hall senzorja v okolici magneta: {}V\n".format(normal_right_on)})
             else:
