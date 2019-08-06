@@ -119,7 +119,7 @@ class InitialTest(Task):
         module_logger.info("Stepper motor begin to trigger interrupts")
         debounce_step = 0
 
-        for steps in range(3000):
+        for steps in range(2500):
             state = GPIO.input(gpios.get('SIGNAL_' + str(self.nest_id + 1)))
 
             GPIO.output(gpios['STEP_' + str(self.nest_id + 1)], GPIO.HIGH)
@@ -128,7 +128,7 @@ class InitialTest(Task):
 
             # Distance between gear teeth - so and strings from plastic do not trigger switch. Also serves as debounce
             dist_between_gear = 10
-            num_of_interrupts = 10
+            num_of_interrupts = 3
             if not old_state and state:
                 if abs(debounce_step - steps) > dist_between_gear:
 
@@ -146,7 +146,7 @@ class InitialTest(Task):
 
         strips_tester.data['exist'][self.nest_id] = True
 
-        if interrupt > 5:
+        if interrupt > 2:
             module_logger.info("Switches OK, detected {}" . format(interrupt))
             self.add_measurement(self.nest_id, True, "switches", interrupt, "")
             gui_web.send({"command": "info", "nest": self.nest_id, "value": "Preklopi OK. ({})" . format(interrupt)})
@@ -181,7 +181,7 @@ class Calibration(Task):
 
     def run(self):
         module_logger.info("Calibration of stepper motor")
-        offset = 100
+        offset = 400
         GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
 
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)
