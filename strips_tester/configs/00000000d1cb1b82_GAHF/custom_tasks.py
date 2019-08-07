@@ -11,8 +11,7 @@ gpios = strips_tester.settings.gpios
 
 class StartProcedureTask(Task):
     def set_up(self):
-        self.relay = RelayBoard(16, True)
-
+        self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self) -> (bool, str):
         gui_web.send({"command": "status", "value": "Za začetek testiranja zapri pokrov."})
@@ -43,7 +42,7 @@ class StartProcedureTask(Task):
             gui_web.send({"command": "progress", "value": "20", "nest": i})
 
         # Product power on
-        self.relay.set(0x8)
+        self.relay.set(0x1)
 
         # Product detection
         for i in range(2):
@@ -53,7 +52,7 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "info", "nest": i, "value": "Zaznan kos."})
 
         # Move stepper to end
-        arduino = devices.ArduinoSerial('/dev/ttyUSB0', baudrate=9600)
+        arduino = devices.ArduinoSerial('/dev/nano', baudrate=9600)
 
         for i in range(6):
             arduino.write("servo {} 30" . format(i), 5)
@@ -72,11 +71,15 @@ class StartProcedureTask(Task):
 class RelayBoard:
     # This is custom class for GAHF.
 
-    def __init__(self, size, invert):
-        self.size = size
+    def __init__(self, order, invert):
+        self.size = len(order)
+        self.order = order  # List of ordered relays
         self.invert = invert
 
-        strips_tester.data['shifter'] = 0x0000
+        try:
+            strips_tester.data['shifter']
+        except Exception:
+            strips_tester.data['shifter'] = 0x0000
 
     def set(self, mask):
         strips_tester.data['shifter'] = strips_tester.data['shifter'] | mask  # Assign shifter global memory
@@ -94,27 +97,40 @@ class RelayBoard:
         GPIO.output(gpios['OE'], 1)
         GPIO.output(gpios['LATCH'], 0)
 
-        byte = self.byte_to_binary(strips_tester.data['shifter'], self.size)
+        #byte = self.byte_to_binary(strips_tester.data['shifter'], self.size)
+        self.state = [int(d) for d in bin(strips_tester.data['shifter'])[2:].zfill(self.size)]
+        self.state.reverse()
 
         for x in range(self.size):
             if not self.invert:
-                GPIO.output(gpios['DATA'], int(byte[x]))
+
+                #ordered = [7,5,3,1,9,11,13,15,10,12,14,16,8,6,4,2]
+                #index = series * 16 + ordered.index(int(position[1:]))
+
+                GPIO.output(gpios['DATA'], self.state[self.order[x + 1]])
             else:
-                GPIO.output(gpios['DATA'], not int(byte[x]))
+                #print(self.state)
+                #print("{} -> {}" . format(x,self.order[x]))
+
+                GPIO.output(gpios['DATA'], not self.state[self.order[x] - 1])
 
             GPIO.output(gpios['CLOCK'], 1)
             GPIO.output(gpios['CLOCK'], 0)
 
         GPIO.output(gpios['LATCH'], 1)
 
+
+
+
+
 # OK
 class FinishProcedureTask(Task):
     def set_up(self):
-        self.relay = RelayBoard(16, True)
+        self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
         # Product power off
-        self.relay.clear(0x8)
+        self.relay.clear(0x1)
 
         for current_nest in range(strips_tester.data['test_device_nests']):
             if strips_tester.data['exist'][current_nest]:
@@ -157,21 +173,25 @@ class FinishProcedureTask(Task):
 class VoltageTest(Task):
     def set_up(self):
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-ED120.voltage1", 0.16)  # Rectified DC Voltage
-        self.relay = RelayBoard(16, True)
+        self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
         # Power on
-        self.relay.set(0x8)
+        self.relay.clear(0x1)
+        time.sleep(1)
+        self.relay.set(0x1)
 
         for i in range(2):
             # Check if product exists
             if not self.is_product_ready(i):
                 continue
 
+            gui_web.send({"command": "status", "nest": i, "value": "Meritev napetosti..."})
+
             if i == 0:
-                self.relay.set(0x10)
+                self.relay.set(0x2)
             else:
-                self.relay.clear(0x10)
+                self.relay.clear(0x2)
 
             # Measure 3V3
             num_of_tries = 10
@@ -201,52 +221,64 @@ class VoltageTest(Task):
 
 
 
+# Working, but signal lines must be shorter and soldered!
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
-        self.flasher.set_binary("/strips_tester_project/strips_tester/configs/00000000d1cb1b82_GAHF/bin/gahf.hex")
-        self.relay = RelayBoard(16, True)
+        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf.hex")
+        self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
-        # Product power on
-        #self.relay.set(0xFF)
         for i in range(2):
             # Check if product exists
             if not self.is_product_ready(i):
                 continue
 
-            #if i == 1:
-                #print("a")
-                #self.relay.set(0x8 | 0x67)
-            #else:
-            #    self.relay.clear(0x10)
+            if i == 1:
+                self.relay.set(0x7C)
+            else:
+                self.relay.set(0xEC00)
 
-            while True:
-                time.sleep(3)
+            gui_web.send({"command": "status", "nest": i, "value": "Programiranje..."})
 
+            if self.flasher.flash():  # Flashing begins
+                gui_web.send({"command": "info", "nest": i, "value": "Programiranje uspelo."})
+                self.add_measurement(i, True, "Programming", "OK", "")
+            else:
+                gui_web.send({"command": "error", "nest": i, "value": "Programiranje ni uspelo!"})
+                self.add_measurement(i, False, "Programming", "FAIL", "")
 
-            gui_web.send({"command": "info", "nest": i, "value": "Programiranje..."})
-            #self.flasher.flash()
-            #self.relay.clear(0x67)
+            self.relay.clear(0xEC7C)
+
     def tear_down(self):
         pass
 
-class VisualTest(Task):
+class VisualAndButtonTest(Task):
     def set_up(self):
+        self.ftdi = []
 
-        # Move stepper to end
-        self.arduino = devices.ArduinoSerial('/dev/ttyUSB0', baudrate=9600)
-
-        # initalize Arduino for servo handling
-        # initalize 2 UARTs for communication with DUTs
+        for i in range(2):
+            self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}' . format(i + 1), baudrate=9600))
 
     def run(self):
+        for i in range(2):
+            # Check if product exists
+            if not self.is_product_ready(i):
+                continue
+
+            for j in range(1):
+                print(self.ftdi[i].write("Ping", response="ok", timeout=1, append="\13\10"))
+                #print(self.ftdi[i].write("run LED_test 200", 3, append="\13\10"))
+
+
+        time.sleep(3)
+
         # Initialize camera
         # Send UART code, wait for response
         # If response good, take pictures
         # Given picture, compare with mask provided
-
-        pass
+        print("VisualTest:)")
 
     def tear_down(self):
-        self.arduino.close()
+        for i in range(2):
+            self.ftdi[i].close()

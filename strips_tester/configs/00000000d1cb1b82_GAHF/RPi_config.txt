@@ -1,0 +1,2 @@
+rules.d
+SUBSYSTEM=="tty", KERNELS=="1-1.2", SYMLINK+="nano"
