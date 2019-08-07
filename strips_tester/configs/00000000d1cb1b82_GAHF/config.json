@@ -3,7 +3,12 @@
   "test_device_name": "GAHF",
 
   "task_execution_order": {
-    "StartProcedureTask": 1
+    "StartProcedureTask": 1,
+    "VoltageTest": 1,
+    "FlashMCU": 1,
+    "VisualAndButtonTest": 0,
+    "SignalTest": 0,
+    "FinishProcedureTask": 1
   },
 
   "critical_event_tasks": {
@@ -48,16 +53,16 @@
     "START_SWITCH": {
       "function": 1,
       "pin": 37,
-      "pull": 20
+      "pull": 22
     },
-    "DUT_LEFT_DETECT": {
-      "function": 1,
-      "pin": 5,
-      "pull": 20
-    },
-    "DUT_RIGHT_DETECT": {
+    "DUT_0_DETECT": {
       "function": 1,
       "pin": 7,
+      "pull": 20
+    },
+    "DUT_1_DETECT": {
+      "function": 1,
+      "pin": 5,
       "pull": 20
     },
 
@@ -95,6 +100,29 @@
       "function": 0,
       "pin": 38,
       "initial": 0
+    },
+
+
+
+    "LATCH": {
+      "function": 0,
+      "initial": 0,
+      "pin": 31
+    },
+    "CLOCK": {
+      "function": 0,
+      "initial": 0,
+      "pin": 35
+    },
+    "OE": {
+      "function": 0,
+      "initial": 0,
+      "pin": 29
+    },
+    "DATA": {
+      "function": 0,
+      "initial": 0,
+      "pin": 33
     }
   },
   "relay_settings": {
