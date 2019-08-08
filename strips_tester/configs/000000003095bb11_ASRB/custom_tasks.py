@@ -74,7 +74,7 @@ class VisualTest(Task):
             module_logger.info("Relays {} triggered. Waiting for response ({})..." . format(sequence_output[current_seq], sequence_input[current_seq]))
             time.sleep(1)
 
-            self.gui_progress += 15
+            self.gui_progress += 10
             gui_web.send({"command": "progress", "nest": 0, "value": self.gui_progress})
 
             # Relays are switched, now look for output
@@ -99,6 +99,9 @@ class VisualTest(Task):
                 GPIO.output(gpios['IN_IV' + str(current_relay + 1)], GPIO.LOW)
 
             time.sleep(1)
+
+            self.gui_progress += 5
+            gui_web.send({"command": "progress", "nest": 0, "value": self.gui_progress})
         return
 
     def tear_down(self):
