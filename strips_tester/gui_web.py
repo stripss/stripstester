@@ -11,6 +11,7 @@ from bson import json_util
 import threading
 import datetime
 import logging
+import socket
 
 module_logger = logging.getLogger(".".join(("strips_tester", "gui_web")))
 
@@ -113,6 +114,12 @@ def send_ping():
     connection.close()
     threading.Timer(5, send_ping).start()
 
+
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
+
 def update_address_info(server):
     addr = server.serversocket.getsockname()
 
@@ -120,7 +127,7 @@ def update_address_info(server):
     database = connection["stripstester"]
 
     # Save current port to DB
-    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": addr[1]}})
+    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": get_ip_address()}})
     connection.close()
 
     module_logger.info("[StripsTester] WebSocket server started on port {}" . format(addr[1]))
