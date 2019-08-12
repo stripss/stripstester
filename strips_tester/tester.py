@@ -24,11 +24,6 @@ import traceback
 module_logger = logging.getLogger(".".join(("strips_tester", "tester")))
 
 class Task:
-    """
-    Inherit from this class when creating custom tasks
-    accepts levelr
-    """
-
     def __init__(self):
         self.test_data = {}
         self.test_data['end'] = False
@@ -91,6 +86,19 @@ class Task:
                     gui_web.send({"command": "error", "value": "Pokrov testne naprave je odprt!", "nest": current_nest})
 
             return self
+
+    def in_range(self, value, expected, tolerance, percent=True):
+        if percent:
+            tolerance_min = expected - expected * (tolerance / 100.0)
+            tolerance_max = expected + expected * (tolerance / 100.0)
+        else:
+            tolerance_min = expected - tolerance
+            tolerance_max = expected + tolerance
+
+        if value > tolerance_min and value < tolerance_max:
+            return True
+        else:
+            return False
 
     def _execute(self):
         # Prepare measurement variables
@@ -241,6 +249,10 @@ def update_database():
 
     gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                    "bad_count_today": strips_tester.data['bad_count_today']})
+
+    # Update counter
+    strips_tester.data['db_database']['test_count'].update_one({"test_device": test_device_id['_id']}, {"$set": {"good": strips_tester.data['good_count'],"bad": strips_tester.data['bad_count'],"good_today": strips_tester.data['good_count_today'],
+                                                                                                          "bad_today": strips_tester.data['bad_count_today']}}, True)
 
     strips_tester.data['lock'].release()
 
