@@ -6,6 +6,7 @@ import strips_tester
 from strips_tester import *
 from tester import Task
 import datetime
+import io
 
 gpios = strips_tester.settings.gpios
 
@@ -54,11 +55,47 @@ class StartProcedureTask(Task):
         # Move stepper to end
         arduino = devices.ArduinoSerial('/dev/nano', baudrate=9600)
 
-        for i in range(6):
-            arduino.write("servo {} 30" . format(i), 5)
-            time.sleep(0.1)
-            arduino.write("servo {} 0" . format(i), 5)
-            time.sleep(0.1)
+        arduino.write("servo 0 95")
+        time.sleep(0.5)
+        arduino.write("servo 0 0")
+        time.sleep(0.5)
+
+        arduino.write("servo 1 115")
+        time.sleep(0.5)
+        arduino.write("servo 1 0")
+        time.sleep(0.5)
+
+        arduino.write("servo 2 125")
+        time.sleep(0.5)
+        arduino.write("servo 2 0")
+        time.sleep(0.5)
+
+        arduino.write("servo 3 80")
+        time.sleep(0.5)
+        arduino.write("servo 3 180")
+        time.sleep(0.5)
+
+        arduino.write("servo 4 60")
+        time.sleep(0.5)
+        arduino.write("servo 4 180")
+        time.sleep(0.5)
+
+        arduino.write("servo 5 55")
+        time.sleep(0.5)
+        arduino.write("servo 5 180")
+        time.sleep(0.5)
+        #
+        # for i in range(6):
+        #     if i > 2:
+        #         arduino.write("servo {} 85".format(i), 5)
+        #         time.sleep(0.5)
+        #         arduino.write("servo {} 180" . format(i), 5)
+        #         time.sleep(0.5)
+        #     else:
+        #         arduino.write("servo {} 30".format(i), 5)
+        #         time.sleep(0.5)
+        #         arduino.write("servo {} 0" . format(i), 5)
+        #         time.sleep(0.5)
 
         arduino.close()
 
@@ -83,35 +120,24 @@ class RelayBoard:
 
     def set(self, mask):
         strips_tester.data['shifter'] = strips_tester.data['shifter'] | mask  # Assign shifter global memory
-        #print("set {} to {}" . format(mask,strips_tester.data['shifter']))
         self.shiftOut()
 
     def clear(self, mask):
         strips_tester.data['shifter'] = strips_tester.data['shifter'] & ~mask  # Assign shifter global memory
         self.shiftOut()
 
-    def byte_to_binary(self, n, size):
-        return ''.join(str((n & (1 << i)) and 1) for i in reversed(range(size)))
-
     def shiftOut(self):
         GPIO.output(gpios['OE'], 1)
         GPIO.output(gpios['LATCH'], 0)
 
-        #byte = self.byte_to_binary(strips_tester.data['shifter'], self.size)
+        # Translate binary data to int array
         self.state = [int(d) for d in bin(strips_tester.data['shifter'])[2:].zfill(self.size)]
-        self.state.reverse()
+        self.state.reverse()  # LSB to MSB conversion
 
         for x in range(self.size):
             if not self.invert:
-
-                #ordered = [7,5,3,1,9,11,13,15,10,12,14,16,8,6,4,2]
-                #index = series * 16 + ordered.index(int(position[1:]))
-
-                GPIO.output(gpios['DATA'], self.state[self.order[x + 1]])
+                GPIO.output(gpios['DATA'], self.state[self.order[x] - 1])
             else:
-                #print(self.state)
-                #print("{} -> {}" . format(x,self.order[x]))
-
                 GPIO.output(gpios['DATA'], not self.state[self.order[x] - 1])
 
             GPIO.output(gpios['CLOCK'], 1)
@@ -162,6 +188,10 @@ class FinishProcedureTask(Task):
             elif strips_tester.data['status'][1] == False:
                 GPIO.output(gpios["right_red_led"], True)
                 gui_web.send({"command": "semafor", "nest": 1, "value": (1, 0, 0)})
+
+
+        while self.lid_closed():
+            time.sleep(0.01)
 
         #time.sleep(1)
         return
@@ -260,18 +290,22 @@ class VisualAndButtonTest(Task):
         for i in range(2):
             self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}' . format(i + 1), baudrate=9600))
 
+        self.camera = devices.RPICamera()
+
     def run(self):
         for i in range(2):
             # Check if product exists
             if not self.is_product_ready(i):
                 continue
 
+
             for j in range(1):
-                print(self.ftdi[i].write("Ping", response="ok", timeout=1, append="\13\10"))
+                pass
+                #print(self.ftdi[i].write("Ping", response="ok", timeout=1, append="\13\10"))
                 #print(self.ftdi[i].write("run LED_test 200", 3, append="\13\10"))
 
+        print(self.camera.get_image())
 
-        time.sleep(3)
 
         # Initialize camera
         # Send UART code, wait for response
@@ -280,5 +314,6 @@ class VisualAndButtonTest(Task):
         print("VisualTest:)")
 
     def tear_down(self):
+        self.camera.close()
         for i in range(2):
             self.ftdi[i].close()

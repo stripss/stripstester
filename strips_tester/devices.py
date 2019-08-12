@@ -13,6 +13,7 @@ import time
 import json
 import picamera
 from picamera import PiCamera
+import cv2
 
 sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 from strips_tester import *
@@ -25,6 +26,8 @@ import RPi.GPIO as GPIO
 import struct
 from smbus2 import SMBusWrapper
 import ina219
+import subprocess
+import io
 
 module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
@@ -953,6 +956,30 @@ class CameraDevice:
         data.tofile(fid)
 
 
+
+class RPICamera:
+    def __init__(self):
+        self.camera_device = PiCamera()
+        self.camera_device.resolution = (640, 480)
+        self.last_image = None
+        self.camera_device.start_preview()
+        self.stream = io.BytesIO()
+
+    def get_image(self):
+        for i in range(3):
+            time.sleep(1)  # Camera wake-up time
+            self.camera_device.capture(self.stream, format='jpeg')
+
+        data = np.fromstring(self.stream.getvalue(), dtype=np.uint8)
+        self.last_image = cv2.imdecode(data, 1)  # Make OpenCV image from RAW
+        #self.last_image = self.last_image[:, :, ::-1]  # Set BGR to RGB
+        cv2.imwrite(settings.test_dir + "/mask/img.jpg", self.last_image)
+        return self.last_image
+
+    def close(self):
+        self.camera_device.stop_preview()
+
+
 # Algorithms
 ##################################################################################################################
 class CompareAlgorithm:
@@ -1076,11 +1103,14 @@ class ArduinoSerial:
                 module_logger.error("Arduino device not found.")
                 pass
 
-    def write(self, command, timeout = 0):
-        string = command + "\r\n"
+    def write(self, command, timeout=0, response="ok", append="\r\n"):
+        string = command + append
+        self.ser.flushInput()
         self.ser.write(string.encode())
-        # self.ser.flushInput()
-        success = self.wait_for_response(timeout)
+        if response is None:
+            return True
+
+        success = self.wait_for_response(timeout,response)
 
         if not success:
             module_logger.error("wait_for_response timeout")
@@ -1088,7 +1118,7 @@ class ArduinoSerial:
         else:
             return True
 
-    def wait_for_response(self, timeout):
+    def wait_for_response(self, timeout, resp):
         start = datetime.datetime.now()
 
         while True:
@@ -1099,8 +1129,8 @@ class ArduinoSerial:
                     return False
 
             response = str(self.ser.readline())
-            # print("Arduino: {}".format(response))
-            if "ok" in response:
+            print("Arduino: {}".format(response))
+            if resp in response:
                 return True
 
     def close(self):
@@ -1588,6 +1618,48 @@ class IRTemperatureSensor(AbstractSensor):
 
     def close(self):
         # self.bus.close()
+        pass
+
+
+# STLink programmer - usable only ST Discovery for now!
+# http://startingelectronics.org/tutorials/STM32-microcontrollers/programming-STM32-flash-in-Linux/
+# https://github.com/pavelrevak/pystlink
+
+
+class STLink:
+    def __init__(self):
+        self.binary = None
+        self.process = None
+
+    def flash(self):
+        if self.binary is None:
+            module_logger.error("Binary is not defined!")
+            return False
+
+        # proc = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', 'run', 'flash:erase:verify:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        out, err = self.process.communicate()
+        print(out)
+        if "jolly" in out.decode():
+            module_logger.info("Successfully flashed '{}' binary." . format(self.binary))
+            return True
+        else:
+            module_logger.error("Flashing '{}' binary failed." . format(self.binary))
+            return False
+        # Check if flashing is succeeded!
+
+    def set_binary(self, binary):
+        # Check if binary exists
+        if os.path.isfile(binary):
+            self.binary = binary
+            module_logger.info("Successfully set '{}' binary." . format(self.binary))
+        else:
+            module_logger.error("Binary '{}' does not exist." . format(binary))
+            return False
+
+        return True
+
+    def close(self):
         pass
 
 
