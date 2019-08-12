@@ -252,7 +252,7 @@ def update_database():
 
     # Update counter
     strips_tester.data['db_database']['test_count'].update_one({"test_device": test_device_id['_id']}, {"$set": {"good": strips_tester.data['good_count'],"bad": strips_tester.data['bad_count'],"good_today": strips_tester.data['good_count_today'],
-                                                                                                          "bad_today": strips_tester.data['bad_count_today']}}, True)
+                                                                                                          "bad_today": strips_tester.data['bad_count_today'], "last_test": datetime.datetime.utcnow()}}, True)
 
     strips_tester.data['lock'].release()
 
