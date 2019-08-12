@@ -467,6 +467,8 @@
             });
         };
 
+
+
         $.getJSON("/tn", function (data) {
             $.each(data, function (index, value) {
                 $('#db_test_device_names').append("<a class='dropdown-item' href='#' id='dbtn" + index + "'>" + value['name'] + "</a>");
@@ -779,7 +781,7 @@
             {"name": "GO-HA-1", "addr": "192.168.88.244:8000", "loc": "debug"},
             {"name": "GO-HA-2", "addr": "172.30.132.142:1239", "loc": "laboratorij"},
             {"name": "GO-HA-2", "addr": "172.30.131.34:1239", "loc": "proizvodnja"},
-            {"name": "GO-HA-2", "addr": "192.168.88.224:8000", "loc": "debug"},
+            {"name": "GO-HA-2", "addr": "192.168.88.227:8000", "loc": "debug"},
             {"name": "GO-C19", "addr": "172.30.132.142:1242", "loc": "laboratorij"},
             {"name": "GO-C19", "addr": "172.30.131.34:1241", "loc": "proizvodnja"},
             {"name": "GO-C19", "addr": "192.168.88.230:8000", "loc": "debug"},
@@ -789,7 +791,8 @@
             {"name": "Photointerrupter", "addr": "172.30.132.142:1238", "loc": "laboratorij"},
             {"name": "Photointerrupter", "addr": "0.0.0.0:8000", "loc": "proizvodnja"},
             {"name": "Photointerrupter", "addr": "192.168.88.221:8000", "loc": "debug"},
-            {"name": "ASRB", "addr": "192.168.88.220:8000", "loc": "debug"}
+            {"name": "ASRB", "addr": "192.168.88.220:8000", "loc": "debug"},
+            {"name": "GAHF", "addr": "192.168.88.219:8000", "loc": "debug"}
         ];
 
         /*
@@ -829,7 +832,6 @@
                 $('#select_tn').append("<a class='dropdown-item' href='#' id='tn" + index + "'>" + test_device_list[index]['name'] + "</a>");
             }
         }
-
 
         // Make stopwatches for nests
         var stopwatch = [];
@@ -1372,7 +1374,7 @@
 
                     $('#plotsite').fadeOut("fast", function () {
                         $("#plotsite div").empty(); // Clean plot space
-                        /*
+
                         // PLOTLY - Uspešnost po gnezdih
                         var good1 = {
                             x: [],
@@ -1630,7 +1632,7 @@
                         });
 
                         Plotly.newPlot('resultproc_vs_time', [test_time], layout);
-*/
+
                     });
 
                     $('#plotsite').fadeIn("fast");
