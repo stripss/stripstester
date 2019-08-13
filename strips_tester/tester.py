@@ -247,12 +247,18 @@ def update_database():
     strips_tester.data['good_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
     strips_tester.data['bad_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
 
+    # Get date at midnight of last test
+    strips_tester.data['today_date'] = datetime.datetime.combine(test_info_col.find({"test_device": test_device['_id']}).sort('_id', pymongo.DESCENDING).limit(1)[0], datetime.time(0))
+
     gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                    "bad_count_today": strips_tester.data['bad_count_today']})
 
+    # last test -> date of TN last test (also if no products tested)
+    # today_date -> date of last product tested
+
     # Update counter
     strips_tester.data['db_database']['test_count'].update_one({"test_device": test_device_id['_id']}, {"$set": {"good": strips_tester.data['good_count'],"bad": strips_tester.data['bad_count'],"good_today": strips_tester.data['good_count_today'],
-                                                                                                          "bad_today": strips_tester.data['bad_count_today'], "last_test": end_time}}, True)
+                                                                                                          "bad_today": strips_tester.data['bad_count_today'], "last_test": end_time, "today_date": strips_tester.data['today_date']}}, True)
 
     strips_tester.data['lock'].release()
 
