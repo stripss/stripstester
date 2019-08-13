@@ -248,7 +248,7 @@ def update_database():
     strips_tester.data['bad_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
 
     # Get date at midnight of last test
-    strips_tester.data['today_date'] = datetime.datetime.combine(test_info_col.find({"test_device": test_device['_id']}).sort('_id', pymongo.DESCENDING).limit(1)[0], datetime.time(0))
+    strips_tester.data['today_date'] = datetime.datetime.combine(test_info_col.find({"test_device": test_device['_id']}).sort('_id', -1).limit(1)[0], datetime.time(0))
 
     gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                    "bad_count_today": strips_tester.data['bad_count_today']})
