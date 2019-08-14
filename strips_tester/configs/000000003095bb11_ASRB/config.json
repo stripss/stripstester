@@ -5,6 +5,7 @@
     "StartProcedureTask": 1,
     "VisualTest": 1,
     "ProductConfigTask": 1,
+    "PrintSticker": 1,
     "FinishProcedureTask": 1
   },
   "critical_event_tasks": {

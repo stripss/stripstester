@@ -129,7 +129,7 @@ class PrintSticker(Task):
         self.godex_found = False
         for i in range(10):
             try:
-                self.godex = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
+                self.godex = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
                 self.godex_found = True
                 break
             except Exception as ee:
@@ -140,8 +140,6 @@ class PrintSticker(Task):
         #self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
 
     def run(self):
-        gui_web.send({"command": "progress", "nest": 0, "value": "100"})
-
         if not self.godex_found:
             if strips_tester.data['exist'][0]:
                 gui_web.send({"command": "error", "nest": 0, "value": "Tiskalnika ni mogoče najti!"})
@@ -149,48 +147,52 @@ class PrintSticker(Task):
             return
 
         # Lid is now opened.
-        if strips_tester.data['exist'][0]:
+        if self.is_product_ready(0):
             self.print_sticker(strips_tester.data['status'][0])
 
         return
 
     def print_sticker(self, test_status):
-        qc_id = strips_tester.data['worker_id']
-
-        date = datetime.datetime.now().strftime("%d.%m.%Y")
+        date = datetime.datetime.now()
+        date_week = date.strftime("%V/%y")  # Generate calendar week
+        date_full = date.strftime("%y%m%d")  # Generate full date
 
         if test_status == True:  # Test OK
             inverse = '^L\r'
-            darkness = '^H15\r'
+            darkness = '^H4\r'
         elif test_status == False:  # Test FAIL
             inverse = '^LI\r'
-            darkness = '^H4\r'
+            darkness = '^H15\r'
         else:
             return
 
-        qc = "QC {}".format(strips_tester.data['worker_id'])
+        datamatrix = '10000002803301111{}93167542' . format(date_full)
+        serial = '123456'
 
-        label = ('^Q9,3\n'
-                 '^W21\n'
-                 '{}'
-                 '^P1\n'
-                 '^S2\n'
-                 '^AD\n'
-                 '^C1\n'
-                 '^R12\n'
-                 '~Q+0\n'
-                 '^O0\n'
-                 '^D0\n'
-                 '^E12\n'
-                 '~R200\n'
-                 '^XSET,ROTATION,0\n'
-                 '{}'
-                 'Dy2-me-dd\n'
-                 'Th:m:s\n'
-                 'AA,8,10,1,1,0,0E,ID:{}     {}\n'
-                 'AA,8,29,1,1,0,0E,C-19_PL_UF_{}\n'
-                 'AA,8,48,1,1,0,0E,{}  {}\n'
-                 'E\n').format(darkness, inverse, " ", " ", " ", date, qc)
+        label = ('^Q13,3\n'
+                '^W38\n'
+                '^H4\n'
+                '^P1\n'
+                '^S2\n'
+                '^AD\n'
+                '^C1\n'
+                '^R0\n'
+                '~Q-8\n'
+                '^O0\n'
+                '^D0\n'
+                '^E12\n'
+                '~R255\n'
+                '^XSET,ROTATION,0\n'
+                '^L\n'
+                'Dy2-me-dd\n'
+                'Th:m:s\n'
+                'XRB25,16,4,0,32\n'
+                '{}\n'
+                'AB,120,24,1,1,0,0E,Relay card AS-RB\n'
+                'AB,120,49,1,1,0,0E,{}\n'
+                'AB,120,74,1,1,0,0E,{}\n'
+                'AB,120,0,1,1,0,0E,803301\n'
+                'E\n').format(datamatrix, date_week, serial)
 
         self.godex.send_to_printer(label)
         time.sleep(1)
@@ -208,9 +210,6 @@ class FinishProcedureTask(Task):
         gui_web.send({"command": "status", "nest": 0, "value": "Odstrani kos iz ležišča."})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": 0, "value": "90"})
 
-        while self.lid_closed():
-            time.sleep(0.01)
-
         # Set off working lights
         GPIO.output(gpios['LIGHT_RED'], GPIO.LOW)
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
@@ -226,6 +225,9 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
 
+        # Wait for lid to open
+        while self.lid_closed():
+            time.sleep(0.01)
 
         return
 
