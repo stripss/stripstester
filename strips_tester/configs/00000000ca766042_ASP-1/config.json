@@ -1,0 +1,45 @@
+{
+  "test_device_name": "ASP-1",
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+
+    "ProductConfigTask": 1,
+    "PrintSticker": 1,
+    "FinishProcedureTask": 1
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 15
+    },
+    "DUT_DETECT": {
+      "function": 1,
+      "pin": 13
+    },
+
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 21,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
+    }
+
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+
+  }
+}
