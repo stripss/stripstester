@@ -45,9 +45,9 @@ while not wifi_found:
         # Check if auto scripts is the same
         if not filecmp.cmp('/strips_tester_project/initial_setup/auto.py', '/auto.py'):
             # Files are not the same - update WiFi networks
-            os.system("sudo rm /auto.py")
+            os.system("sudo rm -rf /auto.py")
             os.system("sudo cp /strips_tester_project/initial_setup/auto.py /auto.py")
-            print("Auto script updated!")
+            print("Auto script updated! :)")
         else:
             print("Auto script already updated.")
 
