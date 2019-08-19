@@ -40,6 +40,16 @@ while not wifi_found:
 
         # Add all privileges to strips_tester_project
         os.system("sudo chmod 777 -R /strips_tester_project")
+        os.system("sudo chmod 777 /auto.py")
+
+        # Check if auto scripts is the same
+        if not filecmp.cmp('/strips_tester_project/initial_setup/auto.py', '/auto.py'):
+            # Files are not the same - update WiFi networks
+            os.system("sudo rm -rf /auto.py")
+            os.system("sudo cp /strips_tester_project/initial_setup/auto.py /auto.py")
+            print("Auto script updated!")
+        else:
+            print("Auto script already updated.")
 
         # Check if wpa_supplicant is the same (WiFi hotspots)
         if not filecmp.cmp('/strips_tester_project/initial_setup/wpa_supplicant.conf', '/etc/wpa_supplicant/wpa_supplicant.conf'):
