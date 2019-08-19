@@ -22,8 +22,11 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
 
         module_logger.info("Waiting for detection switch")
+
         # Wait for lid to close
-        while not self.lid_closed():
+        dut_detect = not GPIO.input(gpios['DUT_DETECT'])
+        while not self.lid_closed() or not dut_detect:
+            dut_detect = not GPIO.input(gpios['DUT_DETECT'])
             time.sleep(0.01)
 
         # Set on working lights

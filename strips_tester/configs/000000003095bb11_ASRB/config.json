@@ -17,13 +17,10 @@
       "function": 1,
       "pin": 15
     },
-
     "DUT_DETECT": {
       "function": 1,
-      "pin": 1
+      "pin": 13
     },
-
-
 
     "IN_IV1": {
       "function": 0,
