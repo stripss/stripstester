@@ -42,12 +42,14 @@ while not wifi_found:
         os.system("sudo chmod 777 -R /strips_tester_project")
         os.system("sudo chmod 777 /auto.py")
 
+        # Move system files from initial setup to the right location
+
         # Check if auto scripts is the same
         if not filecmp.cmp('/strips_tester_project/initial_setup/auto.py', '/auto.py'):
             # Files are not the same - update WiFi networks
             os.system("sudo rm -rf /auto.py")
             os.system("sudo cp /strips_tester_project/initial_setup/auto.py /auto.py")
-            print("Auto script updated! :)")
+            print("Auto script updated!")
         else:
             print("Auto script already updated.")
 
@@ -60,11 +62,14 @@ while not wifi_found:
         else:
             print("WiFi networks already updated.")
 
+
+
+        # Auto-start StripsTester if WiFi is detected
+
         if "StripsTester" in wifi or "STRIPS-HOME" in wifi:
             p = subprocess.Popen(["/venv_strips_tester/bin/python-sudo.sh", "/strips_tester_project/strips_tester/tester.py"] + sys.argv[1:])
             # TN is running in production mode
-            print("Production mode (Found StripsTester)")
-            print("Auto-start initializing...")
+            print("Production mode (Found StripsTester) - Auto-start initializing...")
 
             while p.poll() is None:
                 # print('Still sleeping')
@@ -73,8 +78,7 @@ while not wifi_found:
             wifi_found = True
 
         elif "LabTest1" in wifi:
-            print("Debug mode (Found LabTest1)")
-            print("Auto-start canceled.")
+            print("Debug mode (Found LabTest1) - Auto-start canceled.")
             wifi_found = True
 
         time.sleep(0.5)
