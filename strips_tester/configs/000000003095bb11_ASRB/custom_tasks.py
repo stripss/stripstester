@@ -167,7 +167,9 @@ class PrintSticker(Task):
             return
 
         datamatrix = '10000002803301111{}93167542' . format(date_full)
-        serial = '123456'
+        serial = "{:08d}" . format(self.get_new_serial())
+
+        self.add_measurement(0, True, "serial", serial, "")
 
         label = ('^Q13,3\n'
                 '^W38\n'
