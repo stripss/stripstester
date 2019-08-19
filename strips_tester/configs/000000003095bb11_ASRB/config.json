@@ -18,6 +18,11 @@
       "pin": 15
     },
 
+    "DUT_DETECT": {
+      "function": 1,
+      "pin": 1
+    },
+
 
 
     "IN_IV1": {

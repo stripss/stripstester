@@ -190,10 +190,10 @@ class PrintSticker(Task):
                 'Th:m:s\n'
                 'XRB25,16,4,0,32\n'
                 '{}\n'
-                'AB,120,24,1,1,0,0E,Relay card AS-RB\n'
+                'AB,120,24,1,1,0,0E,Gorenje 803301\n'
                 'AB,120,49,1,1,0,0E,{}\n'
                 'AB,120,74,1,1,0,0E,{}\n'
-                'AB,120,0,1,1,0,0E,803301\n'
+                'AB,120,0,1,1,0,0E,RELAY CARD\n'
                 'E\n').format(datamatrix, date_week, serial)
 
         self.godex.send_to_printer(label)
