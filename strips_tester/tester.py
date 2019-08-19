@@ -100,6 +100,26 @@ class Task:
         else:
             return False
 
+    def get_new_serial(self):
+        test_device_id = strips_tester.data['db_database']['test_device'].find_one({"name": strips_tester.settings.test_device_name})['_id']
+
+        try:
+            # Get last serial number
+            data = strips_tester.data['db_database']['test_serial'].find_one({'test_device': test_device_id})
+
+            # Increase serial by one
+            serial_number = data['serial'] + 1
+
+        except (TypeError, IndexError):
+            # Serial number does not exist yet
+            serial_number = 1
+
+        # Update DB
+        strips_tester.data['db_database']['test_serial'].update_one({'test_device': test_device_id}, {"$set": {'serial': serial_number}}, True)
+
+        return serial_number
+
+
     def _execute(self):
         # Prepare measurement variables
         if strips_tester.settings.thread_nests:
