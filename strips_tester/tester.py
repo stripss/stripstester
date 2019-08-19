@@ -100,22 +100,19 @@ class Task:
         else:
             return False
 
+    # Retrieve new serial
     def get_new_serial(self):
-        test_device_id = strips_tester.data['db_database']['test_device'].find_one({"name": strips_tester.settings.test_device_name})['_id']
+        # Get current test device ID
+        test_device_data = strips_tester.data['db_database']['test_device'].find_one({"name": strips_tester.settings.test_device_name})
 
+        # Find serial, increase by one, otherwise set new count
         try:
-            # Get last serial number
-            data = strips_tester.data['db_database']['test_serial'].find_one({'test_device': test_device_id})
-
-            # Increase serial by one
-            serial_number = data['serial'] + 1
-
-        except (TypeError, IndexError):
-            # Serial number does not exist yet
+            serial_number = test_device_data['serial'] + 1
+        except (IndexError, KeyError):
             serial_number = 1
 
         # Update DB
-        strips_tester.data['db_database']['test_serial'].update_one({'test_device': test_device_id}, {"$set": {'serial': serial_number}}, True)
+        strips_tester.data['db_database']['test_device'].update_one({'_id': test_device_data['_id']}, {"$set": {'serial': serial_number}}, True)
 
         return serial_number
 
