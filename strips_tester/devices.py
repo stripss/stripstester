@@ -516,39 +516,62 @@ class Godex:
         self.interface = interface  # 0 - autoselect, 1 - serial, 2 - usb
         self.port_usb = port_usb
         self.port_serial = port_serial
+        self.timeout = timeout
+        self.found = False
 
         if not self.interface:  # Autoselect
-            self.found = False
-
             for retry in range(10):
-                try:
-                    self.ser = serial.Serial(
-                        port=self.port_serial,
-                        baudrate=9600,
-                        parity=serial.PARITY_NONE,
-                        stopbits=serial.STOPBITS_ONE,
-                        bytesize=serial.EIGHTBITS,
-                        timeout=timeout,
-                        dsrdtr=False,
-                        rtscts=False,
-                        xonxoff=False, )
-
-                    self.interface = 1  # Serial connection successful
+                if self.set_serial():  # Check if serial available
+                    self.interface = 1
                     self.found = True
-                    self.ser.dtr = True
-                    self.ser.rts = False
-                    self.ser.flushOutput()
-                    self.ser.flushInput()
                     break
-                except Exception as ee:
-                    pass
 
             if not self.interface:  # Serial port not detected
-                if os.path.exists(self.port_usb):
+                if self.set_usb():
                     self.interface = 2  # Using USB from now on
                     self.found = True
-                else:
-                    module_logger.error("Godex device not found")
+
+        elif self.interface == 1:
+            for retry in range(10):
+                if self.set_serial():
+                    self.found = True
+                    break
+        else:
+            if self.set_usb():
+                self.found = True
+
+        if not self.found:
+            module_logger.error("Godex device not found")
+
+    def set_usb(self):
+        if os.path.exists(self.port_usb):
+            return True
+        else:
+            return False
+
+    def set_serial(self):
+        try:
+            self.ser = serial.Serial(
+                port=self.port_serial,
+                baudrate=9600,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                timeout=self.timeout,
+                dsrdtr=False,
+                rtscts=False,
+                xonxoff=False, )
+
+            self.found = True
+            self.ser.dtr = True
+            self.ser.rts = False
+            self.ser.flushOutput()
+            self.ser.flushInput()
+            return True
+
+        except Exception as ee:
+            return False
+
 
     # Command for actual printing.
     def send_to_printer(self, string):
