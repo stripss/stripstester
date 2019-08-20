@@ -23,10 +23,39 @@ class StartProcedureTask(Task):
 
         module_logger.info("Waiting for detection switch")
 
+
+        # GPIO.output(gpios['12V_DC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['12V_DC'], GPIO.LOW)
+        # time.sleep(1)
+        #
+        # GPIO.output(gpios['24V_DC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['24V_DC'], GPIO.LOW)
+        # time.sleep(1)
+        #
+        # GPIO.output(gpios['48V_DC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['48V_DC'], GPIO.LOW)
+        # time.sleep(1)
+        #
+        # GPIO.output(gpios['12V_AC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['12V_AC'], GPIO.LOW)
+        # time.sleep(1)
+        #
+        # GPIO.output(gpios['24V_AC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['24V_AC'], GPIO.LOW)
+        # time.sleep(1)
+        #
+        # GPIO.output(gpios['48V_AC'], GPIO.HIGH)
+        # time.sleep(1)
+        # GPIO.output(gpios['48V_AC'], GPIO.LOW)
+        # time.sleep(1)
+
         # Wait for lid to close
-        dut_detect = not GPIO.input(gpios['DUT_DETECT'])
-        while not self.lid_closed() or not dut_detect:
-            dut_detect = not GPIO.input(gpios['DUT_DETECT'])
+        while not self.lid_closed():
             time.sleep(0.01)
 
         # Set on working lights
@@ -154,6 +183,7 @@ class FinishProcedureTask(Task):
         # Set off working lights
         GPIO.output(gpios['LIGHT_RED'], GPIO.LOW)
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
+        GPIO.output(gpios['BUZZER'], GPIO.HIGH)
         gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})
 
         if strips_tester.data['exist'][0]:
@@ -165,6 +195,10 @@ class FinishProcedureTask(Task):
                 gui_web.send({"command": "semafor", "nest": 0, "value": (1, 0, 0)})
 
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
+
+        time.sleep(1)
+
+        GPIO.output(gpios['BUZZER'], GPIO.LOW)
 
         # Wait for lid to open
         while self.lid_closed():
