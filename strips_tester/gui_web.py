@@ -124,17 +124,14 @@ def get_ip_address():
 def update_address_info(server):
     addr = server.serversocket.getsockname()
 
-    connection = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
-    database = connection["stripstester"]
-
     # Save current port to DB
-    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": get_ip_address()}})
-    connection.close()
+    strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": get_ip_address()}})
 
     module_logger.info("[StripsTester] WebSocket server started on port {}" . format(addr[1]))
 
 def start_server():
     server = SimpleWebSocketServer('', 8000, SimpleChat)
+
     update_address_info(server)  # Store address info to DB
     send_ping()  # Signal DB that TN is alive
     server.serveforever()
