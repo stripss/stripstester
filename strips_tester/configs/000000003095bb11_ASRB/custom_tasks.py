@@ -52,6 +52,7 @@ class VisualTest(Task):
     def set_up(self):
         self.safety_check()  # Check if lid is opened
         self.gui_progress = 10
+        self.relay_wait = 0.2
 
     def run(self):
         strips_tester.data['exist'][0] = True  # Replace with DUT detection switch
@@ -75,7 +76,7 @@ class VisualTest(Task):
                     GPIO.output(gpios['IN_IV' + str(current_relay + 1)], GPIO.LOW)
 
             module_logger.info("Relays {} triggered. Waiting for response ({})..." . format(sequence_output[current_seq], sequence_input[current_seq]))
-            time.sleep(1)
+            time.sleep(self.relay_wait)
 
             self.gui_progress += 10
             gui_web.send({"command": "progress", "nest": 0, "value": self.gui_progress})
@@ -101,7 +102,7 @@ class VisualTest(Task):
             for current_relay in range(3):
                 GPIO.output(gpios['IN_IV' + str(current_relay + 1)], GPIO.LOW)
 
-            time.sleep(1)
+            time.sleep(self.relay_wait)
 
             self.gui_progress += 5
             gui_web.send({"command": "progress", "nest": 0, "value": self.gui_progress})
@@ -129,21 +130,10 @@ class ProductConfigTask(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        self.godex_found = False
-        for i in range(10):
-            try:
-                self.godex = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
-                self.godex_found = True
-                break
-            except Exception as ee:
-                print(ee)
-
-                time.sleep(0.1)
-
-        #self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
+        self.godex = devices.Godex(timeout=3.0, interface=0)
 
     def run(self):
-        if not self.godex_found:
+        if not self.godex.found:
             if strips_tester.data['exist'][0]:
                 gui_web.send({"command": "error", "nest": 0, "value": "Tiskalnika ni mogoče najti!"})
 
@@ -203,8 +193,7 @@ class PrintSticker(Task):
         time.sleep(1)
 
     def tear_down(self):
-        if self.godex_found:
-            self.godex.close()
+        self.godex.close()
 
 class FinishProcedureTask(Task):
     def set_up(self):
