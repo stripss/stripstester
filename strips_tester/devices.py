@@ -512,13 +512,58 @@ class Godex:
     '''
 
     # Initialisation of printer port
-    def __init__(self, port, timeout=3.0):
-        self.port = port
+    def __init__(self, port_usb='/dev/usb/lp0', port_serial='/dev/ttyUSB0', timeout=3.0, interface=0):
+        self.interface = interface  # 0 - autoselect, 1 - serial, 2 - usb
+        self.port_usb = port_usb
+        self.port_serial = port_serial
+
+        if not self.interface:  # Autoselect
+            self.found = False
+
+            for retry in range(10):
+                try:
+                    self.ser = serial.Serial(
+                        port=self.port_serial,
+                        baudrate=9600,
+                        parity=serial.PARITY_NONE,
+                        stopbits=serial.STOPBITS_ONE,
+                        bytesize=serial.EIGHTBITS,
+                        timeout=timeout,
+                        dsrdtr=False,
+                        rtscts=False,
+                        xonxoff=False, )
+
+                    self.interface = 1  # Serial connection successful
+                    self.found = True
+                    self.ser.dtr = True
+                    self.ser.rts = False
+                    self.ser.flushOutput()
+                    self.ser.flushInput()
+                    break
+                except Exception as ee:
+                    pass
+
+            if not self.interface:  # Serial port not detected
+                if os.path.exists(self.port_usb):
+                    self.interface = 2  # Using USB from now on
+                    self.found = True
+                else:
+                    module_logger.error("Godex device not found")
 
     # Command for actual printing.
     def send_to_printer(self, string):
-        with open(self.port, 'w') as lpt:
-            lpt.write(string)
+        if self.interface == 2:
+            with open(self.port_usb, 'w') as lpt:
+                lpt.write(string)
+        elif self.interface == 1:
+            self.ser.write(string.encode(encoding="ascii"))
+
+    def close(self):
+        if self.interface == 1 and self.found:
+            try:
+                self.ser.close()  # Close serial port
+            except Exception as e:
+                module_logger.error("Cannot close Godex device ({})." . format(e))
 
 class SainBoard16:
     # define command messages
@@ -1085,7 +1130,7 @@ class MeshLoaderToList:
 
 
 class ArduinoSerial:
-    def __init__(self, port='/dev/ttyACM0', baudrate=9600, timeout=3):
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600, timeout=3, bytesize=serial.EIGHTBITS):
         for i in range(10):
             try:
                 self.ser = serial.Serial(
@@ -1093,7 +1138,7 @@ class ArduinoSerial:
                     baudrate=baudrate,
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
-                    bytesize=serial.EIGHTBITS,
+                    bytesize=bytesize,
                     timeout=timeout
                 )
 
@@ -1106,11 +1151,13 @@ class ArduinoSerial:
     def write(self, command, timeout=0, response="ok", append="\r\n"):
         string = command + append
         self.ser.flushInput()
+        print(command)
         self.ser.write(string.encode())
+
         if response is None:
             return True
 
-        success = self.wait_for_response(timeout,response)
+        success = self.wait_for_response(timeout, response)
 
         if not success:
             module_logger.error("wait_for_response timeout")
@@ -1661,77 +1708,3 @@ class STLink:
 
     def close(self):
         pass
-
-
-class Wifi:
-    '''
-    Dependency on wifi
-    Saved configuration for connecting to a wireless network.  This
-    class provides a Python interface to the /etc/network/interfaces
-    file.
-        example for open network:
-        network={
-            ssid="GARO-MELN-2e8e6e"
-            key_mgmt=NONE
-        }
-    '''
-    interfaces = '/etc/wpa_supplicant/wpa_supplicant.conf'
-    head = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n'
-    head += 'update_config=1\n'
-    head += 'country=GB\n\n'
-
-    def __init__(self, interface):
-        self.iface = interface
-        self.network = collections.OrderedDict()
-
-    def __str__(self):
-        '''
-        Returns the representation of a scheme that you would need
-        in the /etc/wpa_supplicant/wpa_supplicant.conf' file.
-        '''
-        scheme_str = ''
-        scheme_str += 'network={\n'
-        for k, v in self.network.items():
-            scheme_str += "\t{}={}\n".format(k, v)
-        scheme_str += '}\n'
-        return scheme_str
-
-    def format_file(self, network_dict):
-        str_config = ''
-        str_config += Wifi.head
-        str_config += 'network={\n'
-        for k, v in network_dict.items():
-            str_config += "{}={}\n".format(k, v)
-        str_config += '}\n'
-        return str_config
-
-    def save(self, ssid, psk, encryption_type='WPA2-PSK', options=None):
-        if psk == '':
-            self.network['ssid'] = '"' + ssid + '"'
-            self.network['key_mgmt'] = 'NONE'
-        else:
-            self.network['ssid'] = '"' + ssid + '"'
-            self.network['psk'] = '"' + psk + '"'
-            # network['key_mgmt'] = self.encryption_type.upper()
-
-        if_file = open(Wifi.interfaces, 'w')
-        if_file.write(self.format_file(self.network))
-
-    def activate(self):
-        module_logger.debug(os.system('sudo ifup {}'.format(self.iface)))
-
-    @staticmethod
-    def search():
-        wifilist = []
-        cells = wifi.Cell.all('self.iface')
-        for cell in cells:
-            wifilist.append(cell)
-        return wifilist
-
-    @staticmethod
-    def find_from_wifi_list(ssid):
-        wifilist = Wifi.search()
-        for cell in wifilist:
-            if cell.ssid == ssid:
-                return cell
-        return False
