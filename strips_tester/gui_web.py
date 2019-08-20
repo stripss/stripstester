@@ -105,13 +105,14 @@ def sendTo(client, message):
 def send_ping():
     # Connect to DB with new temporary client
     # Send date to database. Client on HTTP will calculate duration of last ping received
-    connection = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
-    database = connection["stripstester"]
-    date = datetime.datetime.utcnow()
+    try:
+        date = datetime.datetime.utcnow()
 
-    database['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
+        strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
 
-    connection.close()
+    except Exception as e:  # Avoid errors
+        module_logger.error(e);
+
     threading.Timer(5, send_ping).start()
 
 
