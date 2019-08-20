@@ -130,7 +130,7 @@ class ProductConfigTask(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        self.godex = devices.Godex(timeout=3.0, interface=0)
+        self.godex = devices.Godex()
 
     def run(self):
         if not self.godex.found:
