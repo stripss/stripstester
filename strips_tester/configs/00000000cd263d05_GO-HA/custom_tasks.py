@@ -177,13 +177,14 @@ class VoltageTest(Task):
         normal_left_on = self.measure()
         gui_web.send({"command": "progress", "value": "80", "nest": 0})
 
-        GPIO.output(gpios["relay2"], True) # Turn VCC FF
+        GPIO.output(gpios["relay2"], True) # Turn VCC OFF
 
-        if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.5 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
-            strips_tester.data['exist'][0] = False
 
-        if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
-            strips_tester.data['exist'][1] = False
+        # if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.5 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
+        #     strips_tester.data['exist'][0] = False
+        #
+        # if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
+        #     strips_tester.data['exist'][1] = False
 
         if strips_tester.data['exist'][0]:
             strips_tester.data['status'][0] = True  # Set as good
@@ -234,7 +235,7 @@ class VoltageTest(Task):
 
         voltage = self.voltmeter.voltage()
 
-        #print("{}: {}V" . format(tag,voltage))
+        print("{}: {}V" . format(tag,voltage))
         return voltage
 
     def in_range(self, value, expected, tolerance, percent=True):
