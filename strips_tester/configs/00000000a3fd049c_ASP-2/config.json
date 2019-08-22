@@ -1,0 +1,76 @@
+{
+  "test_device_name": "ASP-2",
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "ReadSerial": 0,
+    "PowerTest": 1,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 7,
+      "pull": 20
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 13,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 11,
+      "initial": 0
+    },
+
+    "12V_AC": {
+      "function": 0,
+      "pin": 18,
+      "initial": 0
+    },
+    "12V_DC": {
+      "function": 0,
+      "pin": 16,
+      "initial": 0
+    },
+    "24V_AC": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
+    },
+    "24V_DC": {
+      "function": 0,
+      "pin": 21,
+      "initial": 0
+    },
+    "48V_AC": {
+      "function": 0,
+      "pin": 23,
+      "initial": 0
+    },
+    "48V_DC": {
+      "function": 0,
+      "pin": 33,
+      "initial": 0
+    },
+    "BUZZER": {
+      "function": 0,
+      "pin": 12,
+      "initial": 0
+    }
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+    "order": [12,24,48]
+  }
+}
