@@ -120,6 +120,7 @@ class FinishProcedureTask(Task):
                 gui_web.send({"command": "semafor", "nest": 1, "value": (1, 0, 0)})
 
         time.sleep(1)
+
         return
 
     def tear_down(self):
@@ -141,7 +142,7 @@ class VoltageTest(Task):
         hall_left_off = self.measure()
         gui_web.send({"command": "progress", "value": "30", "nest": 0})
 
-        GPIO.output(gpios["relay1"], True) # Measure left side
+        GPIO.output(gpios["relay1"], True) # Measure right side
         GPIO.output(gpios["relay4"], False) # Measure left side
         hall_right_on = self.measure()
         gui_web.send({"command": "progress", "value": "30", "nest": 1})
@@ -176,13 +177,14 @@ class VoltageTest(Task):
         normal_left_on = self.measure()
         gui_web.send({"command": "progress", "value": "80", "nest": 0})
 
-        GPIO.output(gpios["relay2"], True) # Turn VCC FF
+        GPIO.output(gpios["relay2"], True) # Turn VCC OFF
 
-        if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.5 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
-            strips_tester.data['exist'][0] = False
 
-        if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
-            strips_tester.data['exist'][1] = False
+        # if 0.5 < hall_left_off < 1 and 0.5 < hall_left_on < 1 and 4.5 < normal_left_off < 5.0 and 4.5 < normal_left_on < 5.0:
+        #     strips_tester.data['exist'][0] = False
+        #
+        # if 0.5 < hall_right_off < 1 and 0.5 < hall_right_on < 1 and 4.5 < normal_right_off < 5.0 and 4.5 < normal_right_on < 5.0:
+        #     strips_tester.data['exist'][1] = False
 
         if strips_tester.data['exist'][0]:
             strips_tester.data['status'][0] = True  # Set as good
@@ -192,12 +194,14 @@ class VoltageTest(Task):
                 gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti levega hall senzorja brez magneta: {}V\n".format(normal_left_off)})
             else:
                 self.add_measurement(0, False, "normal_off", normal_left_off,"V")
+                print("normal left off fail")
                 gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti levega hall senzorja brez magneta: {}V\n".format(normal_left_off)})
 
             if self.in_range(normal_left_on,0,1,False):
                 self.add_measurement(0, True, "normal_on", normal_left_on,"V")
                 gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti levega hall senzorja v okolici magneta: {}V\n".format(normal_left_on)})
             else:
+                print("normal left on fail")
                 self.add_measurement(0, False, "normal_on", normal_left_on,"V")
                 gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti levega hall senzorja v okolici magneta: {}V\n".format(normal_left_on)})
 
@@ -209,12 +213,14 @@ class VoltageTest(Task):
                 gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti desnega hall senzorja brez magneta: {}V\n".format(normal_right_off)})
             else:
                 self.add_measurement(1, False, "normal_off", normal_right_off,"V")
+                print("normal right off fail")
                 gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti desnega hall senzorja brez magneta: {}V\n".format(normal_right_off)})
 
             if self.in_range(normal_right_on,0,1,False):
                 self.add_measurement(1, True, "normal_on", normal_right_on,"V")
                 gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti desnega hall senzorja v okolici magneta: {}V\n".format(normal_right_on)})
             else:
+                print("normal right on fail")
                 self.add_measurement(1, False, "normal_on", normal_right_on,"V")
                 gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti desnega hall senzorja v okolici magneta: {}V\n".format(normal_right_on)})
 
@@ -226,8 +232,10 @@ class VoltageTest(Task):
     def measure(self,tag = "none"):
         sleep = 0.2
         time.sleep(sleep)
+
         voltage = self.voltmeter.voltage()
-        #print("{}: {}V" . format(tag,voltage))
+
+        print("{}: {}V" . format(tag,voltage))
         return voltage
 
     def in_range(self, value, expected, tolerance, percent=True):
