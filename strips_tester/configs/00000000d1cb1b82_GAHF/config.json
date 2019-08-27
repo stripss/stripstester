@@ -4,10 +4,10 @@
 
   "task_execution_order": {
     "StartProcedureTask": 1,
-    "VoltageTest": 0,
-    "FlashMCU": 0,
-    "VisualAndButtonTest": 0,
-    "SignalTest": 0,
+    "VoltageTest": 1,
+    "FlashMCU": 1,
+    "ButtonAndNTCTest": 1,
+    "VisualTest": 1,
     "FinishProcedureTask": 1
   },
 
@@ -68,39 +68,42 @@
 
 
 
-    "DUT_LEFT_P_CTRL": {
+
+
+    "DUT_0_P_CTRL": {
       "function": 1,
-      "pin": 18,
-      "pull": 20
+      "pin": 32,
+      "pull": 21
     },
-    "DUT_LEFT_M_CTRL": {
+    "DUT_1_M_CTRL": {
       "function": 1,
       "pin": 22,
       "pull": 20
     },
-    "DUT_LEFT_TMP_SW": {
+    "DUT_1_TMP_SW": {
       "function": 0,
       "pin": 26,
-      "initial": 0
+      "initial": 1
     },
 
 
 
-    "DUT_RIGHT_P_CTRL": {
+    "DUT_1_P_CTRL": {
       "function": 1,
-      "pin": 32,
-      "pull": 20
+      "pin": 18,
+      "pull": 21
     },
-    "DUT_RIGHT_M_CTRL": {
+    "DUT_0_M_CTRL": {
       "function": 1,
       "pin": 36,
       "pull": 20
     },
-    "DUT_RIGHT_TMP_SW": {
+    "DUT_0_TMP_SW": {
       "function": 0,
       "pin": 38,
-      "initial": 0
+      "initial": 1
     },
+
 
 
 
