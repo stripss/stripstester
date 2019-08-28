@@ -151,7 +151,9 @@ class InitialTest(Task):
         self.shifter.set("K14", False)  # Segger GND Left
         self.shifter.invertShiftOut()
 
-        voltage_left = self.measure_voltage("M7", "M3")
+
+        voltage_left = self.measure_voltage(0,"5V","M7", "M3",4.8,10,result=True)
+
         if self.in_range(voltage_left, 4.8, 10):
             strips_tester.data['exist'][0] = True
 
@@ -161,7 +163,7 @@ class InitialTest(Task):
             gui_web.send({"command": "info", "nest": 0, "value": "Ni zaznanega kosa: {}V" . format(voltage_left)})
 
         if strips_tester.data['exist'][0]:
-            trimmer_left = self.measure_voltage("M7", "L4")
+            trimmer_left = self.measure_voltage1("M7", "L4")
             angle = round((trimmer_left / voltage_left) * 100.0,2)
             # print("Trimmer: {}%, {}V" . format(int(angle),trimmer_left))
 
@@ -171,39 +173,14 @@ class InitialTest(Task):
 
                 self.flash_process.start()
 
-                capacitor_left = self.measure_voltage("M7", "M1")
-                if self.in_range(capacitor_left, 1.8, 10):
-                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti vCap na levem kosu: {}V" . format(capacitor_left)})
+                self.measure_voltage(0,"vCap","M7", "M1",1.8,10)
+                self.measure_voltage(0,"vR1","L3", "M5",-1.9,0.2,False)
 
-                    self.add_measurement(0, True, "vCap", capacitor_left,"V")
-                else:
-                    self.add_measurement(0, False, "vCap", capacitor_left, "V")
-                    module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_left)
-                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti vCap na levem kosu je izven območja: {}V" . format(capacitor_left)})
-
-                vr1_left = self.measure_voltage("L3", "M5")
-                if self.in_range(vr1_left, -1.9, 0.2, False):
-                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti R1 na levem kosu: {}V" . format(vr1_left)})
-                    self.add_measurement(0, True, "vR1", vr1_left, "V")
-                else:
-                    module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_left)
-                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti R1 na levem kosu je izven območja: {}V" . format(vr1_left)})
-
-                    self.add_measurement(0, False, "vR1", vr1_left, "V")
-
-                resistor_left = self.measure_voltage("L4", "M5")
                 expected_voltage = - voltage_left + trimmer_left
+                success = self.measure_voltage(0, "vR2", "L4", "M5", expected_voltage, 1, False)
 
-                if self.in_range(resistor_left, expected_voltage, 1, False):  # Should be in absolute (not in percent)
-                    module_logger.info("R2 voltage in bounds: meas:%sV", resistor_left)
-                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti R2 na levem kosu: {}V" . format(resistor_left)})
-
-                    self.add_measurement(0, True, "vR2", resistor_left, "V")
-                else:
-                    module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_left)
-                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti R2 na levem kosu je izven območja: {}V" . format(resistor_left)})
-                    self.add_measurement(0, False, "vR2", resistor_left, "V", True)
-                    stop = True  # Can't determine trimmer position
+                if not success:
+                    stop = True
 
                 # Wait flashing to be done.
                 self.flash_process.join()
@@ -227,7 +204,8 @@ class InitialTest(Task):
         self.shifter.invertShiftOut()
 
         gui_web.send({"command": "status", "value": "Detekcija desnega kosa..."})
-        voltage_right = self.measure_voltage("L11", "L7")
+        voltage_right = self.measure_voltage(1,"5V","L11", "L7",4.8,10,result=True)
+
         if self.in_range(voltage_right, 4.8, 10):
             strips_tester.data['exist'][1] = True
 
@@ -237,7 +215,7 @@ class InitialTest(Task):
             gui_web.send({"command": "info", "nest": 1, "value": "Ni zaznanega kosa: {}V" . format(voltage_right)})
 
         if strips_tester.data['exist'][1]:
-            trimmer_right = self.measure_voltage("K8", "L11")
+            trimmer_right = self.measure_voltage1("K8", "L11")
             angle = round((trimmer_right / voltage_right) * 100.0,2)
             #print("Trimmer: {}%, {}V".format(int(angle), trimmer_right))
 
@@ -247,41 +225,14 @@ class InitialTest(Task):
 
                 self.flash_process.start()
 
-                capacitor_right = self.measure_voltage("L5", "L11")
-                if self.in_range(capacitor_right, 1.8, 10):
-                    module_logger.info("capacitor voltage in bounds: meas:%sV", capacitor_right)
-                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti vCap na desnem kosu: {}V" . format(capacitor_right)})
+                self.measure_voltage(1,"vCap","L5", "L11",1.8,10)
+                self.measure_voltage(1,"vR1","K7", "L9",-1.9,0.2,False)
 
-                    self.add_measurement(1, True, "vCap", capacitor_right, "V")
-                else:
-                    module_logger.warning("capacitor voltage out of bounds: meas:%sV", capacitor_right)
-                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti vCap na desnem kosu je izven območja: {}V" . format(capacitor_right)})
-                    self.add_measurement(1, False, "vCap", capacitor_right, "V")
-
-                vr1_right = self.measure_voltage("K7", "L9")
-                if self.in_range(vr1_right, -1.9, 0.2, False):
-                    module_logger.info("R1 voltage in bounds: meas:%sV", vr1_right)
-                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu: {}V" . format(vr1_right)})
-
-                    self.add_measurement(1, True, "vR1", vr1_right, "V")
-                else:
-                    module_logger.warning("R1 voltage out of bounds: meas:%sV", vr1_right)
-                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(vr1_right)})
-                    self.add_measurement(1, False, "vR1", vr1_right, "V")
-
-                resistor_right = self.measure_voltage("K8", "L9")
                 expected_voltage = - voltage_right + trimmer_right
-                #print("EXPECTED_RIGHT: {}".format(expected_voltage))
+                success = self.measure_voltage(1,"vR2","K8", "L9", expected_voltage, 1, False)
 
-                if self.in_range(resistor_right, expected_voltage, 1, False):  # Should be in absolute (not in percent)
-                    module_logger.info("R2 voltage in bounds: meas:%sV", resistor_right)
-                    gui_web.send({"command": "info", "nest": 1, "value": "Meritev napetosti R2 na desnem kosu: {}V" . format(resistor_right)})
-                    self.add_measurement(1, True, "vR2", resistor_right, "V")
-                else:
-                    module_logger.warning("R2 voltage out of bounds: meas:%sV", resistor_right)
-                    gui_web.send({"command": "error", "nest": 1, "value": "Meritev napetosti R1 na desnem kosu je izven območja: {}V" . format(resistor_right)})
-                    self.add_measurement(1, False, "vR2", resistor_right, "V", True)
-                    stop = True  # Can't determine trimmer position
+                if not success:
+                    stop = True
 
                 # Wait flashing to be done.
                 self.flash_process.join()
@@ -330,13 +281,15 @@ class InitialTest(Task):
     def calibration(self):
         self.nanoboard_small.write("calibrate", 10)
 
-    def measure_voltage(self, testpad1, testpad2):
+    def measure_voltage1(self, testpad1, testpad2):
+
         self.shifter.set(testpad1, True)
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
         voltage = self.voltmeter.read()
         # print("Voltage: {}V" . format(voltage))
+
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
         self.shifter.invertShiftOut()
@@ -344,6 +297,56 @@ class InitialTest(Task):
         time.sleep(0.01)
 
         return voltage
+
+    def measure_voltage(self, nest, name, testpad1, testpad2, expected, tolerance=15, percent=True,result=False):
+        # if not self.is_product_ready(nest):
+        #     return
+
+        self.shifter.set(testpad1, True)
+        self.shifter.set(testpad2, True)
+        self.shifter.invertShiftOut()
+
+        num_of_tries = 10
+        time.sleep(0.2)
+
+        voltage = self.voltmeter.read()
+
+        while not self.in_range(voltage, expected, tolerance, percent):
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            # print("   Retrying... {}V" . format(voltage))
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("%s out of bounds: meas:%sV", name, voltage)
+            gui_web.send({"command": "error", "nest": nest, "value": "Meritev napetosti {} je izven območja: {}V" . format(name,voltage)})
+            self.add_measurement(nest, False, name, voltage, "V")
+        else:
+            module_logger.info("%s in bounds: meas:%sV", name, voltage)
+            gui_web.send({"command": "info", "nest": nest, "value": "Meritev napetosti {}: {}V" . format(name,voltage)})
+            self.add_measurement(nest, True, name, voltage, "V")
+
+        self.shifter.set(testpad1, False)
+        self.shifter.set(testpad2, False)
+        self.shifter.invertShiftOut()
+
+        time.sleep(0.01)
+
+        if result:
+            if not num_of_tries:
+                return -1
+            else:
+                return voltage
+
+        if not num_of_tries:
+            return False
+
+        return True
+
 
     def in_range(self, value, expected, tolerance, percent=True):
         if percent:
@@ -735,7 +738,7 @@ class ICT_VoltageVisualTest(Task):
 
     def ICTVoltageACTest(self):
         if self.is_product_ready(0):
-            self.measure_voltage(0,"5V", "M3", "M7", 4.7, 0.3)
+            self.measure_voltage(0,"5V", "M3", "M7", 4.5, 0.5)
             self.measure_voltage(0,"D1", "M4", "M7", 2.3, 0.4)
             self.measure_voltage(0,"Z1", "M4", "M5", -2.3, 0.4)
             #
@@ -744,7 +747,7 @@ class ICT_VoltageVisualTest(Task):
             #     strips_tester.data['status'][0] = False
 
         if self.is_product_ready(1):
-            self.measure_voltage(1,"5V", "L7", "L11", 4.7, 0.3)
+            self.measure_voltage(1,"5V", "L7", "L11", 4.5, 0.5)
             self.measure_voltage(1,"D1", "L8", "L11", 2.3, 0.4)
             self.measure_voltage(1,"Z1", "L8", "L9", -2.3, 0.4)
             #

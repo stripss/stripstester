@@ -28,6 +28,7 @@ from smbus2 import SMBusWrapper
 import ina219
 import subprocess
 import io
+from binascii import unhexlify
 
 module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
@@ -804,13 +805,15 @@ class TI74HC595:
 
 
 class HEF4094BT:
-    def __init__(self, datapin, latchpin, clockpin, oepin):
+    def __init__(self, datapin, latchpin, clockpin, oepin, checkpin=12):
         self.datapin = datapin
         self.latchpin = latchpin
         self.clockpin = clockpin
         self.oepin = oepin
-
+        self.delay = 0.00001
+        self.checkpin = checkpin
         self.data = []
+        self.checkstate = []
 
         for i in range(48):
             self.data.append(0)
@@ -853,22 +856,45 @@ class HEF4094BT:
 
 
         GPIO.output(self.latchpin, GPIO.HIGH)
-        time.sleep(0.00001)
+        time.sleep(self.delay)
+
+
+        # output 101
+        GPIO.output(self.datapin, GPIO.LOW)
+        time.sleep(self.delay)
+        self.clock_shift()
+        GPIO.output(self.datapin, GPIO.HIGH)
+        time.sleep(self.delay)
+        self.clock_shift()
+        GPIO.output(self.datapin, GPIO.LOW)
+        time.sleep(self.delay)
+        self.clock_shift()
+
+
         for bit in range(48):
             #print(self.data[bit], end='')
             GPIO.output(self.datapin, self.data[bit])
-            time.sleep(0.00001)
+            time.sleep(self.delay)
 
-            GPIO.output(self.clockpin, GPIO.LOW)
-            time.sleep(0.00001)
-            GPIO.output(self.clockpin, GPIO.HIGH)
-            time.sleep(0.00001)
+            if bit > 44:
+                state = GPIO.input(self.checkpin)
+                print(state, end="")
+                self.checkstate.append(state)
+
+            self.clock_shift()
 
         GPIO.output(self.latchpin, GPIO.LOW)
-        time.sleep(0.00001)
+        time.sleep(self.delay)
         GPIO.output(self.oepin, GPIO.LOW)
-        time.sleep(0.00001)
+        time.sleep(self.delay)
         GPIO.output(self.datapin, GPIO.HIGH)
+
+        if self.checkstate != [1, 0, 1]:
+            print("not good")
+        else:
+            print("good")
+
+        self.checkstate = []
 
         '''
         # Debug purpose
@@ -893,6 +919,12 @@ class HEF4094BT:
 
         return
 
+    def clock_shift(self):
+        GPIO.output(self.clockpin, GPIO.LOW)
+        time.sleep(self.delay)
+        GPIO.output(self.clockpin, GPIO.HIGH)
+        time.sleep(self.delay)
+
 
     def shiftout(byte):
         GPIO.output(gpios['LATCH'], 0)
@@ -908,6 +940,7 @@ class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, device_name, delay: int = 1):
         super().__init__(delay, "Voltage", "V")
         self.sensor = None
+        self.found = True
 
         errmsg = None
         if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
@@ -917,11 +950,15 @@ class YoctoVoltageMeter(AbstractSensor):
         # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
         # self.sensor = YVoltage.FirstVoltage()
 
-        # Initialize sensor (more common than YVoltage)
-        self.sensor = YSensor.FindSensor(device_name)
-        self.sensor.set_resolution(0.001)
-        self.sensor.set_logFrequency("25/s")
-        self.sensor.get_module().saveToFlash()
+        try:
+            # Initialize sensor (more common than YVoltage)
+            self.sensor = YSensor.FindSensor(device_name)
+            self.sensor.set_resolution(0.001)
+            self.sensor.set_logFrequency("25/s")
+            self.sensor.get_module().saveToFlash()
+        except YAPI.YAPI_Exception:
+            self.found = False
+            return
 
         if (self.sensor == None):
             raise ("No YoctoVolt is connected")
@@ -1025,28 +1062,45 @@ class CameraDevice:
 
 
 
+
+
+
+
 class RPICamera:
     def __init__(self):
         self.camera_device = PiCamera()
         self.camera_device.resolution = (640, 480)
         self.last_image = None
-        self.camera_device.start_preview()
+        #self.camera_device.start_preview()
         self.stream = io.BytesIO()
+        self.camera_device.framerate = 30  # 10 frames per second
+
+        time.sleep(1)
+        for i in range(3):
+            self.get_image()
 
     def get_image(self):
-        for i in range(3):
-            time.sleep(1)  # Camera wake-up time
-            self.camera_device.capture(self.stream, format='jpeg')
+        self.last_image = np.empty((480, 640, 3), dtype=np.uint8)
 
-        data = np.fromstring(self.stream.getvalue(), dtype=np.uint8)
-        self.last_image = cv2.imdecode(data, 1)  # Make OpenCV image from RAW
+        for i in range(3):
+            self.camera_device.capture(self.last_image, 'bgr', use_video_port=True)
+
+        #data = np.fromstring(self.stream.getvalue(), dtype=np.uint8)
+        #self.last_image = cv2.imdecode(data, 1)  # Make OpenCV image from RAW
+        #self.stream.seek(0)
+        #self.stream.truncate()
         #self.last_image = self.last_image[:, :, ::-1]  # Set BGR to RGB
-        cv2.imwrite(settings.test_dir + "/mask/img.jpg", self.last_image)
+        #cv2.imwrite(settings.test_dir + "/mask/img.raw", self.last_image)
         return self.last_image
 
-    def close(self):
-        self.camera_device.stop_preview()
+    def crop_image(self,x,y,width,height):
+        self.last_image = self.last_image[y:y+height,x:x+width]
 
+    def close(self):
+        self.stream.seek(0)
+        self.stream.truncate()
+        #self.camera_device.stop_preview()
+        self.camera_device.close()
 
 # Algorithms
 ##################################################################################################################
@@ -1113,82 +1167,69 @@ class CompareAlgorithm:
         return False
 
 
-class MeshLoaderToList:
-    def __init__(self, config_file: str):
-        self.config_file = config_file
-        self.indices_length = []
-        self.mesh_count = None
-        self.matrix_code_location = None
-        self.load()
-
-    def load(self):
-        if os.path.exists(self.config_file):
-            with open(self.config_file, 'r') as f:
-                data = json.load(f, object_pairs_hook=OrderedDict)
-                self.meshes_dict = data['Meshes']
-                self.span = data['span']
-                self.Xres = data['Xres']
-                self.Yres = data['Yres']
-                self.matrix_code_location = data['Data matrix']
-                # self.data_matrix_location = data["Data matrix"]
-                self.construct_mask_array()
-        else:
-            module_logger.error("Mesh file does not exist")
-
-    def construct_mask_array(self):
-        mask_num = len(self.meshes_dict)
-        # max 50 x 5(x,y,R,G,B) x mask_num
-        self.indices = np.zeros((mask_num, 50, 5), dtype=np.int16)
-        for j in range(mask_num):
-            mesh_name = str(j)
-            temp_mesh = self.meshes_dict[mesh_name]
-            for i in range(len(temp_mesh)):
-                x_loc = temp_mesh[i]['x']
-                y_loc = temp_mesh[i]['y']
-                R = temp_mesh[i]['R']
-                G = temp_mesh[i]['G']
-                B = temp_mesh[i]['B']
-                self.indices[j, i, :] = [x_loc, y_loc, R, G, B]
-            self.indices_length.append(len(temp_mesh))
-
 
 class ArduinoSerial:
-    def __init__(self, port='/dev/ttyACM0', baudrate=9600, timeout=3, bytesize=serial.EIGHTBITS):
-        for i in range(10):
-            try:
-                self.ser = serial.Serial(
-                    port=port,
-                    baudrate=baudrate,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    bytesize=bytesize,
-                    timeout=timeout
-                )
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600, timeout=0.2, mode="ascii"):
+        self.found = False
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.mode = mode
 
+        for retry in range(10):
+            if self.set_serial():  # Check if serial available
+
+                self.found = True
                 break
 
-            except Exception:
-                module_logger.error("Arduino device not found.")
-                pass
+        if not self.found:
+            module_logger.error("ArduinoSerial device not found")
 
-    def write(self, command, timeout=0, response="ok", append="\r\n"):
+    def set_serial(self):
+        try:
+            self.ser = serial.Serial(
+                port=self.port,
+                baudrate=self.baudrate,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                timeout=self.timeout
+            )
+
+            self.ser.flushOutput()
+            self.ser.flushInput()
+            return True
+
+        except Exception:
+            return False
+
+    def write(self, command, timeout=0, response="ok", append="\r\n", wait=0, retry=1):
+        if not self.found:
+            return
         string = command + append
+
         self.ser.flushInput()
-        print(command)
-        self.ser.write(string.encode())
+
+        for i in range(retry):
+            if self.mode == "ascii":
+                self.ser.write(string.encode())
+            elif self.mode == "hex":
+                self.ser.write(unhexlify(string))
+
+            time.sleep(wait)  # serial wait for answer
+
+            if response is not None:
+                if self.wait_for_response(timeout, response):
+                    return True
+                else:
+                    module_logger.debug("wait_for_response timeout")
 
         if response is None:
             return True
 
-        success = self.wait_for_response(timeout, response)
+        return False
 
-        if not success:
-            module_logger.error("wait_for_response timeout")
-            return False
-        else:
-            return True
-
-    def wait_for_response(self, timeout, resp):
+    def wait_for_response(self, timeout, resp, return_resp=False):
         start = datetime.datetime.now()
 
         while True:
@@ -1198,224 +1239,23 @@ class ArduinoSerial:
                 if end > start + datetime.timedelta(seconds=timeout):
                     return False
 
-            response = str(self.ser.readline())
-            print("Arduino: {}".format(response))
-            if resp in response:
-                return True
+            response = self.ser.readline()
+
+            if self.mode == "hex":
+                response = response.hex()
+            else:
+                response = str(response)
+
+            #print("Arduino: {}".format(response))
+
+            if return_resp:
+                return response
+            else:
+                if resp.lower() in response.lower():
+                    return True
 
     def close(self):
         self.ser.close()
-
-
-class Arduino:
-    def __init__(self, address=0x04):
-        if isinstance(address, str):
-            address = int(address, 16)
-
-        self.addr = address
-        self.ready = 0
-
-        self.ping()
-
-        self.resistance = -1
-
-    def ping(self):
-        try:
-            self.send_command(110)
-        except Exception as ee:
-            raise IOError("Device did not respond.")
-
-    # Ping MCP23017 to see if address is valid
-    def moveStepper(self, index):
-        if index < 0 or index > 40:
-            return
-
-        self.send_command(100, index)
-
-    def calibrate(self):
-        self.send_command(103)
-
-    # Available only in NanoBoard
-    def probe(self, index, waiting=0):
-        resistance = -1
-
-        self.relay(1)  # Ohmmeter mode
-        self.send_command(100, index)
-
-        self.connect()
-        time.sleep(waiting)
-        resistance = self.measure()
-        self.disconnect()
-
-        return resistance
-
-    def test_float(self):
-        with SMBusWrapper(1) as bus:
-            result = False
-
-            # Try to send bytes 20 times
-            for i in range(20):
-                try:
-
-                    bus.write_i2c_block_data(self.addr, 0, (200, 10))
-                    ba = bytearray(struct.pack("f", 3.66))
-
-                    bus.write_i2c_block_data(self.addr, 0, ba)
-
-                    result = True
-                    break
-                except OSError:
-                    time.sleep(0.1)
-
-            if not result:
-                raise Exception
-
-            # Wait for response
-            # self.wait_for_response(bus)
-
-    # Connect probes to pogoBoard
-    def connect(self):
-        self.servo(1, 130)
-
-    # Disconnect probes from pogoBoard
-    def disconnect(self):
-        self.servo(1, 60)
-
-    def relay(self, state):
-        # If state == 1 OHMMETER
-        # if state == 0 VOLTMETER
-
-        if state < 0 or state > 1:
-            return
-
-        self.send_command(104, state)
-
-    def servo(self, number, angle):
-        # If state == 1 OHMMETER
-        # if state == 0 VOLTMETER
-
-        self.ready = 0
-
-        if number < 1 or number > 2:
-            return
-
-        if angle < 0 or angle > 270:
-            return
-
-        self.send_command(104 + number, angle)
-
-    def send_command(self, command, values=10):
-        # print("Sending command {} with value {}" . format(command,values))
-        # Join i2c line as master
-        self.ready = 0
-        with SMBusWrapper(1) as bus:
-            result = False
-
-            # Try to send bytes 20 times
-            for i in range(50):
-                try:
-                    # print("Writting")
-                    bus.write_i2c_block_data(self.addr, 0, (command, values))
-
-                    result = True
-                    break
-                except OSError as err:
-                    time.sleep(0.1)
-                    print("Error writing block data: {} retrying".format(err))
-
-            if not result:
-                raise Exception
-
-            if command != 107:
-                # Wait for response
-                self.wait_for_response(bus)
-            else:
-                self.wait_for_response(bus)
-                self.wait_for_measurement(bus)
-
-        return
-
-    def wait_for_response(self, bus):
-        # print("Ready: {}" . format(self.ready))
-        while not self.ready:
-            try:
-                self.ready = bus.read_byte(self.addr)
-                # print("Waiting")
-                time.sleep(0.1)
-
-            except OSError:
-                time.sleep(0.1)
-
-    def wait_for_measurement(self, bus):
-        self.resistance = -1
-        self.ready = 0
-        print("Waiting for measurement")
-
-        while not self.ready:
-            try:
-                data = []
-
-                for i in range(4):
-                    bb = bus.read_byte(self.addr)
-                    time.sleep(0.1)
-
-                    data.append(bb)
-
-                print(data)
-
-                b = []
-                for item in data:
-                    b.append(hex(item))
-                # print(b)
-
-                vstr = ''
-                for item in b:
-                    if len(item) == 4:
-                        vstr = vstr + item[2:] + " "
-                    else:
-                        vstr = vstr + "0" + item[2:] + " "
-                # print(vstr)
-                e = bytearray.fromhex(vstr)
-
-                self.resistance = struct.unpack('<f', e)[0]
-
-                # self.resistance = self.get_float(data,0)
-                self.ready = 1
-
-                break
-            except OSError:
-                time.sleep(0.1)
-
-    def measure(self):
-        multi = DigitalMultiMeter("/dev/ohmmeter")
-        # self.send_command(107)
-        for i in range(5):
-            self.resistance = multi.read().numeric_val
-            self.new_resistance = multi.read().numeric_val
-
-        diff = 1  # dummy diff
-        while diff < 0.80:
-            self.resistance = multi.read().numeric_val
-            self.new_resistance = multi.read().numeric_val
-
-            # Is difference bigger than 5%?
-            if self.new_resistance and self.resistance:
-                diff = self.new_resistance / self.resistance
-
-                if diff > 1:
-                    diff = self.resistance / self.new_resistance
-            else:
-                break
-
-        # Apply newest measurement
-        self.resistance = self.new_resistance
-        print("Resistance: {}".format(self.resistance))
-        return self.resistance
-
-    def get_float(self, data, index):
-        bytes1 = data[4 * index:4 * (index + 1)]
-        print("DATA: {}".format(data))
-        return struct.unpack('f', ''.join(map(chr, bytes1)))
 
 
 class Segger:
@@ -1706,11 +1546,11 @@ class STLink:
             module_logger.error("Binary is not defined!")
             return False
 
-        # proc = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', 'run', 'flash:erase:verify:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        #self.process = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', '-v', '-c', 'STM32F030x8', 'flash:erase:verify:0x08000000:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         out, err = self.process.communicate()
-        print(out)
-        if "jolly" in out.decode():
+        #print(out)
+        if "jolly" in out.decode() or "Writing FLASH: [========================================] done in " in out.decode():
             module_logger.info("Successfully flashed '{}' binary." . format(self.binary))
             return True
         else:

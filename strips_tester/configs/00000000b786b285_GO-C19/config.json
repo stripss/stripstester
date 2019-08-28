@@ -73,8 +73,12 @@
       "function": 0,
       "initial": 0,
       "pin": 22
+    },
+    "CH_SHIFT": {
+      "function": 1,
+      "pull": 20,
+      "pin": 12
     }
-
   },
   "relay_settings": {
 
