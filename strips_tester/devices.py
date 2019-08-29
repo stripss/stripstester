@@ -890,9 +890,7 @@ class HEF4094BT:
         GPIO.output(self.datapin, GPIO.HIGH)
 
         if self.checkstate != [1, 0, 1]:
-            print("not good")
-        else:
-            print("good")
+            module_logger.error("Shifter data not consistent!")
 
         self.checkstate = []
 
