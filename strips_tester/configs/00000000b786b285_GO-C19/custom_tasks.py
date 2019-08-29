@@ -911,6 +911,14 @@ class FinishProcedureTask(Task):
 
         GPIO.output(gpios['BUZZER'], False)
 
+        # wait for open lid
+        if not strips_tester.data['exist'][0] and not strips_tester.data['exist'][1]:
+            gui_web.send({"command": "status", "value": "Za konec testa odpri pokrov"})
+            module_logger.info("Za konec testa odpri pokrov")
+        else:
+            module_logger.info("Za tiskanje nalepke odpri pokrov")
+            gui_web.send({"command": "status", "value": "Za tiskanje nalepke odpri pokrov"})
+
         while lid_closed():
             time.sleep(0.01)
 
