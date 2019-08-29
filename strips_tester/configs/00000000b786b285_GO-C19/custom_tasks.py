@@ -140,6 +140,7 @@ class InitialTest(Task):
         self.calibration_thread.start()
 
         self.power_on()  # Power on board (external 5V)
+        time.sleep(1)
 
         self.flash_process = threading.Thread(target=self.flashMCU, args=(0,))
 
@@ -152,9 +153,9 @@ class InitialTest(Task):
         self.shifter.invertShiftOut()
 
 
-        voltage_left = self.measure_voltage(0,"5V","M7", "M3",4.8,10,result=True)
+        voltage_left = self.measure_voltage1("M7", "M3")
 
-        if self.in_range(voltage_left, 4.8, 10):
+        if self.in_range(voltage_left, 5.0, 10):
             strips_tester.data['exist'][0] = True
 
             module_logger.info("left product detected with %sV of power supply", voltage_left)
@@ -174,7 +175,7 @@ class InitialTest(Task):
                 self.flash_process.start()
 
                 self.measure_voltage(0,"vCap","M7", "M1",1.8,10)
-                self.measure_voltage(0,"vR1","L3", "M5",-1.9,0.2,False)
+                self.measure_voltage(0,"vR1","L3", "M5",-1.9,0.3,False)
 
                 expected_voltage = - voltage_left + trimmer_left
                 success = self.measure_voltage(0, "vR2", "L4", "M5", expected_voltage, 1, False)
@@ -204,9 +205,9 @@ class InitialTest(Task):
         self.shifter.invertShiftOut()
 
         gui_web.send({"command": "status", "value": "Detekcija desnega kosa..."})
-        voltage_right = self.measure_voltage(1,"5V","L11", "L7",4.8,10,result=True)
+        voltage_right = self.measure_voltage1("L11", "L7")
 
-        if self.in_range(voltage_right, 4.8, 10):
+        if self.in_range(voltage_right, 5.0, 10):
             strips_tester.data['exist'][1] = True
 
             module_logger.info("right product detected with %sV of power supply", voltage_right)
@@ -226,7 +227,7 @@ class InitialTest(Task):
                 self.flash_process.start()
 
                 self.measure_voltage(1,"vCap","L5", "L11",1.8,10)
-                self.measure_voltage(1,"vR1","K7", "L9",-1.9,0.2,False)
+                self.measure_voltage(1,"vR1","K7", "L9",-1.9,0.3,False)
 
                 expected_voltage = - voltage_right + trimmer_right
                 success = self.measure_voltage(1,"vR2","K8", "L9", expected_voltage, 1, False)
@@ -306,7 +307,7 @@ class InitialTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 10
+        num_of_tries = 20
         time.sleep(0.2)
 
         voltage = self.voltmeter.read()
@@ -316,7 +317,9 @@ class InitialTest(Task):
 
             voltage = self.voltmeter.read()
 
-            # print("   Retrying... {}V" . format(voltage))
+            time.sleep(0.1)
+
+            print("   Retrying... {}V" . format(voltage))
 
             if not num_of_tries:
                 break
@@ -738,18 +741,18 @@ class ICT_VoltageVisualTest(Task):
 
     def ICTVoltageACTest(self):
         if self.is_product_ready(0):
-            self.measure_voltage(0,"5V", "M3", "M7", 4.5, 0.5)
-            self.measure_voltage(0,"D1", "M4", "M7", 2.3, 0.4)
-            self.measure_voltage(0,"Z1", "M4", "M5", -2.3, 0.4)
+            self.measure_voltage(0,"5V", "M3", "M7", 4.3, 0.5)
+            self.measure_voltage(0,"D1", "M4", "M7", 2.2, 0.5)
+            self.measure_voltage(0,"Z1", "M4", "M5", -2.1, 0.5)
             #
             # if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
             #     strips_tester.data['status_left'] = 0
             #     strips_tester.data['status'][0] = False
 
         if self.is_product_ready(1):
-            self.measure_voltage(1,"5V", "L7", "L11", 4.5, 0.5)
-            self.measure_voltage(1,"D1", "L8", "L11", 2.3, 0.4)
-            self.measure_voltage(1,"Z1", "L8", "L9", -2.3, 0.4)
+            self.measure_voltage(1,"5V", "L7", "L11", 4.3, 0.5)
+            self.measure_voltage(1,"D1", "L8", "L11", 2.2, 0.5)
+            self.measure_voltage(1,"Z1", "L8", "L9", -2.1, 0.5)
             #
             # if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
             #     strips_tester.data['status_right'] = 0
@@ -810,7 +813,7 @@ class ICT_VoltageVisualTest(Task):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
-
+            time.sleep(0.1)
             # print("   Retrying... {}V" . format(voltage))
 
             if not num_of_tries:
@@ -935,16 +938,18 @@ class EndCalibration(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        self.godex_found = False
-        for i in range(10):
-            try:
-                self.godex = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
-                self.godex_found = True
-                break
-            except Exception as ee:
-                print(ee)
+        self.godex = devices.Godex(port_serial="/dev/godex")
 
-                time.sleep(0.1)
+        # self.godex_found = False
+        # for i in range(10):
+        #     try:
+        #         self.godex = devices.GoDEXG300(port='/dev/godex', timeout=3.0)
+        #         self.godex_found = True
+        #         break
+        #     except Exception as ee:
+        #         print(ee)
+        #
+        #         time.sleep(0.1)
 
         #self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
@@ -966,7 +971,7 @@ class PrintSticker(Task):
             module_logger.info("Za tiskanje nalepke odpri pokrov")
             gui_web.send({"command": "status", "value": "Za tiskanje nalepke odpri pokrov"})
 
-        if not self.godex_found:
+        if not self.godex.found:
             for current_nest in range(2):
                 if strips_tester.data['exist'][current_nest]:
                     gui_web.send({"command": "error", "nest": current_nest, "value": "Tiskalnika ni mogoče najti!"})
