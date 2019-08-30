@@ -804,7 +804,7 @@ class ICT_VoltageVisualTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 20
+        num_of_tries = 30
         time.sleep(0.2)
 
         voltage = self.voltmeter.read()
@@ -813,7 +813,7 @@ class ICT_VoltageVisualTest(Task):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
-            time.sleep(0.1)
+            time.sleep(0.096)
             # print("   Retrying... {}V" . format(voltage))
 
             if not num_of_tries:
