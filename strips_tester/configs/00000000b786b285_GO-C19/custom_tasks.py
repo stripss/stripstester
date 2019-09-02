@@ -741,16 +741,16 @@ class ICT_VoltageVisualTest(Task):
 
     def ICTVoltageACTest(self):
         if self.is_product_ready(0):
-            self.measure_voltage(0,"D1", "M4", "M7", 2.2, 0.5)
-
-        if self.is_product_ready(1):
-            self.measure_voltage(1,"D1", "L8", "L11", 2.2, 0.5)
-
-        if self.is_product_ready(0):
             self.measure_voltage(0,"Z1", "M3", "M6", 2.1, 0.5)
 
         if self.is_product_ready(1):
             self.measure_voltage(1,"Z1", "L10", "L7", 2.1, 0.5)
+
+        if self.is_product_ready(0):
+            self.measure_voltage(0,"D1", "M4", "M7", 2.2, 0.5)
+
+        if self.is_product_ready(1):
+            self.measure_voltage(1,"D1", "L8", "L11", 2.2, 0.5)
 
         if self.is_product_ready(0):
             self.measure_voltage(0,"5V", "M3", "M7", 4.3, 0.5)
