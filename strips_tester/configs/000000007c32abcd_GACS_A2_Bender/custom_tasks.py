@@ -411,7 +411,7 @@ class I2C_Communication(Task):
 #OK
 class LockSimulator(Task):
     def set_up(self):
-        self.charging_time = 10
+        self.charging_time = 15
 
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
@@ -526,7 +526,7 @@ class LockSimulator(Task):
             self.add_measurement(0, True, "LeftOutUnlockNoPower", voltage, "V")
             gui_web.send({"command": "info", "value": "Meritev napetosti levega izhoda (odklenjen, brez napajanja): {}V\n".format(voltage)})
 
-        voltage = self.measure_output(1) # Measure left output
+        voltage = self.measure_output(1)  # Measure left output
     
         if voltage <= 0:
             self.add_measurement(0, False, "RightOutUnlockNoPower", voltage, "V")
