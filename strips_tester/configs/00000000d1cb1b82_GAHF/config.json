@@ -70,10 +70,10 @@
 
 
 
-    "DUT_0_P_CTRL": {
+    "DUT_1_P_CTRL": {
       "function": 1,
-      "pin": 32,
-      "pull": 21
+      "pin": 18,
+      "pull": 20
     },
     "DUT_1_M_CTRL": {
       "function": 1,
@@ -88,10 +88,10 @@
 
 
 
-    "DUT_1_P_CTRL": {
+    "DUT_0_P_CTRL": {
       "function": 1,
-      "pin": 18,
-      "pull": 21
+      "pin": 32,
+      "pull": 20
     },
     "DUT_0_M_CTRL": {
       "function": 1,

@@ -12,6 +12,8 @@ import base64
 import cv2
 import numpy as np
 
+import usb.core
+
 gpios = strips_tester.settings.gpios
 module_logger = logging.getLogger(".".join(("strips_tester", __name__)))
 
@@ -23,6 +25,13 @@ class StartProcedureTask(Task):
     def run(self) -> (bool, str):
         gui_web.send({"command": "status", "value": "Za začetek testiranja zapri pokrov."})
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
+
+        self.arduino.write("servo 0 0")
+        self.arduino.write("servo 1 0")
+        self.arduino.write("servo 2 0")
+        self.arduino.write("servo 3 180")
+        self.arduino.write("servo 4 180")
+        self.arduino.write("servo 5 180")
 
         module_logger.info("Waiting for detection switch")
         # Wait for lid to close
@@ -45,16 +54,6 @@ class StartProcedureTask(Task):
             strips_tester.data['start_time'][i] = datetime.datetime.utcnow()  # Get start test date
             gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
 
-        for i in range(2):
-            gui_web.send({"command": "progress", "value": "20", "nest": i})
-
-        self.arduino.write("servo 0 0")
-        self.arduino.write("servo 1 0")
-        self.arduino.write("servo 2 0")
-        self.arduino.write("servo 3 180")
-        self.arduino.write("servo 4 180")
-        self.arduino.write("servo 5 180")
-
         # Product power on
         self.relay.set(0x1)
 
@@ -67,6 +66,7 @@ class StartProcedureTask(Task):
 
             if strips_tester.data['exist'][i]:
                 gui_web.send({"command": "info", "nest": i, "value": "Zaznan kos."})
+                gui_web.send({"command": "progress", "value": "10", "nest": i})
             else:
                 gui_web.send({"command": "semafor", "nest": i, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Clear indicator light where DUT is not found
 
@@ -203,6 +203,8 @@ class VoltageTest(Task):
                 if not num_of_tries:
                     break
 
+            gui_web.send({"command": "progress", "value": "20", "nest": i})
+
             if not num_of_tries:
                 module_logger.warning("3V3 is out of bounds: meas: %sV", voltage)
                 gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 3.3V je izven območja: {}V" . format(voltage)})
@@ -221,12 +223,12 @@ class VoltageTest(Task):
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
-        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/GAFH.hex")
+        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_3.hex")
 
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
-
+        gui_web.send({"command": "status", "value": "Programiranje..."})
 
         for i in range(2):
             # Check if product exists
@@ -238,30 +240,49 @@ class FlashMCU(Task):
             else:
                 self.relay.set(0xEC00)
 
-            gui_web.send({"command": "status", "nest": i, "value": "Programiranje"})
+            time.sleep(0.2)
 
-            num_of_tries = 1
+            gui_web.send({"command": "info", "nest": i, "value": "Programiranje..."})
+            gui_web.send({"command": "progress", "value": "25", "nest": i})
 
-            for j in range(10):
-                if self.flasher.flash():  # Flashing begins
-                    gui_web.send({"command": "info", "nest": i, "value": "Programiranje uspelo."})
-                    self.add_measurement(i, True, "Programming", "OK", "")
+            num_of_tries = 3
+
+            flash = self.flasher.flash()
+
+            while not flash:
+                # Reset USB device (take away power and give it back)
+                self.relay.set(0x80)
+                time.sleep(2)
+                self.relay.clear(0x80)
+                time.sleep(2)
+
+                num_of_tries = num_of_tries - 1
+
+                flash = self.flasher.flash()
+
+                if not num_of_tries:
                     break
-                else:
-                    num_of_tries -= 1
 
-                    if not num_of_tries:
-                        break
+            gui_web.send({"command": "progress", "value": "35", "nest": i})
 
             if not num_of_tries:
                 gui_web.send({"command": "error", "nest": i, "value": "Programiranje ni uspelo!"})
                 self.add_measurement(i, False, "Programming", "FAIL", "")
+            else:
+                gui_web.send({"command": "info", "nest": i, "value": "Programiranje uspelo."})
+                self.add_measurement(i, True, "Programming", "OK", "")
 
             self.relay.clear(0xEC7C)
 
+        # Power off
+        self.relay.clear(0x1)
+        time.sleep(0.1)
+
+        # Power on
+        self.relay.set(0x1)
+
     def tear_down(self):
         pass
-
 
 class ButtonAndNTCTest(Task):
     def set_up(self):  # Prepare FTDI USB-to-serial devices
@@ -272,203 +293,39 @@ class ButtonAndNTCTest(Task):
             self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}'.format(i + 1), baudrate=57600, mode="hex"))
 
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
+
+        self.test_thread = []
+        self.threading_lock = threading.Lock()
+
     def run(self):
 
         # Power on
         self.relay.set(0x1)
 
+        gui_web.send({"command": "status", "value": "Testiranje funkcij modula"})
+
+        for i in range(2):
+            # Get servo on init position
+            self.test_thread.append(threading.Thread(target=self.test,args=(i,)))
+            self.test_thread[i].daemon = True
+
+            self.test_thread[i].start()
+            # Create two threads
+            # Lock on arduino
+
         for i in range(2):
             if not self.is_product_ready(i):
                 continue
 
-            # Entering production mode with 10 retries
-            if self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.1, retry=10):
-                module_logger.info("UART OK: Successfully enter production mode")
-                gui_web.send({"command": "info", "nest": i, "value": "Vstop v TEST način"})
-                self.add_measurement(i, True, "UART", "Test mode OK", "")
-
-                gui_web.send({"command": "status", "nest": i, "value": "Meritev temperature"})
-
-                # Measure NTC on PCB
-                num_of_tries = 10
-
-                temperature = self.get_temperature(i, 'pb') # Get PCB temperature
-
-                while not self.in_range(temperature, 61, 5):
-                    num_of_tries = num_of_tries - 1
-
-                    temperature = self.get_temperature(i, 'pb') # Get PCB temperature
-
-                    if not num_of_tries:
-                        break
-
-                if not num_of_tries:
-                    module_logger.warning("NTC_PCB is out of bounds: meas: %s°C", temperature)
-                    gui_web.send({"command": "error", "nest": i, "value": "Meritev temperature na tiskanini je izven območja: {}°C".format(temperature)})
-                    self.add_measurement(i, False, "NTC_PCB", temperature, "°C")
-                else:
-                    module_logger.info("NTC_PCB in bounds: meas: %s°C", temperature)
-                    gui_web.send({"command": "info", "nest": i, "value": "Meritev temperature na tiskanini: {}°C".format(temperature)})
-                    self.add_measurement(i, True, "NTC_PCB", temperature, "°C")
-
-                # Measure NTC on cable
-                num_of_tries = 10
-
-                temperature = self.get_temperature(i, "ui")
-                while not self.in_range(temperature, 63, 5):
-                    num_of_tries = num_of_tries - 1
-
-                    temperature = self.get_temperature(i, "ui")
-
-                    if not num_of_tries:
-                        break
-
-                if not num_of_tries:
-                    module_logger.warning("NTC_Cable is out of bounds: meas: %s°C", temperature)
-                    gui_web.send({"command": "error", "nest": i, "value": "Meritev temperature na kablu je izven območja: {}°C".format(temperature)})
-                    self.add_measurement(i, False, "NTC_Cable", temperature, "°C")
-                else:
-                    module_logger.info("NTC_Cable in bounds: meas: %s°C", temperature)
-                    gui_web.send({"command": "info", "nest": i, "value": "Meritev temperature na kablu: {}°C".format(temperature)})
-                    self.add_measurement(i, True, "NTC_Cable", temperature, "°C")
-
-                gui_web.send({"command": "status", "nest": i, "value": "Branje napetosti krmilnika"})
-
-                # Measure 5V on PCB
-                num_of_tries = 15
-
-                voltage = self.get_voltage(i, "5v")
-                while not self.in_range(voltage, 5, 10):
-                    num_of_tries = num_of_tries - 1
-
-                    voltage = self.get_voltage(i, "5v")
-
-                    if not num_of_tries:
-                        break
-
-                if not num_of_tries:
-                    module_logger.warning("5V reference is out of bounds: meas: %sV", voltage)
-                    gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 5V je izven območja: {}V".format(voltage)})
-                    self.add_measurement(i, False, "5V_PCB", voltage, "°C")
-                else:
-                    module_logger.info("5V reference in bounds: meas: %sV", voltage)
-                    gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 5V: {}V".format(voltage)})
-                    self.add_measurement(i, True, "5V_PCB", voltage, "V")
-
-                # Measure 3V3 on PCB
-                num_of_tries = 15
-
-                voltage = self.get_voltage(i, "3v3")
-                while not self.in_range(voltage, 3.3, 0.2, False):
-                    num_of_tries = num_of_tries - 1
-
-                    voltage = self.get_voltage(i, "3v3")
-
-                    if not num_of_tries:
-                        break
-
-                if not num_of_tries:
-                    module_logger.warning("3V3 reference is out of bounds: meas: %sV", voltage)
-                    gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 3.3V je izven območja: {}V".format(voltage)})
-                    self.add_measurement(i, False, "3V3_PCB", voltage, "°C")
-                else:
-                    module_logger.info("3V3 reference in bounds: meas: %sV", voltage)
-                    gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 3.3V: {}V".format(voltage)})
-                    self.add_measurement(i, True, "3V3_PCB", voltage, "V")
-
-                gui_web.send({"command": "status", "nest": i, "value": "Test delovanja gumbov"})
-
-                # Press all buttons at once and check button states via UART
-                self.press_button(i, "111")
-
-                button_states = self.get_button_states(i)
-                button_lang = ["Desna", "Srednja", "Leva"]
-
-                for current_button in range(len(button_states)):
-                    if not button_states[current_button]:  # Current button FAIL
-                        gui_web.send({"command": "error", "nest": i, "value": "{} tipka ne deluje." . format(button_lang[current_button])})
-
-                if all(button_states):
-                    module_logger.info("Button test OK")
-                    gui_web.send({"command": "info", "nest": i, "value": "Tipke OK"})
-                    self.add_measurement(i, True, "Buttons", button_states, "")
-                else:
-                    module_logger.warning("Button error: {}" . format(button_states))
-                    self.add_measurement(i, False, "Buttons", button_states, "")
-
-                # Press all buttons at once and check button states via UART
-                self.press_button(i, "000")
-
-                gui_web.send({"command": "status", "nest": i, "value": "Testiranje grelca"})
-
-                self.set_heater_control(i, False)  # Turn Heater OFF
-                state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_P_CTRL".format(i)))
-
-                if state:
-                    module_logger.warning("Heater control FAIL")
-                    gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu grelca!"})
-                    self.add_measurement(i, False, "HeaterControl", "Fail on turn off", "")
-                else:
-                    module_logger.info("Heater Control OK")
-                    gui_web.send({"command": "info", "nest": i, "value": "Izklop grelca OK"})
-                    self.add_measurement(i, True, "HeaterControl", "OK", "")
+            self.test_thread[i].join()
 
 
+        # Power off
+        self.relay.clear(0x1)
+        time.sleep(0.1)
 
-                #
-                # self.set_heater_control(i, True)  # Turn Heater ON
-                #
-                # for m in range(20):
-                #     state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_P_CTRL".format(i)))
-                #     print(state)
-                #     state1 = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_P_CTRL".format(1-i)))
-                #     print(state1)
-                #     time.sleep(0.1)
-                #
-                #
-                # if not state:
-                #     module_logger.warning("Heater control FAIL")
-                #     gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu grelca!"})
-                #     self.add_measurement(i, False, "HeaterControl", "Fail on turn on", "")
-                # else:
-                #     module_logger.info("Heater Control OK")
-                #     gui_web.send({"command": "info", "nest": i, "value": "Vklop grelca OK"})
-                #     self.add_measurement(i, True, "HeaterControl", "OK", "")
-
-
-                self.set_motor_control(i, False)  # Turn Motor OFF
-                state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_M_CTRL".format(i)))
-
-                gui_web.send({"command": "status", "nest": i, "value": "Testiranje motorja"})
-
-                if state:
-                    module_logger.warning("Motor control FAIL")
-                    gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu motorja!"})
-                    self.add_measurement(i, False, "MotorControl", "Fail on turn off", "")
-                else:
-                    module_logger.info("Motor Control OK")
-                    gui_web.send({"command": "info", "nest": i, "value": "Izklop motorja OK"})
-                    self.add_measurement(i, True, "MotorControl", "OK", "")
-
-                self.set_motor_control(i, True)  # Turn Motor ON
-                state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_M_CTRL".format(i)))
-
-                if not state:
-                    module_logger.warning("Motor control FAIL")
-                    gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu motorja!"})
-                    self.add_measurement(i, False, "MotorControl", "Fail on turn on", "")
-                else:
-                    module_logger.info("Motor Control OK")
-                    gui_web.send({"command": "info", "nest": i, "value": "Vklop motorja OK"})
-                    self.add_measurement(i, True, "MotorControl", "OK", "")
-
-                # Error detection signal -> get UART state of GPIO pin TMP_SW_DET
-
-                #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 00 00 55 AA"), timeout=0.1, wait=0.5, retry=5) # Exit production mode
-            else:
-                module_logger.warning("UART Error: cannot enter production mode")
-                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vstopu v TEST način."})
-                self.add_measurement(i, False, "UART", "Cannot enter test mode", "")
+        # Power on
+        self.relay.set(0x1)
 
         # Restore servo initial positions
         self.arduino.write("servo 0 0")
@@ -480,12 +337,267 @@ class ButtonAndNTCTest(Task):
 
         return
 
+    def test(self,i):
+        if not self.is_product_ready(i):
+            return
+        self.press_button(i, "000")
+
+        # Entering production mode with 10 retries
+        if self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.1, retry=10):
+            module_logger.info("UART OK: Successfully enter production mode")
+            gui_web.send({"command": "info", "nest": i, "value": "Vstop v TEST način"})
+            self.add_measurement(i, True, "UART", "Test mode OK", "")
+
+            gui_web.send({"command": "progress", "value": "40", "nest": i})
+
+            # Measure NTC on PCB
+            num_of_tries = 2000
+
+            temperature = self.get_temperature(i, 'pb')  # Get PCB temperature
+
+            while not self.in_range(temperature, 61, 5):
+                time.sleep(0.2)
+                num_of_tries = num_of_tries - 1
+
+                temperature = self.get_temperature(i, 'pb')  # Get PCB temperature
+
+                if not num_of_tries:
+                    break
+
+            gui_web.send({"command": "progress", "value": "45", "nest": i})
+
+            if not num_of_tries:
+                module_logger.warning("NTC_PCB is out of bounds: meas: %s°C", temperature)
+                gui_web.send({"command": "error", "nest": i, "value": "Meritev temperature na tiskanini je izven območja: {}°C".format(temperature)})
+                self.add_measurement(i, False, "NTC_PCB", temperature, "°C")
+            else:
+                module_logger.info("NTC_PCB in bounds: meas: %s°C", temperature)
+                gui_web.send({"command": "info", "nest": i, "value": "Meritev temperature na tiskanini: {}°C".format(temperature)})
+                self.add_measurement(i, True, "NTC_PCB", temperature, "°C")
+
+            if not self.is_product_ready(i):
+                return
+
+            # Measure NTC on cable
+            num_of_tries = 2000
+
+            temperature = self.get_temperature(i, "ui")
+            while not self.in_range(temperature, 63, 5):
+                time.sleep(0.2)
+                num_of_tries = num_of_tries - 1
+
+                temperature = self.get_temperature(i, "ui")
+
+                if not num_of_tries:
+                    break
+
+            gui_web.send({"command": "progress", "value": "50", "nest": i})
+
+            if not num_of_tries:
+                module_logger.warning("NTC_Cable is out of bounds: meas: %s°C", temperature)
+                gui_web.send({"command": "error", "nest": i, "value": "Meritev temperature na kablu je izven območja: {}°C".format(temperature)})
+                self.add_measurement(i, False, "NTC_Cable", temperature, "°C")
+            else:
+                module_logger.info("NTC_Cable in bounds: meas: %s°C", temperature)
+                gui_web.send({"command": "info", "nest": i, "value": "Meritev temperature na kablu: {}°C".format(temperature)})
+                self.add_measurement(i, True, "NTC_Cable", temperature, "°C")
+
+            if not self.is_product_ready(i):
+                return
+
+            # Measure 5V on PCB
+            num_of_tries = 20
+
+            voltage = self.get_voltage(i, "5v")
+            while not self.in_range(voltage, 5, 10):
+                time.sleep(0.1)
+                num_of_tries = num_of_tries - 1
+
+                voltage = self.get_voltage(i, "5v")
+
+                if not num_of_tries:
+                    break
+
+            gui_web.send({"command": "progress", "value": "55", "nest": i})
+
+            if not num_of_tries:
+                module_logger.warning("5V reference is out of bounds: meas: %sV", voltage)
+                gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 5V je izven območja: {}V".format(voltage)})
+                self.add_measurement(i, False, "5V_PCB", voltage, "°C")
+            else:
+                module_logger.info("5V reference in bounds: meas: %sV", voltage)
+                gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 5V: {}V".format(voltage)})
+                self.add_measurement(i, True, "5V_PCB", voltage, "V")
+
+            # Measure 3V3 on PCB
+            num_of_tries = 20
+
+            if not self.is_product_ready(i):
+                return
+
+            voltage = self.get_voltage(i, "3v3")
+            while not self.in_range(voltage, 3.3, 0.2, False):
+                time.sleep(0.1)
+                num_of_tries = num_of_tries - 1
+
+                voltage = self.get_voltage(i, "3v3")
+
+                if not num_of_tries:
+                    break
+
+            gui_web.send({"command": "progress", "value": "60", "nest": i})
+
+            if not num_of_tries:
+                module_logger.warning("3V3 reference is out of bounds: meas: %sV", voltage)
+                gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 3.3V je izven območja: {}V".format(voltage)})
+                self.add_measurement(i, False, "3V3_PCB", voltage, "°C")
+            else:
+                module_logger.info("3V3 reference in bounds: meas: %sV", voltage)
+                gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 3.3V: {}V".format(voltage)})
+                self.add_measurement(i, True, "3V3_PCB", voltage, "V")
+
+            gui_web.send({"command": "progress", "value": "65", "nest": i})
+
+            # Press all buttons at once and check button states via UART
+            self.press_button(i, "111",0.2)
+
+            button_states = self.get_button_states(i)
+            button_lang = ["Desna", "Srednja", "Leva"]
+
+            for current_button in range(len(button_states)):
+                if not button_states[current_button]:  # Current button FAIL
+                    gui_web.send({"command": "error", "nest": i, "value": "{} tipka ne deluje." . format(button_lang[current_button])})
+
+            if all(button_states):
+                module_logger.info("Button test OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Tipke OK"})
+                self.add_measurement(i, True, "Buttons", button_states, "")
+            else:
+                module_logger.warning("Button error: {}" . format(button_states))
+                self.add_measurement(i, False, "Buttons", button_states, "")
+
+            gui_web.send({"command": "progress", "value": "70", "nest": i})
+
+            if not self.is_product_ready(i):
+                return
+
+            # Press all buttons at once and check button states via UART
+            self.press_button(i, "000", 0.2)
+
+            if not self.set_heater_control(i, True):
+                module_logger.warning("Heater control FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu grelca!"})
+                self.add_measurement(i, False, "HeaterControl", "Fail on turn on", "")
+            else:
+                module_logger.info("Heater Control OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Vklop grelca OK"})
+                self.add_measurement(i, True, "HeaterControl", "OK", "")
+
+            if not self.set_heater_control(i, False):
+                module_logger.warning("Heater control FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu grelca!"})
+                self.add_measurement(i, False, "HeaterControl", "Fail on turn off", "")
+            else:
+                module_logger.info("Heater Control OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Izklop grelca OK"})
+                self.add_measurement(i, True, "HeaterControl", "OK", "")
+
+            gui_web.send({"command": "progress", "value": "75", "nest": i})
+
+            if not self.is_product_ready(i):
+                return
+
+            if not self.set_motor_control(i, True):
+                module_logger.warning("Motor control FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu motorja!"})
+                self.add_measurement(i, False, "MotorControl", "Fail on turn off", "")
+            else:
+                module_logger.info("Motor Control OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Izklop motorja OK"})
+                self.add_measurement(i, True, "MotorControl", "OK", "")
+
+            if not self.set_motor_control(i, True):
+                module_logger.warning("Motor control FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu motorja!"})
+                self.add_measurement(i, False, "MotorControl", "Fail on turn on", "")
+            else:
+                module_logger.info("Motor Control OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Vklop motorja OK"})
+                self.add_measurement(i, True, "MotorControl", "OK", "")
+
+            gui_web.send({"command": "progress", "value": "80", "nest": i})
+
+            # Error detection signal -> get UART state of GPIO pin TMP_SW_DET
+
+            if not self.is_product_ready(i):
+                return
+
+            # Module must have no errors:
+            num_of_tries = 20
+
+            error = self.get_error_states(i)
+            while error:
+                time.sleep(0.1)
+                num_of_tries = num_of_tries - 1
+
+                error = self.get_error_states(i)
+
+                if not num_of_tries:
+                    break
+
+            if not num_of_tries:
+                module_logger.warning("Error detection FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Zaznana napaka na modulu: {}!" . format(error)})
+                self.add_measurement(i, False, "ErrorDetection", "Detected error {}" . format(error), "")
+            else:
+                module_logger.info("Error detection OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Zaznavanje napak na modulu OK"})
+                self.add_measurement(i, True, "ErrorDetection", "OK", "")
+
+            # Trigger E2 error
+            GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.LOW)
+            time.sleep(2)
+
+            num_of_tries = 20
+
+            error = self.get_error_states(i)
+            while error != 2:
+                time.sleep(0.1)
+                num_of_tries = num_of_tries - 1
+
+                error = self.get_error_states(i)
+
+                if not num_of_tries:
+                    break
+
+            if not num_of_tries:
+                module_logger.warning("Error detection FAIL")
+                gui_web.send({"command": "error", "nest": i, "value": "Ni zaznane simulirane napake E2!"})
+                self.add_measurement(i, False, "ErrorDetection", "Not detected E2", "")
+            else:
+                module_logger.info("Error detection OK")
+                gui_web.send({"command": "info", "nest": i, "value": "Simulirana napaka zaznana."})
+                self.add_measurement(i, True, "ErrorDetection", "OK", "")
+
+            GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.HIGH)
+
+            # Do not exit procution mode because camera needs to be tested.
+            #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 00 00 55 AA"), timeout=0.1, wait=0.5, retry=5) # Exit production mode
+        else:
+            module_logger.warning("UART Error: cannot enter production mode")
+            gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vstopu v TEST način."})
+            self.add_measurement(i, False, "UART", "Cannot enter test mode", "")
+
     def get_temperature(self, nest, command):
-        self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 05 01 00 55 AA" . format(command))))  # Write data to UART
+        self.ftdi[nest].ser.flushInput()
+        self.ftdi[nest].ser.flushOutput()
+
+        self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 05 01 00 55 AA")))  # Write data to UART
         time.sleep(0.1)
+
         # read 8 bytes or timeout (set in serial.Serial)
         response = (self.ftdi[nest].ser.read(8)).hex()[6:10]
-
+        print("Command: {} -> Response: {}" . format(command, response))
         try:
             if command == "pb":
                 temperature = int(response[0:2], 16)
@@ -496,6 +608,26 @@ class ButtonAndNTCTest(Task):
             temperature = 0.0
 
         return temperature
+
+    def set_heater_control(self, nest, command):
+        if command:
+            command1 = "01"
+        else:
+            command1 = "00"
+
+        self.ftdi[nest].write(self.with_crc("AA 55 03 {} 00 55 AA" . format(command1)), append="", response=self.with_crc("AA 55 03 {} 00 55 AA" . format(command1)), timeout=0.3)
+
+        end_time = datetime.datetime.now() + datetime.timedelta(seconds=4)  # 3 seconds timeout
+
+        state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_P_CTRL".format(nest)))
+        while state != command: # or timeout
+            if datetime.datetime.now() > end_time:
+                module_logger.error("Reached timeout for heater!")
+                return False
+
+            state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_P_CTRL".format(nest)))
+
+        return True
 
     def get_voltage(self, nest, command):
         self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 06 01 00 55 AA" . format(command))))  # Write data to UART
@@ -531,30 +663,47 @@ class ButtonAndNTCTest(Task):
 
         return states_list
 
-    def set_heater_control(self, nest, state=1):
-        if state:
-            command = "01"
+    def set_motor_control(self, nest, command):
+        if command:
+            command1 = "01"
         else:
-            command = "00"
+            command1 = "00"
 
-        # Send heater control command
-        #self.ftdi[nest].write(self.with_crc("AA 55 07 {} 00 55 AA" . format(command)), append="", response=self.with_crc("AA 55 03 01 01 55 AA" . format(command)), timeout=0.1, wait=0.5, retry=5)
-        self.ftdi[nest].write(self.with_crc("AA 55 03 01 00 55 AA"), append="", response=self.with_crc("AA 55 03 01 00 55 AA"), timeout=0.2, wait=0.5)
-        time.sleep(0.2)
+        self.ftdi[nest].write(self.with_crc("AA 55 04 {} 00 55 AA" . format(command1)), append="", response=self.with_crc("AA 55 04 {} 00 55 AA" . format(command1)), timeout=0.3)
 
-    def set_motor_control(self, nest, state=1):
-        if state:
-            command = "01"
-        else:
-            command = "00"
+        end_time = datetime.datetime.now() + datetime.timedelta(seconds=4)  # 3 seconds timeout
 
-        # Send motor control command
-        self.ftdi[nest].write(self.with_crc("AA 55 04 {} 00 55 AA" . format(command)), append="", response=self.with_crc("AA 55 04 {} 00 55 AA" . format(command)), timeout=0.1, wait=0.5)
+        state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_M_CTRL".format(nest)))
+        while state != command: # or timeout
+            if datetime.datetime.now() > end_time:
+                module_logger.error("Reached timeout for heater!")
+                return False
 
-    def press_button(self,nest,button_states):
-        self.servos_init = [85,105,115,80,70,65]
-        self.servos_current = [85,105,115,80,70,65]
-        self.servos_limit = [95,115,125,70,60,50]
+            state = GPIO.input(strips_tester.settings.gpios.get("DUT_{}_M_CTRL".format(nest)))
+
+        return True
+
+    def get_error_states(self, nest):
+        self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 0A 01 00 55 AA")))  # Write data to UART
+        time.sleep(0.1)
+        # read 8 bytes or timeout (set in serial.Serial)
+        response = (self.ftdi[nest].ser.read(8)).hex()
+
+        #print("Response: {}".format(response))
+
+        try:
+            response = int(response[6:8])
+        except Exception:
+            response = 0
+
+        return response
+
+    def press_button(self,nest,button_states, wait=0.6):
+        self.threading_lock.acquire()
+
+        self.servos_init = [90,105,115,80,70,65]
+        self.servos_current = [90,105,115,80,70,65]
+        self.servos_limit = [100,115,125,70,60,50]
 
         # Pritisni tisti servo kjer mora biti 1
         for j in range(3):
@@ -572,7 +721,8 @@ class ButtonAndNTCTest(Task):
         for index in range(6):
             self.arduino.write("servo {} {}" . format(index, self.servos_current[index]))
 
-        time.sleep(0.6)
+        time.sleep(wait)
+        self.threading_lock.release()
 
     def check_for_button(self, nest, button_states):
         self.press_button(nest, button_states)
@@ -609,40 +759,52 @@ class VisualTest(Task):
     def set_up(self):
         self.ftdi = []
         self.visual = []
+        self.success = []
 
         for i in range(2):
             self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}'.format(i + 1), baudrate=57600, mode="hex"))
             self.visual.append(Visual())
-            self.visual[i].load_mask(strips_tester.settings.test_dir + "/mask/mask{}.json" . format(1-i))
-            self.visual[i].mask_offset_x = -2
-            self.visual[i].mask_offset_y = -1
+            self.visual[i].load_mask(strips_tester.settings.test_dir + "/mask/mask{}.json" . format(i))
+            self.success.append([])  # Handles success data
 
         self.camera = devices.RPICamera()
 
     def run(self):
-        #for i in range(2):
-        #    self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.5, retry=10)
+        gui_web.send({"command": "status", "value": "Testiranje displaya"})
 
+        for i in range(2):
+            if not self.is_product_ready(i):
+                continue
 
-        for k in range(2):
-            module_logger.warning("manual VisualTest")
-            gui_web.send({"command": "status", "nest": k, "value": "Očesno pregledovanje zaslona..."})
-            self.add_measurement(k, True, "Display", "Manual testing", "")
+            self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.5, retry=10)
 
+            gui_web.send({"command": "progress", "value": "85", "nest": i})
 
-        # retrieve 16 images from camera
         for j in range(7):
             val = bin(0b000001 << j)  # Shift through display
 
             for k in range(2):
                 if not self.is_product_ready(k):
                     continue
+
                 self.set_digit(k, "{}".format(hex(int(val, 2))[2:].zfill(2)), "{}".format(hex(int(val, 2))[2:].zfill(2)))
+
+            self.camera.get_image()
+            self.camera.crop_image(90, 174, 465, 66)
+
+
+            for k in range(2):
+                if not self.is_product_ready(k):
+                    continue
+
+                self.success[k].append(self.check_mask(k, j))
 
         for k in range(2):
             if not self.is_product_ready(k):
                 continue
+
             self.set_digit(k, "00", "00")
+            gui_web.send({"command": "progress", "value": "90", "nest": k})
 
         for j in range(8):
             val = bin(0b0000001 << j)  # Shift through display
@@ -650,7 +812,16 @@ class VisualTest(Task):
             for k in range(2):
                 if not self.is_product_ready(k):
                     continue
+
                 self.set_display(k, "{}".format(hex(int(val, 2))[2:].zfill(2)), "00")
+
+            self.camera.get_image()
+            self.camera.crop_image(90, 174, 465, 66)
+
+            for k in range(2):
+                if not self.is_product_ready(k):
+                    continue
+                self.success[k].append(self.check_mask(k, 7 + j))
 
         for j in range(3):
             val = bin(0b001 << j)  # Shift through display
@@ -658,151 +829,103 @@ class VisualTest(Task):
             for k in range(2):
                 if not self.is_product_ready(k):
                     continue
+
                 self.set_display(k, "00", "{}".format(hex(int(val, 2))[2:].zfill(2)))
 
+            self.camera.get_image()
+            self.camera.crop_image(90, 174, 465, 66)
+
+            for k in range(2):
+                if not self.is_product_ready(k):
+                    continue
+
+                self.success[k].append(self.check_mask(k, 15 + j))
+
+        # Visual detection over, process error, if any
+
+        for nest in range(2):
+            if not self.is_product_ready(nest):
+                continue
+
+            gui_web.send({"command": "progress", "value": "95", "nest": nest})
+
+            if not all(self.success[nest]):  # Inspect why it failed
+                error_image = cv2.imread(strips_tester.settings.test_dir + "/image/screen.jpg")
+
+                # foreach error draw circle
+                for current_error in self.visual[nest].error:
+                    cv2.circle(error_image, current_error[:], 8, (0, 0, 255), -1)
+
+                # Rotate image for 180 degrees
+                image_center = tuple(np.array(error_image.shape[1::-1]) / 2)
+                rot_mat = cv2.getRotationMatrix2D(image_center, 180, 1.0)
+                error_image = cv2.warpAffine(error_image, rot_mat, error_image.shape[1::-1], flags=cv2.INTER_LINEAR)
+
+                retval, buffer = cv2.imencode('.jpg', error_image)
+                jpg_as_text = base64.b64encode(buffer)
+
+                gui_web.send({"command": "error", "nest": nest, "value": "Napaka na displayu"})
+                gui_web.send({"command": "error", "nest": nest, "value": jpg_as_text.decode(), "type": "image"})
+
+                self.add_measurement(nest, False, "Display", "FAIL", "")
+            else:
+                module_logger.info("VisualTest OK")
+                self.add_measurement(nest, True, "Display", "OK", "")
+                gui_web.send({"command": "info", "nest": nest, "value": "Display OK."})
 
 
+        # Do not exit procution mode because camera needs to be tested.
+        #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
 
-        #
-        #
-        # for j in range(7):
-        #     val = bin(0b000001 << j)  # Shift through display
-        #
-        #     for k in range(2):
-        #         self.set_digit(k, "{}".format(hex(int(val, 2))[2:].zfill(2)), "{}".format(hex(int(val, 2))[2:].zfill(2)))
-        #
-        #     self.camera.get_image()
-        #     self.camera.crop_image(90,174,465,66)
-        #
-        #     for k in range(2):
-        #         #if not self.is_product_ready(k):
-        #         #    continue
-        #         self.visual[k].set_image(self.camera.last_image)
-        #         height, width, _ = self.visual[k].image.shape
-        #
-        #         # Draw rectangle on image where mask is not supposed to be checked
-        #         cv2.rectangle(self.visual[k].image, (int(k * width / 2), 0), (int((1 + k) * width / 2), height), (0, 0, 0), -1)
-        #
-        #         for a in range(len(self.visual[k].mask)):
-        #             for b in self.visual[k].mask[a]:
-        #                 cv2.circle(self.visual[k].image, (b['x'] + self.visual[k].mask_offset_x, b['y'] + self.visual[k].mask_offset_y), 2, (255,255,0), -1)
-        #
-        #         retval, buffer = cv2.imencode('.jpg', self.visual[k].image)
-        #         jpg_as_text = base64.b64encode(buffer)
-        #
-        #         success = self.visual[k].compare_mask(j)
-        #
-        #         if not success:
-        #             module_logger.warning("VisualTest error on nest {} with mask index {}" . format(k,j))
-        #             gui_web.send({"command": "error", "nest": k, "value": "Napaka na segmentu pod indeksom {}!" . format(j)})
-        #             self.add_measurement(k, False, "Display", "Fail at index {}" . format(j), "")
-        #         else:
-        #             module_logger.info("VisualTest on nest {} with mask index {} OK" . format(k,j))
-        #             self.add_measurement(k, True, "Display", "OK Index {}" . format(j), "")
-        #
-        #         gui_web.send({"command": "info", "nest": k, "value": jpg_as_text.decode(), "type": "image"})
-        #
-        # for k in range(2):
-        #     self.set_digit(k, "00", "00")
-        #
-        # for j in range(8):
-        #     val = bin(0b0000001 << j)  # Shift through display
-        #
-        #     for k in range(2):
-        #         self.set_display(k, "{}".format(hex(int(val, 2))[2:].zfill(2)), "00")
-        #
-        #     self.camera.get_image()
-        #     self.camera.crop_image(90,174,465,66)
-        #
-        #     for k in range(2):
-        #         #if not self.is_product_ready(k):
-        #         #    continue
-        #
-        #         self.visual[k].set_image(self.camera.last_image)
-        #         height, width, _ = self.visual[k].image.shape
-        #
-        #         cv2.rectangle(self.visual[k].image, (int(k * width / 2), 0), (int((1 + k) * width / 2), height), (0,0,0), -1)
-        #
-        #         for a in range(len(self.visual[k].mask)):
-        #             for b in self.visual[k].mask[a]:
-        #                 idx = self.visual[k].mask[a].index(b)
-        #
-        #                 if idx == j:
-        #                     color = (255,0,0)
-        #                 else:
-        #                     color = (255,255,0)
-        #
-        #                 cv2.circle(self.visual[k].image, (b['x'] + self.visual[k].mask_offset_x, b['y'] + self.visual[k].mask_offset_y), 2, color, -1)
-        #
-        #         retval, buffer = cv2.imencode('.jpg', self.visual[k].image)
-        #         jpg_as_text = base64.b64encode(buffer)
-        #
-        #         success = self.visual[k].compare_mask(7 + j)
-        #
-        #         if not success:
-        #             module_logger.warning("VisualTest error on nest {} with mask index {}".format(k,7 + j))
-        #             gui_web.send({"command": "error", "nest": k, "value": "Napaka na segmentu pod indeksom {}!".format(7 + j)})
-        #             self.add_measurement(k, False, "Display", "Fail at index {}".format(7 + j), "")
-        #         else:
-        #             module_logger.info("VisualTest on nest {} with mask index {} OK".format(k, 7 + j))
-        #             self.add_measurement(k, True, "Display", "OK Index {}".format(7 + j), "")
-        #
-        #         gui_web.send({"command": "info", "nest": k, "value": jpg_as_text.decode(), "type": "image"})
-        #
-        #
-        # for j in range(3):
-        #     val = bin(0b001 << j)  # Shift through display
-        #
-        #     for k in range(2):
-        #         self.set_display(k, "00", "{}".format(hex(int(val, 2))[2:].zfill(2)))
-        #
-        #     self.camera.get_image()
-        #     self.camera.crop_image(90,174,465,66)
-        #
-        #     for k in range(2):
-        #         #if not self.is_product_ready(k):
-        #         #    continue
-        #
-        #         self.visual[k].set_image(self.camera.last_image)
-        #         height, width, _ = self.visual[k].image.shape
-        #
-        #         cv2.rectangle(self.visual[k].image, (int(k * width / 2), 0), (int((1 + k) * width / 2), height), (0,0,0), -1)
-        #
-        #         for a in range(len(self.visual[k].mask)):
-        #             for b in self.visual[k].mask[a]:
-        #                 cv2.circle(self.visual[k].image, (b['x'] + self.visual[k].mask_offset_x, b['y'] + self.visual[k].mask_offset_y), 2, (255, 255, 0), -1)
-        #
-        #
-        #         retval, buffer = cv2.imencode('.jpg', self.visual[k].image)
-        #         jpg_as_text = base64.b64encode(buffer)
-        #
-        #         success = self.visual[k].compare_mask(15 + j)
-        #
-        #         if not success:
-        #             module_logger.warning("VisualTest error on nest {} with mask index {}".format(k, 15 + j))
-        #             gui_web.send({"command": "error", "nest": k, "value": "Napaka na segmentu pod indeksom {}!".format(15 + j)})
-        #             self.add_measurement(k, False, "Display", "Fail at index {}".format(15 + j), "")
-        #         else:
-        #             module_logger.info("VisualTest on nest {} with mask index {} OK".format(k, 15 + j))
-        #             self.add_measurement(k, True, "Display", "OK Index {}".format(15 + j), "")
-        #
-        #         gui_web.send({"command": "info", "nest": k, "value": jpg_as_text.decode(), "type": "image"})
 
-        # Initialize camera
+        # # Product detection
+        # for i in range(2):
+        #     if not self.is_product_ready(i):
+        #         continue
+        #
+        #     # Must be held high, otherwise E2 error
+        #     GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.LOW)
+        #
+        # time.sleep(5)
+        #
+        # self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5) # Exit production mode
+        # # Initialize camera
         # Send UART code, wait for response
         # If response good, take pictures
         # Given picture, compare with mask provided
 
+    # Check mask for both nests
+    def check_mask(self, nest, mask):
+        self.visual[nest].set_image(self.camera.last_image)
+        height, width, _ = self.visual[nest].image.shape
+
+        # Apply mask cover so it does not detect other product pixels
+        cv2.rectangle(self.visual[nest].image, (int(nest * width / 2), 0), (int((1 + nest) * width / 2), height), (0, 0, 0), -1)
+
+        success = self.visual[nest].compare_mask(mask)  # Handles if all vertices on mask work
+
+        show_points = 1
+
+        if show_points:
+            for a in range(len(self.visual[nest].mask)):
+                for b in self.visual[nest].mask[a]:
+                    cv2.circle(self.visual[nest].image, (b['x'] + self.visual[nest].mask_offset_x, b['y'] + self.visual[nest].mask_offset_y), 1, (255, 255, 0), -1)
+
+            retval, buffer = cv2.imencode('.jpg', self.visual[nest].image)
+            jpg_as_text = base64.b64encode(buffer)
+
+            gui_web.send({"command": "info", "nest": nest, "value": jpg_as_text.decode(), "type": "image"})
+
+        return success
+
 
     def set_digit(self, nest, digit1, digit2):
         self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 08 {} {} 55 AA" . format(digit1,digit2))))  # Write data to UART
-        time.sleep(0.2)
 
         return
 
     def set_display(self, nest, display1, display2):
         self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 09 {} {} 55 AA" . format(display1,display2))))  # Write data to UART
-        time.sleep(0.2)
 
         return
 
@@ -821,6 +944,7 @@ class VisualTest(Task):
     def tear_down(self):
         self.camera.close()
 
+        # Close FTDI adapters
         for i in range(2):
             self.ftdi[i].close()
 
@@ -836,7 +960,7 @@ class Visual:
         self.option_command = 0
         self.mask_offset_x = 0
         self.mask_offset_y = 0
-
+        self.error = []
 
     def load_image(self, filename):
         if os.path.isfile(filename):
@@ -868,57 +992,46 @@ class Visual:
         if self.image is None:
             return
 
-        # loop through masks
-        # check every index of current mask
-        # ok mora biti pri mask_num in ne sme bit ok pri != mask_num
+        # Check every mask
+        # Check every vertex of current mask
 
         for subindex in range(len(self.mask)):  # Loop through masks
             for index in range(len(self.mask[subindex])):
                 if not self.detect_point_state(subindex, index):
-                    if subindex == mask_num:
-                        return False
+                    if subindex == mask_num: #  Current vertex must be disabled
+                        self.error.append((self.mask[subindex][index]['x'],self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
                 else:
                     if subindex != mask_num:
-                        return False
+                        self.error.append((self.mask[subindex][index]['x'], self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
+
+        # Check results
+        if len(self.error):  # If any vertex is not as planned, throw error
+            return False
 
         return True
 
     # Detect Region of Interest (or point) if the background is white
-    def detect_point_state(self, mask_num, index):
-
+    def detect_point_state(self, mask_num, index, roi_size=3):
         x = self.mask[mask_num][index]['x'] + self.mask_offset_x
         y = self.mask[mask_num][index]['y'] + self.mask_offset_y
 
-        # Pick up small region of interest
-        roi = self.image[y - 2:y+2, x-2:x+2]
-
+        #  Range mask
         mask_min = np.array([self.mask[mask_num][index]['h1'], self.mask[mask_num][index]['s1'], self.mask[mask_num][index]['v1']], np.uint8)
         mask_max = np.array([self.mask[mask_num][index]['h2'], self.mask[mask_num][index]['s2'], self.mask[mask_num][index]['v2']], np.uint8)
 
-        hsv_img = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))
+        #  Pick up small region of interest (ROI)
+        roi = self.image[y - roi_size:y+roi_size, x-roi_size:x+roi_size]
+        hsv_img = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  #  Convert RGB to HSV image
+        frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))  #  Get result image applied with range mask
 
-        # Calculate povprecje barv v ROI
-        # Primerjaj z masko in glej threshold
-        # Obvezno primerjaj HSV barve!
+        height, width = frame_thresh.shape[:2]
+        white = cv2.countNonZero(frame_thresh)
+        black = (height * width) - white
 
-        state = False
-
-        black = 0
-        white = 0
-
-        for yy in range(-2, 2):
-            for xx in range(-2, 2):
-                pixel = frame_thresh[yy][xx] % 254
-
-                if pixel:
-                    white += 1
-                else:
-                    black += 1
-
-        # Return True if there is more white than black
+        #  Return True if there is more white than black
         if white > black:
-            state = True
+            return True
 
-        return state
+        return False
+
 
