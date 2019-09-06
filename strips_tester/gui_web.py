@@ -41,12 +41,9 @@ class SimpleChat(WebSocket):
             subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
 
         if "save_worker_data" in data['command']:
-            # Connect to DB with new temporary client
-            connection = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
-            database = connection["stripstester"]
-
-            test_device = database['test_device']
-            test_device.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
+            test_device_col = strips_tester.data['db_database']["test_device"]
+            test_worker_col = strips_tester.data['db_database']["test_worker"]
+            test_device_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
 
             strips_tester.data['worker_id'] = data['worker_id']
             strips_tester.data['worker_type'] = data['worker_type']
@@ -54,7 +51,29 @@ class SimpleChat(WebSocket):
 
             # Update other GUIs with current worker info (broadcast)
             send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
-            connection.close()  # Close pymongo connection
+
+            try:
+                strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+            except Exception:
+                strips_tester.data['good_count_custom'] = 0
+                strips_tester.data['bad_count_custom'] = 0
+
+            send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+
+        if "reset_custom_counter" in data['command']:
+            test_worker_col = strips_tester.data['db_database']["test_worker"]
+
+            # Increase worker custom counter data
+            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0}}, True)
+
+            try:
+                strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+
+                send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+            except Exception:
+                pass
 
         if custom_parser:
             Parser = getattr(parser, "Parser")
@@ -83,6 +102,8 @@ class SimpleChat(WebSocket):
         # Update worker info
         sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type'], "worker_comment": strips_tester.data['worker_comment']})
 
+        sendTo(self, {"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+
         if custom_parser:
             Parser = getattr(parser, "Parser")
             parser_in = Parser()
@@ -103,7 +124,6 @@ def sendTo(client, message):
     client.sendMessage(json.dumps(message))
 
 def send_ping():
-    # Connect to DB with new temporary client
     # Send date to database. Client on HTTP will calculate duration of last ping received
     try:
         date = datetime.datetime.utcnow()

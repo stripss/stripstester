@@ -250,6 +250,12 @@ def update_database():
                                           "measurements": strips_tester.data['measurement'][current_nest]}
 
                         test_info_col.insert_one(test_info_data)
+
+                        increase_good = strips_tester.data['status'][current_nest] * 1
+                        increase_bad = (not strips_tester.data['status'][current_nest]) * 1
+
+                        # Increase worker custom counter data
+                        test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
                     else:
                         print("Product {} is not tested, so we skip it." . format(current_nest))
         except KeyError as e:
@@ -264,8 +270,21 @@ def update_database():
     strips_tester.data['good_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
     strips_tester.data['bad_count_today'] = test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
 
-    # Get date at midnight of last test (might not be this test because no products can be tested)
-    strips_tester.data['today_date'] = datetime.datetime.combine(test_info_col.find({"test_device": test_device['_id']}).sort('_id', -1).limit(1)[0]['datetime'], datetime.time(0))
+    # Lets print good tested today
+
+    try:
+        strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+        strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+
+        gui_web.send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+    except Exception:
+        pass
+
+    try:
+        # Get date at midnight of last test (might not be this test because no products can be tested)
+        strips_tester.data['today_date'] = datetime.datetime.combine(test_info_col.find({"test_device": test_device['_id']}).sort('_id', -1).limit(1)[0]['datetime'], datetime.time(0))
+    except IndexError:
+        strips_tester.data['today_date'] = date_at_midnight
 
     gui_web.send({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                    "bad_count_today": strips_tester.data['bad_count_today']})
@@ -276,6 +295,9 @@ def update_database():
     # Update counter
     strips_tester.data['db_database']['test_count'].update_one({"test_device": test_device_id['_id']}, {"$set": {"good": strips_tester.data['good_count'],"bad": strips_tester.data['bad_count'],"good_today": strips_tester.data['good_count_today'],
                                                                                                           "bad_today": strips_tester.data['bad_count_today'], "last_test": end_time, "today_date": strips_tester.data['today_date']}}, True)
+
+    # increase worker count by one
+    # send custom
 
     strips_tester.data['lock'].release()
 
@@ -290,6 +312,7 @@ if __name__ == "__main__":
 
     test_devices_col = strips_tester.data['db_database']["test_device"]
     test_info_col = strips_tester.data['db_database']["test_info"]
+    test_worker_col = strips_tester.data['db_database']["test_worker"]
 
     # Find test device in StripsTester database based on its name
     test_device = test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
@@ -318,6 +341,13 @@ if __name__ == "__main__":
         strips_tester.data['worker_id'] = test_device['worker_id']
         strips_tester.data['worker_type'] = test_device['worker_type']
         strips_tester.data['worker_comment'] = test_device['worker_comment']
+
+        try:
+            strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+            strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+        except Exception:
+            strips_tester.data['good_count_custom'] = 0
+            strips_tester.data['bad_count_custom'] = 0
     else:
         module_logger.info("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
 
