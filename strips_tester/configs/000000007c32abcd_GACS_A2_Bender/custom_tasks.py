@@ -168,7 +168,10 @@ class ReadSerial(Task):
         gui_web.send({"command": "progress", "value": "5"})
 
         # First picture is corrupted, so we leave it here.
-        rval, frame = self.vc.read()
+        try:
+            self.vc.read()
+        except Exception as e:
+            print("EXCEPT: {}" . format(e))
         tim_start = time.clock()
 
         raw_scanned_string = ""
@@ -192,7 +195,7 @@ class ReadSerial(Task):
                 roi = frame[y:y+h, x:x+w]
 
                 try:
-                    with timeout(seconds = 3):
+                    with timeout(seconds=3):
                         raw_scanned_string = decode_qr(roi)
                 except TimeoutError:
                     raw_scanned_string = ""
@@ -661,7 +664,7 @@ class VisualTest(Task):
 
         if show_points:
             for a in self.led:
-                cv2.circle(roi_painted, (a['x'], a['y']), 5, (0, 0, 0), -1)
+                cv2.circle(roi_painted, (a['x'], a['y']), 5, (0, 0, 0), 2)
 
         retval, buffer = cv2.imencode('.jpg', roi_painted)
         jpg_as_text = base64.b64encode(buffer)
