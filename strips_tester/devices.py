@@ -1529,6 +1529,97 @@ class IRTemperatureSensor(AbstractSensor):
         pass
 
 
+
+# Visual algoritm for detecting LED statuses, 8-segment displays... Made by Marcel Jancar
+class Visual:
+    def __init__(self):
+        self.mask = []
+        self.image = None
+        self.selected = 0
+        self.option_selected = 0
+        self.option_list = ['h1','s1','v1','h2','s2','v2']
+        self.option_command = 0
+        self.mask_offset_x = 0
+        self.mask_offset_y = 0
+        self.error = []
+
+    # Not tested yet
+    def load_image(self, filename):
+        if os.path.isfile(filename):
+            self.image = cv2.imread(filename)
+            self.camera = False
+        else:
+            print("File '{}' does not exist" . format(filename))
+
+    # Working OK
+    def set_image(self, image):
+        self.image = image.copy()
+
+    def load_mask(self, filename):
+
+        try:
+            input_file = open(filename)
+            json_array = json.load(input_file)
+
+            for point in json_array:
+                self.mask.append([])
+
+                for point1 in point:
+                    self.mask[-1].append(point1)
+
+        except FileNotFoundError:
+            pass
+
+    # Use this function if you want to check every point defined in mask. This function returns bool or matching percent
+    def compare_mask(self, mask_num):
+        if self.image is None:
+            return
+
+        # Check every mask
+        # Check every vertex of current mask
+
+        for subindex in range(len(self.mask)):  # Loop through masks
+            for index in range(len(self.mask[subindex])):
+                if not self.detect_point_state(subindex, index):
+                    if subindex == mask_num: #  Current vertex must be disabled
+                        self.error.append((self.mask[subindex][index]['x'],self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
+                else:
+                    if subindex != mask_num:
+                        self.error.append((self.mask[subindex][index]['x'], self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
+
+        # Check results
+        if len(self.error):  # If any vertex is not as planned, throw error
+            return False
+
+        return True
+
+    # Detect Region of Interest (or point) if the background is white
+    def detect_point_state(self, mask_num, index, roi_size=3):
+        x = self.mask[mask_num][index]['x'] + self.mask_offset_x
+        y = self.mask[mask_num][index]['y'] + self.mask_offset_y
+
+        #  Range mask
+        mask_min = np.array([self.mask[mask_num][index]['h1'], self.mask[mask_num][index]['s1'], self.mask[mask_num][index]['v1']], np.uint8)
+        mask_max = np.array([self.mask[mask_num][index]['h2'], self.mask[mask_num][index]['s2'], self.mask[mask_num][index]['v2']], np.uint8)
+
+        #  Pick up small region of interest (ROI)
+        roi = self.image[y - roi_size:y+roi_size, x-roi_size:x+roi_size]
+        hsv_img = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  #  Convert RGB to HSV image
+        frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))  #  Get result image applied with range mask
+
+        height, width = frame_thresh.shape[:2]
+        white = cv2.countNonZero(frame_thresh)
+        black = (height * width) - white
+
+        #  Return True if there is more white than black
+        if white > black:
+            return True
+
+        return False
+
+
+
+
 # STLink programmer - usable only ST Discovery for now!
 # http://startingelectronics.org/tutorials/STM32-microcontrollers/programming-STM32-flash-in-Linux/
 # https://github.com/pavelrevak/pystlink
@@ -1547,11 +1638,12 @@ class STLink:
         #self.process = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', '-v', '-c', 'STM32F030x8', 'flash:erase:verify:0x08000000:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         out, err = self.process.communicate()
-        #print(out)
+
         if "jolly" in out.decode() or "Writing FLASH: [========================================] done in " in out.decode():
             module_logger.info("Successfully flashed '{}' binary." . format(self.binary))
             return True
         else:
+            #print(out);
             module_logger.error("Flashing '{}' binary failed." . format(self.binary))
             return False
         # Check if flashing is succeeded!

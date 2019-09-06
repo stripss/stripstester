@@ -442,13 +442,16 @@ class LockSimulator(Task):
         self.relay_board.open_relay(relays["Vcc2"])
         '''
 
-        gui_web.send({"command": "status", "value": "Polnenje modula..."})
         gui_web.send({"command": "progress", "value": 55})
-        time.sleep(self.charging_time)
+
+        for t in range(self.charging_time):
+            gui_web.send({"command": "status", "value": "Polnenje modula ({}s)..." . format(self.charging_time - t)})
+
+            time.sleep(1)
 
         gui_web.send({"command": "status", "value": "Testiranje obeh ključavnic"})
-        self.set_input(1,0) # Unlock left
-        self.set_input(2,0) # Unlock right
+        self.set_input(1, 0) # Unlock left
+        self.set_input(2, 0) # Unlock right
 
         voltage = self.measure_output(2) # Measure left output
 
@@ -652,7 +655,15 @@ class VisualTest(Task):
             time.sleep(0.1)
         roi = frame[self.roi_y:self.roi_y + self.roi_height,self.roi_x:self.roi_width + self.roi_x] # Make region of interest
 
-        retval, buffer = cv2.imencode('.jpg', roi)
+        roi_painted = roi.copy()
+
+        show_points = 1
+
+        if show_points:
+            for a in self.led:
+                cv2.circle(roi_painted, (a['x'], a['y']), 5, (0, 0, 0), -1)
+
+        retval, buffer = cv2.imencode('.jpg', roi_painted)
         jpg_as_text = base64.b64encode(buffer)
         gui_web.send({"command": "info", "value": jpg_as_text.decode(), "type": "image"})
 
@@ -663,6 +674,10 @@ class VisualTest(Task):
 
         # Make binary image from grayscale ROI
         th, dst = cv2.threshold(grayscale, threshold, 255, cv2.THRESH_BINARY)
+
+        retval, buffer = cv2.imencode('.jpg', dst)
+        jpg_as_text = base64.b64encode(buffer)
+        gui_web.send({"command": "info", "value": jpg_as_text.decode(), "type": "image"})
 
         return dst
 
@@ -711,6 +726,7 @@ class VisualTest(Task):
     def tear_down(self):
         self.relay_board.hid_device.close()
         self.voltmeter.close()
+        self.camera.release()
 
 # OK
 class RCTest(Task):
