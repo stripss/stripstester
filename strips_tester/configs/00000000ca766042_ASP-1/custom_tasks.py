@@ -16,47 +16,32 @@ gpios = strips_tester.settings.gpios
 relays = strips_tester.settings.relays
 custom_data = strips_tester.settings.custom_data
 
+
 class StartProcedureTask(Task):
     def run(self) -> (bool, str):
-        gui_web.send({"command": "status", "value": "Za začetek testiranja zapri pokrov."})
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
 
         module_logger.info("Waiting for detection switch")
 
+        # Wait for selection of program
+        while True:
+            try:
+                strips_tester.data['program']
+                break
+            except KeyError:
+                time.sleep(0.1)
 
-        # GPIO.output(gpios['12V_DC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['12V_DC'], GPIO.LOW)
-        # time.sleep(1)
-        #
-        # GPIO.output(gpios['24V_DC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['24V_DC'], GPIO.LOW)
-        # time.sleep(1)
-        #
-        # GPIO.output(gpios['48V_DC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['48V_DC'], GPIO.LOW)
-        # time.sleep(1)
-        #
-        # GPIO.output(gpios['12V_AC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['12V_AC'], GPIO.LOW)
-        # time.sleep(1)
-        #
-        # GPIO.output(gpios['24V_AC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['24V_AC'], GPIO.LOW)
-        # time.sleep(1)
-        #
-        # GPIO.output(gpios['48V_AC'], GPIO.HIGH)
-        # time.sleep(1)
-        # GPIO.output(gpios['48V_AC'], GPIO.LOW)
-        # time.sleep(1)
+        gui_web.send({"command": "status", "nest": 0, "value": "Za začetek testa priklopi modul"})
+        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})
 
         # Wait for lid to close
-        while not self.lid_closed():
+        while self.lid_closed():
             time.sleep(0.01)
+
+        time.sleep(0.5)
+
+        # Assume that product exists, because the start switch is made this way
+        strips_tester.data['exist'][0] = True
 
         # Set on working lights
         GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
@@ -70,6 +55,107 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "info", "nest": 0, "value": -1})  # Clear all info messages
 
         gui_web.send({"command": "semafor", "nest": 0, "value": (0, 1, 0), "blink": (0, 0, 0)})
+
+        # Set relays to NO
+        GPIO.output(gpios['12V_AC'], GPIO.LOW)
+        GPIO.output(gpios['12V_DC'], GPIO.LOW)
+        GPIO.output(gpios['24V_AC'], GPIO.LOW)
+        GPIO.output(gpios['24V_DC'], GPIO.LOW)
+        GPIO.output(gpios['48V_AC'], GPIO.LOW)
+        GPIO.output(gpios['48V_DC'], GPIO.LOW)
+
+        return
+
+    def tear_down(self):
+        pass
+
+
+class ReadSerial(Task):
+    def set_up(self):
+        pass
+
+    def run(self):
+        pass
+        return
+
+    def tear_down(self):
+        pass
+
+
+class PowerTest(Task):
+    def set_up(self):
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B572.voltage1", 0.16)
+        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-EC255.current1", 0.16)
+        pass
+
+    def run(self):
+        time.sleep(0.2)  # Relay debouncing
+
+        if "12V" in strips_tester.data['program'][1]:
+            GPIO.output(gpios['12V_DC'], GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(gpios['12V_AC'], GPIO.HIGH)
+        elif "24V" in strips_tester.data['program'][1]:
+            GPIO.output(gpios['24V_DC'], GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(gpios['24V_AC'], GPIO.HIGH)
+        else:  # Assume it is 48V
+            GPIO.output(gpios['48V_DC'], GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(gpios['48V_AC'], GPIO.HIGH)
+
+        gui_web.send({"command": "status", "nest": 0, "value": "Merjenje napetosti"})
+
+        # Measure voltage
+        num_of_tries = 5
+
+        voltage = self.voltmeter.read()
+        while not self.in_range(voltage, 12, 0.1, False):
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("Voltage is out of bounds: meas: %sV", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Meritev napetosti je izven območja: {}V".format(voltage)})
+            self.add_measurement(0, False, "Voltage", voltage, "V")
+        else:
+            module_logger.info("Voltage in bounds: meas: %sV", voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti: {}V".format(voltage)})
+            self.add_measurement(0, True, "Voltage", voltage, "V")
+
+        gui_web.send({"command": "status", "nest": 0, "value": "Merjenje toka"})
+
+        # Measure current
+        num_of_tries = 5
+
+        currents = [int(s) for s in strips_tester.data['program'][2].split() if s.isdigit()]
+        min_current = currents[0]
+        max_current = currents[1]
+
+        expected = (min_current + max_current) / 2
+        tolerance = abs(min_current - max_current) / 2
+
+        current = self.ammeter.read()
+        while not self.in_range(current, expected, tolerance, False):
+            num_of_tries = num_of_tries - 1
+
+            current = self.ammeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("Current is out of bounds: meas: %smA", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Meritev toka je izven območja: {}mA".format(current)})
+            self.add_measurement(0, False, "Current", current, "mA")
+        else:
+            module_logger.info("Current in bounds: meas: %smA", voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Meritev toka: {}mA".format(current)})
+            self.add_measurement(0, True, "Current", current, "V")
 
         return
 
@@ -91,85 +177,6 @@ class ProductConfigTask(Task):
     def tear_down(self):
         pass
 
-
-class PrintSticker(Task):
-    def set_up(self):
-        self.godex_found = False
-        for i in range(10):
-            try:
-                self.godex = devices.GoDEXG300(port='/dev/ttyUSB0', timeout=3.0)
-                self.godex_found = True
-                break
-            except Exception as ee:
-                print(ee)
-
-                time.sleep(0.1)
-
-        #self.godex = devices.Godex(port='/dev/usb/lp0', timeout=3.0)
-
-    def run(self):
-        if not self.godex_found:
-            if strips_tester.data['exist'][0]:
-                gui_web.send({"command": "error", "nest": 0, "value": "Tiskalnika ni mogoče najti!"})
-
-            return
-
-        # Lid is now opened.
-        if self.is_product_ready(0):
-            self.print_sticker(strips_tester.data['status'][0])
-
-        return
-
-    def print_sticker(self, test_status):
-        date = datetime.datetime.now()
-        date_week = date.strftime("%V/%y")  # Generate calendar week
-        date_full = date.strftime("%y%m%d")  # Generate full date
-
-        if test_status == True:  # Test OK
-            inverse = '^L\r'
-            darkness = '^H4\r'
-        elif test_status == False:  # Test FAIL
-            inverse = '^LI\r'
-            darkness = '^H15\r'
-        else:
-            return
-
-        datamatrix = '10000002803301111{}93167542' . format(date_full)
-        serial = "{:08d}" . format(self.get_new_serial())
-
-        self.add_measurement(0, True, "serial", serial, "")
-
-        label = ('^Q13,3\n'
-                '^W38\n'
-                '^H4\n'
-                '^P1\n'
-                '^S2\n'
-                '^AD\n'
-                '^C1\n'
-                '^R0\n'
-                '~Q-8\n'
-                '^O0\n'
-                '^D0\n'
-                '^E12\n'
-                '~R255\n'
-                '^XSET,ROTATION,0\n'
-                '^L\n'
-                'Dy2-me-dd\n'
-                'Th:m:s\n'
-                'XRB25,16,4,0,32\n'
-                '{}\n'
-                'AB,120,24,1,1,0,0E,Gorenje 803301\n'
-                'AB,120,49,1,1,0,0E,{}\n'
-                'AB,120,74,1,1,0,0E,{}\n'
-                'AB,120,0,1,1,0,0E,RELAY CARD\n'
-                'E\n').format(datamatrix, date_week, serial)
-
-        self.godex.send_to_printer(label)
-        time.sleep(1)
-
-    def tear_down(self):
-        if self.godex_found:
-            self.godex.close()
 
 class FinishProcedureTask(Task):
     def set_up(self):
@@ -200,12 +207,19 @@ class FinishProcedureTask(Task):
 
         GPIO.output(gpios['BUZZER'], GPIO.LOW)
 
+        # Set relays to NO
+        GPIO.output(gpios['12V_AC'], GPIO.LOW)
+        GPIO.output(gpios['12V_DC'], GPIO.LOW)
+        GPIO.output(gpios['24V_AC'], GPIO.LOW)
+        GPIO.output(gpios['24V_DC'], GPIO.LOW)
+        GPIO.output(gpios['48V_AC'], GPIO.LOW)
+        GPIO.output(gpios['48V_DC'], GPIO.LOW)
+
         # Wait for lid to open
-        while self.lid_closed():
+        while not self.lid_closed():
             time.sleep(0.01)
 
         return
 
     def tear_down(self):
         pass
-

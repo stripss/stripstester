@@ -35,8 +35,10 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})
 
         # Wait for lid to close
-        while not self.lid_closed():
+        while self.lid_closed():
             time.sleep(0.01)
+
+        time.sleep(0.5)
 
         # Assume that product exists, because the start switch is made this way
         strips_tester.data['exist'][0] = True
@@ -87,6 +89,10 @@ class PowerTest(Task):
         pass
 
     def run(self):
+        if not self.voltmeter.found:
+            gui_web.send({"command": "error", "nest": 0, "value": "Voltmetra ni mogoče najti!"})
+            return
+
         time.sleep(0.2)  # Relay debouncing
 
         if "12V" in strips_tester.data['program'][1]:
@@ -214,7 +220,7 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['48V_DC'], GPIO.LOW)
 
         # Wait for lid to open
-        while self.lid_closed():
+        while not self.lid_closed():
             time.sleep(0.01)
 
         return

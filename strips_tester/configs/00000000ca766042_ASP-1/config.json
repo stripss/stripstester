@@ -3,9 +3,9 @@
   "thread_nests": 0,
   "task_execution_order": {
     "StartProcedureTask": 1,
-
+    "ReadSerial": 0,
+    "PowerTest": 1,
     "ProductConfigTask": 1,
-    "PrintSticker": 0,
     "FinishProcedureTask": 1
   },
   "critical_event_tasks": {
@@ -71,6 +71,6 @@
   },
 
   "data": {
-
+    "order": [12,24,48]
   }
 }

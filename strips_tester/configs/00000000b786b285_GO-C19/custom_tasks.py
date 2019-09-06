@@ -496,7 +496,7 @@ class ICT_ResistanceTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 10
+        num_of_tries = 20
 
         resistance = self.ohmmeter.read().numeric_val
         if resistance is None:
@@ -611,13 +611,7 @@ class ICT_VoltageVisualTest(Task):
 
         # skleni L, N
 
-
-
         GPIO.output(gpios['LN_RELAY'],GPIO.LOW)
-
-
-
-
 
         #self.shifter.set("K16", True)  # L
         #self.shifter.set("K15", True)  # N

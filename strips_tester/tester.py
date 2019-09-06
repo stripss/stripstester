@@ -348,6 +348,9 @@ if __name__ == "__main__":
         except Exception:
             strips_tester.data['good_count_custom'] = 0
             strips_tester.data['bad_count_custom'] = 0
+
+            # Reset worker custom counter data
+            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0}}, True)
     else:
         module_logger.info("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
 

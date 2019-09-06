@@ -55,7 +55,7 @@ class SimpleChat(WebSocket):
             try:
                 strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
                 strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-            except Exception:
+            except Exception as e:
                 strips_tester.data['good_count_custom'] = 0
                 strips_tester.data['bad_count_custom'] = 0
 
@@ -64,7 +64,7 @@ class SimpleChat(WebSocket):
         if "reset_custom_counter" in data['command']:
             test_worker_col = strips_tester.data['db_database']["test_worker"]
 
-            # Increase worker custom counter data
+            # Reset worker custom counter data
             test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0}}, True)
 
             try:

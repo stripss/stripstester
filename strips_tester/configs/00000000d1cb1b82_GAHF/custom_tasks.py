@@ -223,7 +223,7 @@ class VoltageTest(Task):
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
-        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_3.hex")
+        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_5.hex")
 
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
@@ -351,7 +351,7 @@ class ButtonAndNTCTest(Task):
             gui_web.send({"command": "progress", "value": "40", "nest": i})
 
             # Measure NTC on PCB
-            num_of_tries = 2000
+            num_of_tries = 500
 
             temperature = self.get_temperature(i, 'pb')  # Get PCB temperature
 
@@ -379,7 +379,7 @@ class ButtonAndNTCTest(Task):
                 return
 
             # Measure NTC on cable
-            num_of_tries = 2000
+            num_of_tries = 500
 
             temperature = self.get_temperature(i, "ui")
             while not self.in_range(temperature, 63, 5):
@@ -423,7 +423,7 @@ class ButtonAndNTCTest(Task):
             if not num_of_tries:
                 module_logger.warning("5V reference is out of bounds: meas: %sV", voltage)
                 gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 5V je izven območja: {}V".format(voltage)})
-                self.add_measurement(i, False, "5V_PCB", voltage, "°C")
+                self.add_measurement(i, False, "5V_PCB", voltage, "V")
             else:
                 module_logger.info("5V reference in bounds: meas: %sV", voltage)
                 gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 5V: {}V".format(voltage)})
@@ -450,7 +450,7 @@ class ButtonAndNTCTest(Task):
             if not num_of_tries:
                 module_logger.warning("3V3 reference is out of bounds: meas: %sV", voltage)
                 gui_web.send({"command": "error", "nest": i, "value": "Meritev napetosti 3.3V je izven območja: {}V".format(voltage)})
-                self.add_measurement(i, False, "3V3_PCB", voltage, "°C")
+                self.add_measurement(i, False, "3V3_PCB", voltage, "V")
             else:
                 module_logger.info("3V3 reference in bounds: meas: %sV", voltage)
                 gui_web.send({"command": "info", "nest": i, "value": "Meritev napetosti 3.3V: {}V".format(voltage)})
@@ -597,7 +597,7 @@ class ButtonAndNTCTest(Task):
 
         # read 8 bytes or timeout (set in serial.Serial)
         response = (self.ftdi[nest].ser.read(8)).hex()[6:10]
-        print("Command: {} -> Response: {}" . format(command, response))
+
         try:
             if command == "pb":
                 temperature = int(response[0:2], 16)
@@ -607,6 +607,7 @@ class ButtonAndNTCTest(Task):
         except ValueError:  # Response is zero
             temperature = 0.0
 
+        print("Command: {} -> Response: {} -> Temperature: {}°C" . format(command, response, temperature))
         return temperature
 
     def set_heater_control(self, nest, command):
@@ -689,7 +690,7 @@ class ButtonAndNTCTest(Task):
         # read 8 bytes or timeout (set in serial.Serial)
         response = (self.ftdi[nest].ser.read(8)).hex()
 
-        #print("Response: {}".format(response))
+        print("Response: {}".format(response))
 
         try:
             response = int(response[6:8])
@@ -763,7 +764,7 @@ class VisualTest(Task):
 
         for i in range(2):
             self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}'.format(i + 1), baudrate=57600, mode="hex"))
-            self.visual.append(Visual())
+            self.visual.append(devices.Visual())
             self.visual[i].load_mask(strips_tester.settings.test_dir + "/mask/mask{}.json" . format(i))
             self.success.append([])  # Handles success data
 
@@ -947,91 +948,3 @@ class VisualTest(Task):
         # Close FTDI adapters
         for i in range(2):
             self.ftdi[i].close()
-
-
-
-class Visual:
-    def __init__(self):
-        self.mask = []
-        self.image = None
-        self.selected = 0
-        self.option_selected = 0
-        self.option_list = ['h1','s1','v1','h2','s2','v2']
-        self.option_command = 0
-        self.mask_offset_x = 0
-        self.mask_offset_y = 0
-        self.error = []
-
-    def load_image(self, filename):
-        if os.path.isfile(filename):
-            self.image = cv2.imread(filename)
-            self.camera = False
-        else:
-            print("File '{}' does not exist" . format(filename))
-
-    def set_image(self, image):
-        self.image = image.copy()
-
-    def load_mask(self, filename):
-
-        try:
-            input_file = open(filename)
-            json_array = json.load(input_file)
-
-            for point in json_array:
-                self.mask.append([])
-
-                for point1 in point:
-                    self.mask[-1].append(point1)
-
-        except FileNotFoundError:
-            pass
-
-    # Use this function if you want to check every point defined in mask. This function returns bool or matching percent
-    def compare_mask(self, mask_num):
-        if self.image is None:
-            return
-
-        # Check every mask
-        # Check every vertex of current mask
-
-        for subindex in range(len(self.mask)):  # Loop through masks
-            for index in range(len(self.mask[subindex])):
-                if not self.detect_point_state(subindex, index):
-                    if subindex == mask_num: #  Current vertex must be disabled
-                        self.error.append((self.mask[subindex][index]['x'],self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
-                else:
-                    if subindex != mask_num:
-                        self.error.append((self.mask[subindex][index]['x'], self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
-
-        # Check results
-        if len(self.error):  # If any vertex is not as planned, throw error
-            return False
-
-        return True
-
-    # Detect Region of Interest (or point) if the background is white
-    def detect_point_state(self, mask_num, index, roi_size=3):
-        x = self.mask[mask_num][index]['x'] + self.mask_offset_x
-        y = self.mask[mask_num][index]['y'] + self.mask_offset_y
-
-        #  Range mask
-        mask_min = np.array([self.mask[mask_num][index]['h1'], self.mask[mask_num][index]['s1'], self.mask[mask_num][index]['v1']], np.uint8)
-        mask_max = np.array([self.mask[mask_num][index]['h2'], self.mask[mask_num][index]['s2'], self.mask[mask_num][index]['v2']], np.uint8)
-
-        #  Pick up small region of interest (ROI)
-        roi = self.image[y - roi_size:y+roi_size, x-roi_size:x+roi_size]
-        hsv_img = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  #  Convert RGB to HSV image
-        frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))  #  Get result image applied with range mask
-
-        height, width = frame_thresh.shape[:2]
-        white = cv2.countNonZero(frame_thresh)
-        black = (height * width) - white
-
-        #  Return True if there is more white than black
-        if white > black:
-            return True
-
-        return False
-
-
