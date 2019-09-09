@@ -273,10 +273,10 @@ def update_database():
     # Lets print good tested today
 
     try:
-        strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-        strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+        strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+        strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
 
-        gui_web.send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+        gui_web.send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
     except Exception:
         pass
 
@@ -343,14 +343,16 @@ if __name__ == "__main__":
         strips_tester.data['worker_comment'] = test_device['worker_comment']
 
         try:
-            strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-            strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+            strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+            strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+            strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
         except Exception:
-            strips_tester.data['good_count_custom'] = 0
-            strips_tester.data['bad_count_custom'] = 0
+            strips_tester.data['good_custom'] = 0
+            strips_tester.data['bad_custom'] = 0
+            strips_tester.data['comment_custom'] = ""
 
             # Reset worker custom counter data
-            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0}}, True)
+            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
     else:
         module_logger.info("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
 

@@ -53,27 +53,37 @@ class SimpleChat(WebSocket):
             send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
 
             try:
-                strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-            except Exception as e:
-                strips_tester.data['good_count_custom'] = 0
-                strips_tester.data['bad_count_custom'] = 0
+                strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+                strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
+            except Exception as e:  # Pass exceptions if record does not exist in database
+                strips_tester.data['good_custom'] = 0
+                strips_tester.data['bad_custom'] = 0
+                strips_tester.data['comment_custom'] = ""
 
-            send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+            send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
-        if "reset_custom_counter" in data['command']:
+
+        if "count_custom" in data['command']:
+            # Get current worker
             test_worker_col = strips_tester.data['db_database']["test_worker"]
 
             # Reset worker custom counter data
-            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0}}, True)
+            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": data['good_custom'], "bad": data['bad_custom'], "comment": data['comment_custom']}}, True)
 
             try:
-                strips_tester.data['good_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                strips_tester.data['bad_count_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+                # Get latest info from DB
+                strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+                strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
 
-                send({"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
             except Exception:
                 pass
+
+            # Broadcast new data
+            send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
+
+
 
         if custom_parser:
             Parser = getattr(parser, "Parser")
@@ -102,7 +112,7 @@ class SimpleChat(WebSocket):
         # Update worker info
         sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type'], "worker_comment": strips_tester.data['worker_comment']})
 
-        sendTo(self, {"command": "count_custom", "good_count_custom": strips_tester.data['good_count_custom'], "bad_count_custom": strips_tester.data['bad_count_custom']})
+        sendTo(self, {"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
         if custom_parser:
             Parser = getattr(parser, "Parser")
