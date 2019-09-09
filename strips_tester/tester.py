@@ -255,7 +255,7 @@ def update_database():
                         increase_bad = (not strips_tester.data['status'][current_nest]) * 1
 
                         # Increase worker custom counter data
-                        test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
+                        #test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
                     else:
                         print("Product {} is not tested, so we skip it." . format(current_nest))
         except KeyError as e:

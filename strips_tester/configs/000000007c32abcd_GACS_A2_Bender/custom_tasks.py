@@ -161,7 +161,7 @@ class ReadSerial(Task):
         self.vc = cv2.VideoCapture('/dev/logitech')
         while not self.vc.isOpened():  # try to get the first frame of camera
             self.vc = cv2.VideoCapture('/dev/logitech')
-            module_logger.info("Odpiranje kamere...")
+            #module_logger.info("Odpiranje kamere...")
             time.sleep(1)
 
         GPIO.output(gpios["INTERIOR_LED"], False)
@@ -191,8 +191,9 @@ class ReadSerial(Task):
                 h = 350
                 w = 390
 
-                frame = self.rotateImage(frame, 4)  # Rotate image by 4 degrees
+                frame = self.rotateImage(frame, 5)  # Rotate image by 4 degrees
                 roi = frame[y:y+h, x:x+w]
+                #roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
                 try:
                     with timeout(seconds=3):
@@ -220,7 +221,7 @@ class ReadSerial(Task):
 
         strips_tester.data['exist'][0] = True  # Assume it exists
         # Save successfully read image
-        cv2.imwrite("/strips_tester_project/strips_tester/last_qr.jpg",roi)
+        cv2.imwrite(strips_tester.settings.test_dir + "/last_qr.jpg",roi)
 
         gui_web.send({"command": "progress", "value": "10"})
         return

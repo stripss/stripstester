@@ -56,13 +56,13 @@ class SimpleChat(WebSocket):
                 strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
                 strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
                 strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
+
             except Exception as e:  # Pass exceptions if record does not exist in database
                 strips_tester.data['good_custom'] = 0
                 strips_tester.data['bad_custom'] = 0
                 strips_tester.data['comment_custom'] = ""
 
             send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
-
 
         if "count_custom" in data['command']:
             # Get current worker
@@ -112,6 +112,7 @@ class SimpleChat(WebSocket):
         # Update worker info
         sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type'], "worker_comment": strips_tester.data['worker_comment']})
 
+        # Custom counter info
         sendTo(self, {"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
         if custom_parser:
@@ -122,7 +123,7 @@ class SimpleChat(WebSocket):
 
     def handleClose(self):
         clients.remove(self)
-        print(self.address, 'closed')
+        #print(self.address, 'closed')
 
 
 def send(message):
@@ -148,7 +149,7 @@ def send_ping():
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
+    s.connect(("8.8.8.8", 80))  # Connect to Google DNS
     return s.getsockname()[0]
 
 def update_address_info(server):
