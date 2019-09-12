@@ -1,5 +1,23 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+<style>
+    .digital {
+        font-size: 100px;
+    }
 
+    #voltmeter, #ammeter {
+        display: inline;
+    }
+
+    @media (max-width: 768px) {
+        .digital {
+            font-size: 50px;
+        }
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+<div class="row text-center digital">
+    <div id="voltmeter" class="col float-left"></div>
+    <div id="ammeter" class="col float-right"></div>
+</div>
 <hr>
 
 <div id="accordion2" style="margin-top: 10px; margin-bottom: 10px;">
@@ -19,7 +37,7 @@
 
                 <div class="input-group mb-3">
                     <div class="input-group-prepend">
-                        <label class="input-group-text" for="inputGroupSelect01">Programska oprema</label>
+                        <label class="input-group-text" for="inputGroupSelect01">Seznam modulov</label>
                     </div>
                     <select class="custom-select" id="set_program">
                     </select>
@@ -51,7 +69,7 @@
     function onCustomMessage(data) {
         if (data.command == "program_list") {
             $.each(data.value, function (index, value) {
-                $('#set_program').append('<option value="' + value[0] + '">' + value[1] + '</option>');
+                $('#set_program').append('<option value="' + value[0] + '">' + value[0] + ' - ' + value[1] + '</option>');
                 $("#set_program").find("option:last-child").data("data", value);  // Set data as hidden attribute
             });
         }
@@ -66,6 +84,11 @@
                 $('#accordion2 #current').html("Trenutni: " + data.value[1]);
             });
             $('#accordion2 #current').fadeIn("fast");
+        }
+
+        if (data.command == "measurements") {
+            if (data.voltmeter != null) $("#voltmeter").html(data.voltmeter + "V");
+            if (data.ammeter != null) $("#ammeter").html(data.ammeter + "mA");
         }
     }
 </script>

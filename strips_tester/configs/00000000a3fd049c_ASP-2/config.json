@@ -3,7 +3,7 @@
   "thread_nests": 0,
   "task_execution_order": {
     "StartProcedureTask": 1,
-    "ReadSerial": 0,
+    "ReadSerial": 1,
     "PowerTest": 1,
     "ProductConfigTask": 1,
     "FinishProcedureTask": 1
@@ -31,32 +31,32 @@
 
     "12V_AC": {
       "function": 0,
-      "pin": 18,
+      "pin": 37,
       "initial": 0
     },
     "12V_DC": {
       "function": 0,
-      "pin": 16,
+      "pin": 18,
       "initial": 0
     },
     "24V_AC": {
       "function": 0,
-      "pin": 19,
+      "pin": 35,
       "initial": 0
     },
     "24V_DC": {
       "function": 0,
-      "pin": 21,
+      "pin": 16,
       "initial": 0
     },
     "48V_AC": {
       "function": 0,
-      "pin": 23,
+      "pin": 33,
       "initial": 0
     },
     "48V_DC": {
       "function": 0,
-      "pin": 33,
+      "pin": 23,
       "initial": 0
     },
     "BUZZER": {

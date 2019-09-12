@@ -16,29 +16,72 @@ gpios = strips_tester.settings.gpios
 relays = strips_tester.settings.relays
 custom_data = strips_tester.settings.custom_data
 
-
 class StartProcedureTask(Task):
+    def set_up(self):
+        pass
+
     def run(self) -> (bool, str):
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
-
-        module_logger.info("Waiting for detection switch")
 
         # Wait for selection of program
         while True:
             try:
                 strips_tester.data['program']
+
+                try:
+                    strips_tester.data['first_program_set']
+                except KeyError:  # First program was set
+                    gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Disable blink
+                    strips_tester.data['first_program_set'] = True
+                    module_logger.info("First program was set")
                 break
             except KeyError:
-                time.sleep(0.1)
+                # Set on blinking lights
+                GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
+                GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
+                time.sleep(0.5)
+                GPIO.output(gpios['LIGHT_RED'], GPIO.LOW)
+                GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
+                time.sleep(0.5)
+        return
 
+    def tear_down(self):
+        pass
+
+
+class ReadSerial(Task):
+    def set_up(self):
+        self.scanner = devices.Honeywell1400(path="/dev/hidraw0")
+
+    def run(self):
+        self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
+
+        gui_web.send({"command": "status", "nest": 0, "value": "Skeniraj QR kodo"})
+        qr_code = self.scanner.wait_for_read()
+
+        self.add_measurement(0, True, "Serial", qr_code, "")
+        gui_web.send({"command": "info", "nest": 0, "value": "Modul skeniran: {}".format(qr_code)})
+
+        return
+
+    def tear_down(self):
+        # Close the device?
+        pass
+
+
+class PowerTest(Task):
+    def set_up(self):
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B572.voltage1", 0.16)
+        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-EC255.current1", 0.16)
+        self.selected_voltage = 48
+
+    def run(self):
+        module_logger.info("Waiting for detection switch")
         gui_web.send({"command": "status", "nest": 0, "value": "Za začetek testa priklopi modul"})
-        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})
 
         # Wait for lid to close
         while self.lid_closed():
             time.sleep(0.01)
-
-        time.sleep(0.5)
 
         # Assume that product exists, because the start switch is made this way
         strips_tester.data['exist'][0] = True
@@ -64,42 +107,15 @@ class StartProcedureTask(Task):
         GPIO.output(gpios['48V_AC'], GPIO.LOW)
         GPIO.output(gpios['48V_DC'], GPIO.LOW)
 
-        return
-
-    def tear_down(self):
-        pass
-
-
-class ReadSerial(Task):
-    def set_up(self):
-        pass
-
-    def run(self):
-        pass
-        return
-
-    def tear_down(self):
-        pass
-
-
-class PowerTest(Task):
-    def set_up(self):
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B572.voltage1", 0.16)
-        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-EC255.current1", 0.16)
-        pass
-
-    def run(self):
-        if not self.voltmeter.found:
-            gui_web.send({"command": "error", "nest": 0, "value": "Voltmetra ni mogoče najti!"})
-            return
-
-        time.sleep(0.2)  # Relay debouncing
+        time.sleep(0.1)  # Relay debouncing
 
         if "12V" in strips_tester.data['program'][1]:
+            self.selected_voltage = 12
             GPIO.output(gpios['12V_DC'], GPIO.HIGH)
             time.sleep(0.1)
             GPIO.output(gpios['12V_AC'], GPIO.HIGH)
         elif "24V" in strips_tester.data['program'][1]:
+            self.selected_voltage = 24
             GPIO.output(gpios['24V_DC'], GPIO.HIGH)
             time.sleep(0.1)
             GPIO.output(gpios['24V_AC'], GPIO.HIGH)
@@ -110,14 +126,18 @@ class PowerTest(Task):
 
         gui_web.send({"command": "status", "nest": 0, "value": "Merjenje napetosti"})
 
+        time.sleep(1)
+
         # Measure voltage
         num_of_tries = 5
 
         voltage = self.voltmeter.read()
-        while not self.in_range(voltage, 12, 0.1, False):
+        gui_web.send({"command": "measurements", "voltmeter": round(voltage,3)})
+        while not self.in_range(voltage, self.selected_voltage, 0.1, False):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
+            gui_web.send({"command": "measurements", "voltmeter": round(voltage,3)})
 
             if not num_of_tries:
                 break
@@ -143,23 +163,27 @@ class PowerTest(Task):
         expected = (min_current + max_current) / 2
         tolerance = abs(min_current - max_current) / 2
 
+        print("Expected: {}" . format(expected))
+        print("Tolerance: {}" . format(tolerance))
         current = self.ammeter.read()
+        gui_web.send({"command": "measurements", "ammeter": round(current,2)})
         while not self.in_range(current, expected, tolerance, False):
             num_of_tries = num_of_tries - 1
 
             current = self.ammeter.read()
+            gui_web.send({"command": "measurements", "ammeter": round(current,2)})
 
             if not num_of_tries:
                 break
 
         if not num_of_tries:
-            module_logger.warning("Current is out of bounds: meas: %smA", voltage)
+            module_logger.warning("Current is out of bounds: meas: %smA", current)
             gui_web.send({"command": "error", "nest": 0, "value": "Meritev toka je izven območja: {}mA".format(current)})
             self.add_measurement(0, False, "Current", current, "mA")
         else:
-            module_logger.info("Current in bounds: meas: %smA", voltage)
+            module_logger.info("Current in bounds: meas: %smA", current)
             gui_web.send({"command": "info", "nest": 0, "value": "Meritev toka: {}mA".format(current)})
-            self.add_measurement(0, True, "Current", current, "V")
+            self.add_measurement(0, True, "Current", current, "mA")
 
         return
 
@@ -187,7 +211,7 @@ class FinishProcedureTask(Task):
         module_logger.debug("FinishProcedureTask init")
 
     def run(self):
-        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 1, 0), "blink": (0, 1, 0)})
+        # gui_web.send({"command": "semafor", "nest": 0, "value": (0, 1, 0), "blink": (0, 1, 0)})
         gui_web.send({"command": "status", "nest": 0, "value": "Odstrani kos iz ležišča."})  # Clear all info messages
         gui_web.send({"command": "progress", "nest": 0, "value": "90"})
 
@@ -195,7 +219,6 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['LIGHT_RED'], GPIO.LOW)
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
         GPIO.output(gpios['BUZZER'], GPIO.HIGH)
-        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})
 
         if strips_tester.data['exist'][0]:
             if strips_tester.data['status'][0]:

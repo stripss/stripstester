@@ -29,6 +29,8 @@ import ina219
 import subprocess
 import io
 from binascii import unhexlify
+import base64
+import colorsys
 
 module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
@@ -90,9 +92,10 @@ class Honeywell1400:
                   30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
                   47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
 
-    def __init__(self, vid: int, pid: int, path: str, max_code_length: int = 50):
-        if path == None and (vid == None and pid == None):
-            raise 'Not anough init parameters for Honeywell1400'
+    def __init__(self, vid=None, pid=None, path="/dev/hidraw0", max_code_length: int = 50):
+        if path is None and (vid is None and pid is None):
+            raise "Not anough init parameters for Honeywell1400"
+
         self.vid = vid
         self.pid = pid
         self.path = path
@@ -1581,7 +1584,7 @@ class Visual:
         for subindex in range(len(self.mask)):  # Loop through masks
             for index in range(len(self.mask[subindex])):
                 if not self.detect_point_state(subindex, index):
-                    if subindex == mask_num: #  Current vertex must be disabled
+                    if subindex == mask_num:  # Current vertex must be disabled
                         self.error.append((self.mask[subindex][index]['x'],self.mask[subindex][index]['y']))  # If current vertex is enabled (had to be disabled) - mark as error
                 else:
                     if subindex != mask_num:
@@ -1593,20 +1596,27 @@ class Visual:
 
         return True
 
+
     # Detect Region of Interest (or point) if the background is white
     def detect_point_state(self, mask_num, index, roi_size=3):
+        # Define center of vertex
         x = self.mask[mask_num][index]['x'] + self.mask_offset_x
         y = self.mask[mask_num][index]['y'] + self.mask_offset_y
 
-        #  Range mask
-        mask_min = np.array([self.mask[mask_num][index]['h1'], self.mask[mask_num][index]['s1'], self.mask[mask_num][index]['v1']], np.uint8)
-        mask_max = np.array([self.mask[mask_num][index]['h2'], self.mask[mask_num][index]['s2'], self.mask[mask_num][index]['v2']], np.uint8)
+        # Define color mask in HSV colorspace
+        mask_min = np.array([self.mask[mask_num][index]['h1'],self.mask[mask_num][index]['s1'],self.mask[mask_num][index]['v1']], np.uint8)
+        mask_max = np.array([self.mask[mask_num][index]['h2'],self.mask[mask_num][index]['s2'],self.mask[mask_num][index]['v2']], np.uint8)
 
-        #  Pick up small region of interest (ROI)
+        # Pick up small region of interest (ROI)
         roi = self.image[y - roi_size:y+roi_size, x-roi_size:x+roi_size]
-        hsv_img = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  #  Convert RGB to HSV image
-        frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))  #  Get result image applied with range mask
 
+        # Convert BRG to HSV image
+        hsv_image = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+        # Apply color mask
+        frame_thresh = cv2.inRange(hsv_image, mask_min, mask_max)
+
+        # Calculate white and black threshold points
         height, width = frame_thresh.shape[:2]
         white = cv2.countNonZero(frame_thresh)
         black = (height * width) - white

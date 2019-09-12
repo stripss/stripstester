@@ -5,7 +5,7 @@
   "task_execution_order": {
     "StartProcedureTask": 1,
     "VoltageTest": 1,
-    "FlashMCU": 1,
+    "FlashMCU": 0,
     "ButtonAndNTCTest": 1,
     "VisualTest": 1,
     "FinishProcedureTask": 1

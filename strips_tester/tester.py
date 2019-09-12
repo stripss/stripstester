@@ -116,6 +116,18 @@ class Task:
 
         return serial_number
 
+    def start_test(self, nest):
+        # Initiate test procedure for GUI (start counting time, clear screen)
+
+        strips_tester.data['start_time'][nest] = datetime.datetime.utcnow()  # Get start test date
+        gui_web.send({"command": "time", "mode": "start", "nest": nest})  # Start count for test
+
+        # Clear GUI
+        gui_web.send({"command": "error", "nest": nest, "value": -1})  # Clear all error messages
+        gui_web.send({"command": "info", "nest": nest, "value": -1})  # Clear all info messages
+
+        gui_web.send({"command": "semafor", "nest": nest, "value": (0, 1, 0), "blink": (0, 0, 0)})
+
 
     def _execute(self):
         # Prepare measurement variables
@@ -255,7 +267,7 @@ def update_database():
                         increase_bad = (not strips_tester.data['status'][current_nest]) * 1
 
                         # Increase worker custom counter data
-                        #test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
+                        test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
                     else:
                         print("Product {} is not tested, so we skip it." . format(current_nest))
         except KeyError as e:

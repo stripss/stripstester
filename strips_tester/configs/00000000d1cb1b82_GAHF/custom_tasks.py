@@ -54,9 +54,6 @@ class StartProcedureTask(Task):
             strips_tester.data['start_time'][i] = datetime.datetime.utcnow()  # Get start test date
             gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
 
-        # Product power on
-        self.relay.set(0x1)
-
         # Product detection
         for i in range(2):
             # Must be held high, otherwise E2 error
@@ -69,6 +66,12 @@ class StartProcedureTask(Task):
                 gui_web.send({"command": "progress", "value": "10", "nest": i})
             else:
                 gui_web.send({"command": "semafor", "nest": i, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Clear indicator light where DUT is not found
+
+        #Power on if any product exists
+        for i in range(2):
+            if self.is_product_ready(i):
+                self.relay.set(0x1)
+                break
 
         return
 
@@ -176,8 +179,12 @@ class VoltageTest(Task):
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
-        # Power on
-        self.relay.set(0x1)
+        # Power on if any product exists
+        for i in range(2):
+            if self.is_product_ready(i):
+                self.relay.set(0x1)
+                break
+
 
         for i in range(2):
             # Check if product exists
@@ -278,8 +285,11 @@ class FlashMCU(Task):
         self.relay.clear(0x1)
         time.sleep(0.1)
 
-        # Power on
-        self.relay.set(0x1)
+        #Power on if any product exists
+        for i in range(2):
+            if self.is_product_ready(i):
+                self.relay.set(0x1)
+                break
 
     def tear_down(self):
         pass
@@ -314,11 +324,7 @@ class ButtonAndNTCTest(Task):
             # Lock on arduino
 
         for i in range(2):
-            if not self.is_product_ready(i):
-                continue
-
             self.test_thread[i].join()
-
 
         # Power off
         self.relay.clear(0x1)
@@ -351,7 +357,7 @@ class ButtonAndNTCTest(Task):
             gui_web.send({"command": "progress", "value": "40", "nest": i})
 
             # Measure NTC on PCB
-            num_of_tries = 500
+            num_of_tries = 50
 
             temperature = self.get_temperature(i, 'pb')  # Get PCB temperature
 
@@ -379,7 +385,7 @@ class ButtonAndNTCTest(Task):
                 return
 
             # Measure NTC on cable
-            num_of_tries = 500
+            num_of_tries = 50
 
             temperature = self.get_temperature(i, "ui")
             while not self.in_range(temperature, 63, 5):

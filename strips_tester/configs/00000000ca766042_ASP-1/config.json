@@ -3,7 +3,7 @@
   "thread_nests": 0,
   "task_execution_order": {
     "StartProcedureTask": 1,
-    "ReadSerial": 0,
+    "ReadSerial": 1,
     "PowerTest": 1,
     "ProductConfigTask": 1,
     "FinishProcedureTask": 1
