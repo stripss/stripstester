@@ -45,7 +45,7 @@ class VisualTest(Task):
     def set_up(self):
         self.safety_check()  # Check if lid is opened
         self.gui_progress = 10
-        self.relay_wait = 0.2
+        self.relay_wait = 1
 
     def run(self):
         strips_tester.data['exist'][0] = True  # Replace with DUT detection switch
