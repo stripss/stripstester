@@ -33,14 +33,7 @@ class StartProcedureTask(Task):
         GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
 
-        strips_tester.data['start_time'][0] = datetime.datetime.utcnow()  # Get start test date
-        gui_web.send({"command": "time", "mode": "start", "nest": 0})  # Start count for test
-
-        # Clear GUI
-        gui_web.send({"command": "error", "nest": 0, "value": -1})  # Clear all error messages
-        gui_web.send({"command": "info", "nest": 0, "value": -1})  # Clear all info messages
-
-        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 1, 0), "blink": (0, 0, 0)})
+        self.start_test(0)
 
         return
 

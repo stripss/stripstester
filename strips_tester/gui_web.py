@@ -136,32 +136,35 @@ def sendTo(client, message):
 
 def send_ping():
     # Send date to database. Client on HTTP will calculate duration of last ping received
+
+    date = datetime.datetime.utcnow()
     try:
-        date = datetime.datetime.utcnow()
-
         strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
-
     except Exception as e:  # Avoid errors
-        module_logger.error(e);
+        module_logger.error(e)
 
     threading.Timer(5, send_ping).start()
 
 
 def get_ip_address():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))  # Connect to Google DNS
-    return s.getsockname()[0]
+    #s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #s.connect(("8.8.8.8", 80))  # Connect to Google DNS
+    #ip = s.getsockname()[0]
+    ip = subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
+
+    return ip
 
 def update_address_info(server):
-    addr = server.serversocket.getsockname()
+    port = server.serversocket.getsockname()[1]
+    ip_address = "{}:{}" . format(get_ip_address(), port)
 
     # Save current port to DB
-    strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": get_ip_address()}})
+    strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
 
-    module_logger.info("[StripsTester] WebSocket server started on port {}" . format(addr[1]))
+    module_logger.info("[StripsTester] WebSocket server started on port {}" . format(port))
 
 def start_server():
-    server = SimpleWebSocketServer('', 8000, SimpleChat)
+    server = SimpleWebSocketServer('', 0, SimpleChat)
 
     update_address_info(server)  # Store address info to DB
     send_ping()  # Signal DB that TN is alive

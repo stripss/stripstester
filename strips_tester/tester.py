@@ -116,9 +116,8 @@ class Task:
 
         return serial_number
 
+    # Initiate test procedure for GUI (start counting time, clear screen)
     def start_test(self, nest):
-        # Initiate test procedure for GUI (start counting time, clear screen)
-
         strips_tester.data['start_time'][nest] = datetime.datetime.utcnow()  # Get start test date
         gui_web.send({"command": "time", "mode": "start", "nest": nest})  # Start count for test
 
@@ -127,7 +126,6 @@ class Task:
         gui_web.send({"command": "info", "nest": nest, "value": -1})  # Clear all info messages
 
         gui_web.send({"command": "semafor", "nest": nest, "value": (0, 1, 0), "blink": (0, 0, 0)})
-
 
     def _execute(self):
         # Prepare measurement variables
@@ -208,7 +206,7 @@ def run_custom_tasks():
 
     update_database()
 
-
+# Reset measurement data and product statuses for next test
 def reset_data():
     for current_nest in range(strips_tester.data['test_device_nests']):
         if strips_tester.settings.thread_nests:
