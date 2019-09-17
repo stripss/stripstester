@@ -44,6 +44,7 @@ class Settings:
                 self.gpios_settings = data['gpio_settings']
                 self.relays_settings = data['relay_settings']
                 self.test_device_name = data['test_device_name']
+                self.test_device_nests = data['test_device_nests']
                 self.thread_nests = data['thread_nests']
                 self.task_execution_order = data['task_execution_order']
                 self.critical_event_tasks = data['critical_event_tasks']
