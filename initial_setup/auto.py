@@ -10,11 +10,15 @@ import filecmp
 
 wifi_found = False
 
+def get_ip_address():
+    return subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
+
 while not wifi_found:
     try:
         wifi = subprocess.check_output(['iwgetid']).decode()  # Get SSID name
 
         print("WiFi found")
+        print("IP Address of TN: {}" . format(get_ip_address()))
         # Git commands to update StripsTester to latest version
         os.chdir("/")  # Root cd
 
@@ -24,6 +28,9 @@ while not wifi_found:
 
             os.system("sudo git reset --hard")
             #os.system("sudo git checkout master")
+
+            # Uncheck if unlock refs error
+            os.system("sudo git remote prune origin")
             os.system("sudo git remote remove origin")
             os.system("sudo git remote add origin https://stripss:stripstester123@github.com/stripss/stripstester.git")
 

@@ -10,6 +10,8 @@ import time
 import gui_web
 import threading
 import pymongo
+import pymongo.errors
+import sqlite3
 
 # Imported for catching SegmentationFault like errors
 import faulthandler
@@ -53,10 +55,30 @@ def initialize_logging(level: int = logging.INFO):
     #lgr.addHandler(db_handler)
     return lgr
 
+
+def dict_from_row(row):
+    return dict(zip(row.keys(), row))
+
 # Data handles all custom data of current test device (acts like RAM)
 data = {}
-data['db_connection'] = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
-data['db_database'] = data['db_connection']["stripstester"]
+
+data['db_local_connection'] = sqlite3.connect("stripstester.db")
+data['db_local_connection'].row_factory = sqlite3.Row
+data['db_local_cursor'] = data['db_local_connection'].cursor()
+
+# Initiate Remote DB
+try:
+    data['db_connection'] = pymongo.MongoClient("mongodb://192.168.88.243:27017/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
+    data['db_connection'].server_info()
+except pymongo.errors.ServerSelectionTimeoutError:
+    data['db_connection'] = None
+
+if data['db_connection'] is not None:
+    data['db_database'] = data['db_connection']["stripstester"]
+
+    test_devices_col = data['db_database']["test_device"]
+    test_info_col = data['db_database']["test_info"]
+    test_worker_col = data['db_database']["test_worker"]
 
 logger = initialize_logging(logging.DEBUG)
 current_product = None

@@ -104,7 +104,7 @@ class SimpleChat(WebSocket):
             pass
 
         sendTo(self, {"command": "threaded", "value": strips_tester.settings.thread_nests})  # Tell GUI if tester is threaded
-        sendTo(self, {"command": "nests", "value": strips_tester.data['test_device_nests']})
+        sendTo(self, {"command": "nests", "value": strips_tester.settings.test_device_nests})
 
         sendTo(self, ({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
                        "bad_count_today": strips_tester.data['bad_count_today']}))
@@ -120,10 +120,8 @@ class SimpleChat(WebSocket):
             parser_in = Parser()
             parser_in.welcome(self)  # Parse command depending on test device
 
-
     def handleClose(self):
         clients.remove(self)
-        #print(self.address, 'closed')
 
 
 def send(message):
@@ -136,12 +134,19 @@ def sendTo(client, message):
 
 def send_ping():
     # Send date to database. Client on HTTP will calculate duration of last ping received
-
     date = datetime.datetime.utcnow()
-    try:
-        strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
-    except Exception as e:  # Avoid errors
-        module_logger.error(e)
+
+    if strips_tester.data['db_connection'] is not None:
+        try:
+            strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
+
+        except pymongo.errors.NetworkTimeout:
+            module_logger.error("Lost connection to DB, switching to Local DB")
+
+            strips_tester.data['db_connection'] = None
+
+            # Send notification that TN is working OFFLINE!
+            send({"command": "offline", "value": "127.0.0.1"})
 
     threading.Timer(5, send_ping).start()
 
@@ -158,10 +163,11 @@ def update_address_info(server):
     port = server.serversocket.getsockname()[1]
     ip_address = "{}:{}" . format(get_ip_address(), port)
 
-    # Save current port to DB
-    strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
+    if strips_tester.data['db_connection'] is not None:
+        # Save current port to DB
+        strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
 
-    module_logger.info("[StripsTester] WebSocket server started on port {}" . format(port))
+    module_logger.info("[StripsTester] WebSocket server started on {}" . format(ip_address))
 
 def start_server():
     server = SimpleWebSocketServer('', 0, SimpleChat)
