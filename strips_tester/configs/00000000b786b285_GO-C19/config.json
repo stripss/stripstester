@@ -1,5 +1,7 @@
 {
   "product_name": "GO-C19",
+  "test_device_nests": 2,
+  "thread_nests": 0,
   "product_type": 2,
   "product_variant": "basic",
   "product_hw_release": "1.5",

@@ -1,13 +1,14 @@
 {
   "thread_nests": 0,
   "test_device_name": "GAHF",
+  "test_device_nests": 2,
 
   "task_execution_order": {
     "StartProcedureTask": 1,
     "VoltageTest": 1,
     "FlashMCU": 0,
-    "ButtonAndNTCTest": 1,
-    "VisualTest": 1,
+    "ButtonAndNTCTest": 0,
+    "VisualTest": 0,
     "FinishProcedureTask": 1
   },
 

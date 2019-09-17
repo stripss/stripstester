@@ -1,6 +1,7 @@
 {
   "thread_nests": 0,
   "test_device_name": "GACS_A2 Bender",
+  "test_device_nests": 1,
 
   "task_execution_order": {
     "StartProcedureTask": 1,

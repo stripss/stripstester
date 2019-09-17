@@ -1,5 +1,6 @@
 {
   "product_name": "GO-HA-1",
+  "test_device_nests": 2,
   "thread_nests": 0,
   "product_type": 12,
   "product_variant": "basic",

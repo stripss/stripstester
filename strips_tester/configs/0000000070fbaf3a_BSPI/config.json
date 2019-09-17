@@ -1,5 +1,6 @@
 {
   "test_device_name": "Photointerrupter",
+  "test_device_nests": 3,
   "thread_nests": 1,
   "task_execution_order": {
     "StartProcedureTask": 1,
