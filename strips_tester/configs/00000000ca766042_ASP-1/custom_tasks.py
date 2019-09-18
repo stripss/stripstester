@@ -56,6 +56,11 @@ class ReadSerial(Task):
     def run(self):
         self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
 
+        if not self.scanner.found:
+            # Send warning but keep testing
+            gui_web.send({"command": "error", "value": "Skenerja ni mogoče najti!"})
+            return
+
         gui_web.send({"command": "status", "nest": 0, "value": "Skeniraj QR kodo"})
         qr_code = self.scanner.wait_for_read()
 

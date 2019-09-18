@@ -96,11 +96,23 @@ class Honeywell1400:
         if path is None and (vid is None and pid is None):
             raise "Not anough init parameters for Honeywell1400"
 
+        self.found = False
         self.vid = vid
         self.pid = pid
         self.path = path
         self.max_code_length = max_code_length
         self.logger = logging.getLogger(__name__)
+
+        for retry in range(10):
+            try:
+                os.open(self.path, os.O_RDWR)
+                self.found = True
+                break
+            except Exception:
+                pass
+
+        if not self.found:
+            module_logger.error("Honeywell device not found")
 
     def flush_input(self, file_descriptor) -> bytearray():
         discarded = bytearray()
