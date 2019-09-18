@@ -403,6 +403,12 @@ def synchronize_remote_db():
         strips_tester.test_info_col.insert_one(test_info_data)
         module_logger.info("[StripsTesterDB] Transferring measurement #{} into Remote DB..." .format(record['id']))
 
+        # Increase worker custom counter data (applied to LocalDB)
+        increase_good = record['result'] * 1
+        increase_bad = (not record['result']) * 1
+
+        strips_tester.test_worker_col.update_one({"id": record['worker']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
+
         # Delete measurement from local DB, which was transferred to Remote DB
         strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_info WHERE id = ?;''', (record['id'],))
         strips_tester.data['db_local_connection'].commit()

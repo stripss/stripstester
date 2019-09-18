@@ -20,8 +20,6 @@
     <script src="./plugins/jquery-ui.min.js"></script>
     <script src="./plugins/moment.min.js"></script>
     <script src="./plugins/moment-timezone.min.js"></script>
-    <script src="./plugins/jszip/dist/jszip.js"></script>
-    <script src="./plugins/jszip/dist/jszip.min.js"></script>
     <script src="./plugins/FileSaver.min.js"></script>
     <script src="./plugins/jquery.ui.touch-punch.min.js"></script>
 </head>
@@ -31,14 +29,10 @@
 <div class="container">
     <div class="row">
         <div class="col">
-            <nav class="navbar navbar-expand-md navbar-light bg-light">
-                <a href="../index.html"><img class="navbar-brand larger" src="/img/stripstester.gif" class="img-thumbnail"></a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-toggle" aria-controls="navbar-toggle" aria-expanded="false"
-                        aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+            <nav class="navbar navbar-expand-md navbar-light bg-light" style="display: block;">
+                <a href="../index_local.html" style="display: inline; width: 100%; text-align: left;"><img class="navbar-brand larger" src="/img/stripstester.gif" class="img-thumbnail"></a>
 
-                <button  id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
+                <button style="display: inline; margin: 15px;" id="tn_shutdown" type="button" class="btn btn-danger float-right" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
                     napravo
                 </button>
             </nav>
