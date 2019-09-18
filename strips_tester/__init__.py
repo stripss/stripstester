@@ -50,21 +50,24 @@ def initialize_logging(level: int = logging.INFO):
     stdout_handler.setFormatter(formatter)
     lgr.addHandler(stdout_handler)
 
-    # Logging to database (works, but the document count will be large soon)
-    #db_handler = MongoHandler(host='172.30.129.19', database_name='stripstester', collection='logs')
-    #lgr.addHandler(db_handler)
     return lgr
-
 
 def dict_from_row(row):
     return dict(zip(row.keys(), row))
 
 # Data handles all custom data of current test device (acts like RAM)
 data = {}
+logger = initialize_logging(logging.DEBUG)
+settings = config_loader.Settings()
 
+# LocalDB initialisation
 data['db_local_connection'] = sqlite3.connect("stripstester.db")
 data['db_local_connection'].row_factory = sqlite3.Row
 data['db_local_cursor'] = data['db_local_connection'].cursor()
+
+# Predefined port
+websocket_port = 8000
+http_port = 80
 
 # Initiate Remote DB
 try:
@@ -73,6 +76,9 @@ try:
 except pymongo.errors.ServerSelectionTimeoutError:
     data['db_connection'] = None
 
+    # Set websocket port to 8000 so it will be always the same when accesing trought localhost
+    websocket_port = 8000
+
 if data['db_connection'] is not None:
     data['db_database'] = data['db_connection']["stripstester"]
 
@@ -80,10 +86,14 @@ if data['db_connection'] is not None:
     test_info_col = data['db_database']["test_info"]
     test_worker_col = data['db_database']["test_worker"]
 
-logger = initialize_logging(logging.DEBUG)
-current_product = None
-settings = config_loader.Settings()
-
-websocket = threading.Thread(target=gui_web.start_server)
+# Websocket serves as pipeline between GUI and test device
+websocket = threading.Thread(target=gui_web.start_server,args=(websocket_port,))
 websocket.daemon = True
 websocket.start()
+
+# HTTPServer serves as backup server if main HTTP Server is not available
+httpserver = threading.Thread(target=gui_web.start_http_server,args=(http_port,))
+httpserver.daemon = True
+httpserver.start()
+
+

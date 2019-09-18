@@ -104,17 +104,27 @@ class Task:
 
     # Retrieve new serial
     def get_new_serial(self):
-        # Get current test device ID
-        test_device_data = strips_tester.data['db_database']['test_device'].find_one({"name": strips_tester.settings.test_device_name})
+        if strips_tester.data['db_connection'] is not None:
+            # Get current test device ID
+            test_device_data = strips_tester.data['db_database']['test_device'].find_one({"name": strips_tester.settings.test_device_name})
 
-        # Find serial, increase by one, otherwise set new count
-        try:
-            serial_number = test_device_data['serial'] + 1
-        except (IndexError, KeyError):
-            serial_number = 1
+            # Find serial, increase by one, otherwise set new count
+            try:
+                serial_number = test_device_data['serial'] + 1
+            except (IndexError, KeyError):
+                serial_number = 1
 
-        # Update DB
-        strips_tester.data['db_database']['test_device'].update_one({'_id': test_device_data['_id']}, {"$set": {'serial': serial_number}}, True)
+            # Update DB
+            strips_tester.test_devices_col.update_one({'_id': test_device_data['_id']}, {"$set": {'serial': serial_number}}, True)
+        else:  # Retrieve serial number from Local DB
+            result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
+            # Update global variable with last remote counters
+
+            serial_number = result['serial'] + 1
+
+            strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
+            strips_tester.data['db_connection'].commit()
+            # Update serial in Local DB
 
         return serial_number
 
@@ -212,6 +222,7 @@ def run_custom_tasks():
     update_database()
     strips_tester.data['lock'].release()
 
+
 # Reset measurement data and product statuses for next test
 def reset_data():
     for current_nest in range(strips_tester.settings.test_device_nests):
@@ -225,6 +236,7 @@ def reset_data():
         strips_tester.data['measurement'][current_nest] = {}
         strips_tester.data['exist'][current_nest] = False
         strips_tester.data['status'][current_nest] = -1  # Untested
+
 
 def update_database():
     try:
@@ -249,6 +261,7 @@ def update_database():
 
                         # Update Remote DB if available
                         if strips_tester.data['db_connection'] is not None:
+                            module_logger.warning("Saving to Remote DB")
                             # Find test device ID in database for relationships
                             test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
 
@@ -305,7 +318,7 @@ def update_database():
 
                 gui_web.send(
                     {"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
-            except Exception:
+            except IndexError:
                 pass
 
             try:
@@ -319,13 +332,16 @@ def update_database():
                 "$set": {"good": strips_tester.data['good_count'], "bad": strips_tester.data['bad_count'], "good_today": strips_tester.data['good_count_today'],
                          "bad_today": strips_tester.data['bad_count_today'], "last_test": strips_tester.data['end_time'], "today_date": strips_tester.data['today_date']}}, True)
 
-        else:  # Get stats from Local DB
 
+            # Update Local DB counters, so if connection is lost, count from this number onwards
+            strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET good_count = ?, bad_count = ?, good_count_today = ?, bad_count_today = ? WHERE name = ?''', (
+                strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'], strips_tester.settings.test_device_name))
+            strips_tester.data['db_local_connection'].commit()
+        else:  # Get stats from Local DB
             # How counters work? Get number from test_device table and add rows of test_info of Local DB
 
             # Get existing data from local DB
             result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
-
             # Update global variable with last remote counters
             if result:
                 strips_tester.data.update(result)
@@ -351,24 +367,32 @@ def update_database():
 
         update_database()  # Update database, now to Local DB
 
+
 # This function is used to synchronize Local DB to Remote DB when Remote DB is available.
 def synchronize_remote_db():
     module_logger.info("[StripsTesterDB] Remote DB is available. ")
 
-    test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})
+    test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
 
     result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info;''').fetchall()
 
     if result:
-        module_logger.info("[StripsTesterDB] Synchronize {} measurements..." . format(len(result)))
-    else:
-        module_logger.info("[StripsTesterDB] Local DB is the same as Remote DB")
+        # Update RemoteDB test_device to have the same values as LocalDB
+        module_logger.info("[StripsTesterDB] Updating RemoteDB (older) values from LocalDB (newer)...")
 
-    for record in strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info;''').fetchall():
+        strips_tester.test_devices_col.update_one({'_id': test_device_id}, {"$set": {'serial': result['serial'],
+        'worker_id': result['worker_id'], 'worker_type': result['worker_type'], 'worker_comment': result['worker_comment']}}, True)
+
+        # If results found, that means that LocalDB is newer than RemoteDB. Update RemoteDB worker to local and serial
+        module_logger.info("[StripsTesterDB] Synchronizing {} measurements..." . format(len(result)))
+    else:
+        module_logger.info("[StripsTesterDB] Local DB is the same as Remote DB - No synchronization needed.")
+
+    for record in result:
         # Each nest test counts as one test individually
         test_info_data = {"datetime": datetime.datetime.strptime(record['datetime'], "%Y-%m-%d %H:%M:%S.%f"),
                           "start_test": datetime.datetime.strptime(record['start_test'], "%Y-%m-%d %H:%M:%S.%f"),
-                          "test_device": test_device_id['_id'],
+                          "test_device": test_device_id,
                           "worker": record['worker'],
                           "comment": record['comment'],
                           "type": record['type'],
@@ -385,6 +409,7 @@ def synchronize_remote_db():
 
     return
 
+
 if __name__ == "__main__":
     # parameter = str(sys.argv[1])  # We use that if we want to provide extra parameters
 
@@ -398,6 +423,7 @@ if __name__ == "__main__":
     strips_tester.data['measurement'] = {}
     strips_tester.data['start_time'] = {}
 
+    strips_tester.data['serial'] = 0
     strips_tester.data['good_count'] = 0
     strips_tester.data['bad_count'] = 0
     strips_tester.data['good_count_today'] = 0
@@ -412,7 +438,7 @@ if __name__ == "__main__":
 
     # Create skeletons for local DB and load data if available. Count, stored in test_device are from remote DB. Extra counts are counted by rows in local DB.
     strips_tester.data['db_local_cursor'].execute(
-        '''CREATE TABLE IF NOT EXISTS test_device(good INT, bad INT, good_today INT, bad_today INT, worker_id INT, worker_type INT, worker_comment TEXT)''')
+        '''CREATE TABLE IF NOT EXISTS test_device(name TEXT, good_count INT, bad_count INT, good_count_today INT, bad_count_today INT, worker_id INT, worker_type INT, worker_comment TEXT, serial INT)''')
     strips_tester.data['db_local_connection'].commit()
 
     strips_tester.data['db_local_cursor'].execute(
@@ -455,9 +481,9 @@ if __name__ == "__main__":
             strips_tester.data['db_local_connection'].commit()
 
             # Update local DB counters
-            strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(good, bad, good_today, bad_today, worker_id, worker_type, worker_comment) VALUES(?,?,?,?,?,?,?)''', (
-                strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
-                strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment']
+            strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial) VALUES(?,?,?,?,?,?,?,?,?)''', (
+                strips_tester.settings.test_device_name,strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
+                strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial']
             ))
             strips_tester.data['db_local_connection'].commit()
         else:

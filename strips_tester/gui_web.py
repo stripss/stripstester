@@ -11,6 +11,9 @@ from bson import json_util
 import threading
 import datetime
 import logging
+import http.server
+import socketserver
+import os
 import socket
 
 module_logger = logging.getLogger(".".join(("strips_tester", "gui_web")))
@@ -29,72 +32,72 @@ except ImportError:
 
 class SimpleChat(WebSocket):
     def handleMessage(self):
-        print(self.data)
-        data = json.loads(self.data)
+        try:
+            print(self.data)
+            data = json.loads(self.data)
 
-        # Global parsing (all test devices)
+            # Global parsing (all test devices)
 
-        if "shutdown" in data['command']:
-            subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
+            if "shutdown" in data['command']:
+                subprocess.Popen("/usr/bin/sudo /sbin/shutdown -h now".split(), stdout=subprocess.PIPE)
 
-        if "reboot" in data['command']:
-            subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
+            if "reboot" in data['command']:
+                subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
 
-        if "save_worker_data" in data['command']:
-            test_device_col = strips_tester.data['db_database']["test_device"]
-            test_worker_col = strips_tester.data['db_database']["test_worker"]
-            test_device_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
+            if "save_worker_data" in data['command']:
+                strips_tester.data['worker_id'] = data['worker_id']
+                strips_tester.data['worker_type'] = data['worker_type']
+                strips_tester.data['worker_comment'] = data['worker_comment']
 
-            strips_tester.data['worker_id'] = data['worker_id']
-            strips_tester.data['worker_type'] = data['worker_type']
-            strips_tester.data['worker_comment'] = data['worker_comment']
+                if strips_tester.data['db_connection'] is not None:
+                    test_device_col = strips_tester.data['db_database']["test_device"]
+                    test_worker_col = strips_tester.data['db_database']["test_worker"]
+                    test_device_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
 
-            # Update other GUIs with current worker info (broadcast)
-            send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
+                    try:
+                        strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                        strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+                        strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
 
-            try:
-                strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-                strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
+                    except IndexError:  # Pass exceptions if record does not exist in database
+                        strips_tester.data['good_custom'] = 0
+                        strips_tester.data['bad_custom'] = 0
+                        strips_tester.data['comment_custom'] = ""
 
-            except Exception as e:  # Pass exceptions if record does not exist in database
-                strips_tester.data['good_custom'] = 0
-                strips_tester.data['bad_custom'] = 0
-                strips_tester.data['comment_custom'] = ""
+                # Update other GUIs with current worker info (broadcast)
+                send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
+                send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
-            send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
+            if "count_custom" in data['command']:
+                if strips_tester.data['db_connection'] is not None:
+                    # Get current worker
+                    test_worker_col = strips_tester.data['db_database']["test_worker"]
 
-        if "count_custom" in data['command']:
-            # Get current worker
-            test_worker_col = strips_tester.data['db_database']["test_worker"]
+                    # Reset worker custom counter data
+                    test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": data['good_custom'], "bad": data['bad_custom'], "comment": data['comment_custom']}}, True)
 
-            # Reset worker custom counter data
-            test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": data['good_custom'], "bad": data['bad_custom'], "comment": data['comment_custom']}}, True)
+                    try:
+                        # Get latest info from DB
+                        strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+                        strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+                        strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
 
-            try:
-                # Get latest info from DB
-                strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-                strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
+                    except Exception:
+                        pass
 
-            except Exception:
-                pass
+                # Broadcast new data
+                send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
-            # Broadcast new data
-            send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
-
-
-
-        if custom_parser:
-            Parser = getattr(parser, "Parser")
-            parser_in = Parser()
-            parser_in.parse(self, data)  # Parse command depending on test device
-
+            if custom_parser:
+                Parser = getattr(parser, "Parser")
+                parser_in = Parser()
+                parser_in.parse(self, data)  # Parse command depending on test device
+        except Exception as e:
+            module_logger.error(e)
 
     def handleConnected(self):
         clients.append(self)
 
-        # Send custom HTML page based on GO-C19 page, if exists
         sendTo(self, {"command": "html", "value": ""})
 
         try:
@@ -146,18 +149,13 @@ def send_ping():
             strips_tester.data['db_connection'] = None
 
             # Send notification that TN is working OFFLINE!
-            send({"command": "offline", "value": "127.0.0.1"})
+            send({"command": "offline"})
 
     threading.Timer(5, send_ping).start()
 
 
 def get_ip_address():
-    #s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #s.connect(("8.8.8.8", 80))  # Connect to Google DNS
-    #ip = s.getsockname()[0]
-    ip = subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
-
-    return ip
+    return subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
 
 def update_address_info(server):
     port = server.serversocket.getsockname()[1]
@@ -169,9 +167,40 @@ def update_address_info(server):
 
     module_logger.info("[StripsTester] WebSocket server started on {}" . format(ip_address))
 
-def start_server():
-    server = SimpleWebSocketServer('', 0, SimpleChat)
+def start_server(port):
+    server = SimpleWebSocketServer('', port, SimpleChat)
 
     update_address_info(server)  # Store address info to DB
     send_ping()  # Signal DB that TN is alive
     server.serveforever()
+
+class MyTCPServer(socketserver.TCPServer):
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind(self.server_address)
+
+class HTTPServerHandler(http.server.SimpleHTTPRequestHandler):
+    ROUTES = [
+        ('/', 'index_local.html')
+    ]
+
+    # We like silence
+    def log_message(self, format, *args):
+        return
+
+    def translate_path(self, path):
+        # look up routes and get root directory
+        for patt, rootDir in HTTPServerHandler.ROUTES:
+            if path.startswith(patt):
+                path = path[len(patt):]
+
+                break
+
+        # new path
+        return "/strips_tester_project/StripsTester WEB/public/" + path
+
+# HTTP Server serves as GUI backup if main GUI is not available due to connection lost
+def start_http_server(port):
+    http_server = MyTCPServer(('127.0.0.1', port), HTTPServerHandler)
+    module_logger.info("[StripsTester] HTTP server started on port {}" . format(port))
+    http_server.serve_forever()
