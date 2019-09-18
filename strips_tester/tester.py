@@ -308,6 +308,8 @@ def update_database():
         date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
 
         if strips_tester.data['db_connection'] is not None:  # RemoteDB is accessible
+            test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
+
             # Lets print good tested today
             strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
             strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
