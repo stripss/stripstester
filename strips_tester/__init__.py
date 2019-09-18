@@ -12,6 +12,8 @@ import threading
 import pymongo
 import pymongo.errors
 import sqlite3
+import webbrowser
+import subprocess
 
 # Imported for catching SegmentationFault like errors
 import faulthandler
@@ -61,7 +63,7 @@ logger = initialize_logging(logging.DEBUG)
 settings = config_loader.Settings()
 
 # LocalDB initialisation
-data['db_local_connection'] = sqlite3.connect("stripstester.db")
+data['db_local_connection'] = sqlite3.connect("stripstester.db", check_same_thread=False)
 data['db_local_connection'].row_factory = sqlite3.Row
 data['db_local_cursor'] = data['db_local_connection'].cursor()
 
@@ -71,7 +73,7 @@ http_port = 80
 
 # Initiate Remote DB
 try:
-    data['db_connection'] = pymongo.MongoClient("mongodb://192.168.88.243:27017/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
+    data['db_connection'] = pymongo.MongoClient("mongodb://172.30.129.19:27017/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
     data['db_connection'].server_info()
 except pymongo.errors.ServerSelectionTimeoutError:
     data['db_connection'] = None
@@ -87,13 +89,14 @@ if data['db_connection'] is not None:
     test_worker_col = data['db_database']["test_worker"]
 
 # Websocket serves as pipeline between GUI and test device
-websocket = threading.Thread(target=gui_web.start_server,args=(websocket_port,))
+websocket = threading.Thread(target=gui_web.start_server, args=(websocket_port,))
 websocket.daemon = True
 websocket.start()
 
 # HTTPServer serves as backup server if main HTTP Server is not available
-httpserver = threading.Thread(target=gui_web.start_http_server,args=(http_port,))
+httpserver = threading.Thread(target=gui_web.start_http_server, args=(http_port,))
 httpserver.daemon = True
 httpserver.start()
 
-
+# Open webbrowser on RPi
+subprocess.Popen(['chromium-browser','--no-sandbox','http://localhost/index_local.html','--start-fullscreen'])

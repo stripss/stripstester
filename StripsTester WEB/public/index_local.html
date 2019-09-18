@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="/img/icon.ico">
+    <title>StripsTester OFFLINE</title>
+
+    <link rel="stylesheet" type="text/css" href="./css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="./css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay"
+          crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay"
+          crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="./css/index.css">
+
+    <script src="./plugins/jquery-3.4.1.min.js"></script>
+    <script src="./plugins/popper.min.js"></script>
+    <script src="./plugins/bootstrap.min.js"></script>
+    <script src="./plugins/jquery-ui.min.js"></script>
+    <script src="./plugins/moment.min.js"></script>
+    <script src="./plugins/moment-timezone.min.js"></script>
+    <script src="./plugins/jszip/dist/jszip.js"></script>
+    <script src="./plugins/jszip/dist/jszip.min.js"></script>
+    <script src="./plugins/FileSaver.min.js"></script>
+    <script src="./plugins/jquery.ui.touch-punch.min.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <nav class="navbar navbar-expand-md navbar-light bg-light">
+                <a href="../index.html"><img class="navbar-brand larger" src="/img/stripstester.gif" class="img-thumbnail"></a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-toggle" aria-controls="navbar-toggle" aria-expanded="false"
+                        aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <button  id="tn_shutdown" type="button" class="btn btn-danger" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
+                    napravo
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title float-right" id="exampleModalLongTitle">Izklop testne naprave</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Ali želite zaustaviti testno napravo ali izvesti ponovni zagon?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-dismiss="modal" id="reboot_yes"><i class="fas fa-sync"></i>Ponovni zagon</button>
+                    <button type="button" class="btn btn-danger float-right" data-dismiss="modal" id="shutdown_yes"><i class="fas fa-power-off"></i>Izklop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="custom_counter" data-backdrop="false">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="custom_counter_title">Pomožni števec</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="row">
+                        <div class="col">
+                            <div id="counter_comment_input">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon3">Komentar</span>
+                                    </div>
+
+                                    <input type="text" id="counter_comment" class="form-control" placeholder="Komentar štetja" aria-label="Komentar štetja" aria-describedby="basic-addon3"
+                                           value="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <div class="card text-center">
+                                <div class="card-header bg-success">
+                                    <h5 class="card-title">Uspešno testirani</h5>
+                                </div>
+
+                                <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                    <table class="table" align="center" style="margin-bottom: 0px;">
+                                        <tr style="display: none;">
+                                            <td id="good_count_custom_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                        </tr>
+                                        <tr>
+                                            <td id="good_count_custom" class="big-text"><p class="card-text">0</p>
+
+                                            </td>
+                                            <td style="white-space: nowrap; width: 1%; vertical-align: middle;">
+                                                <div class="custom_buttons">
+                                                    <button type="button" class="btn btn-primary btn-sm" id="good_custom_counter_button_up"><i class="fas fa-plus"></i></button>
+                                                    <button type="button" class="btn btn-primary btn-sm" id="good_custom_counter_button_down"><i class="fas fa-minus"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="card text-center">
+                                <div class="card-header bg-danger">
+                                    <h5 class="card-title">Neuspešno testirani</h5>
+                                </div>
+                                <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                    <table class="table" align="center" style="margin-bottom: 0px;">
+                                        <tr style="display: none;">
+                                            <td id="bad_count_custom_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                        </tr>
+                                        <tr>
+                                            <td id="bad_count_custom" class="big-text"><p class="card-text">0</p></td>
+                                            <td style="white-space: nowrap; width: 1%; vertical-align: middle;">
+                                                <div class="custom_buttons">
+                                                    <button type="button" class="btn btn-primary btn-sm" id="bad_custom_counter_button_up"><i class="fas fa-plus"></i></button>
+                                                    <button type="button" class="btn btn-primary btn-sm" id="bad_custom_counter_button_down"><i class="fas fa-minus"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary float-right" type="button" id="save_custom_counter_button"><i class="far fa-save"></i>Shrani</button>
+                    <button type="button" class="btn btn-success float-left" id="reset_custom_counter_button"><i class="fab fa-creative-commons-zero"></i>Ponastavi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col">
+                                <h1 id="gui_device_name" class="text-center">Testna naprava</h1>
+                            </div>
+                        </div>
+                        <div id="dynamic_gui">
+
+                        </div>
+                        <div id="custom_html">
+
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-success">
+                                        <h5 class="card-title">Uspešno testirani</h5>
+                                    </div>
+
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td id="good_count_today_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                                <td id="good_count_title" style="border-top: 0px;">Skupaj <span id="delta"></span></td>
+                                            </tr>
+                                            <tr>
+                                                <td id="good_count_today" class="big-text"><p class="card-text"></p></td>
+                                                <td id="good_count_text" class="big-text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="card text-center">
+                                    <div class="card-header bg-danger">
+                                        <h5 class="card-title">Neuspešno testirani</h5>
+                                    </div>
+                                    <div class="card-body" style="padding-top: 0px; padding-bottom: 0px;">
+                                        <table class="table" align="center" style="margin-bottom: 0px;">
+                                            <tr>
+                                                <td id="bad_count_today_title" style="border-top: 0px;">Danes <span id="delta"></span></td>
+                                                <td id="bad_count_title" style="border-top: 0px;">Skupaj <span id="delta"></span></td>
+                                            </tr>
+                                            <tr>
+                                                <td id="bad_count_today" class="big-text"><p class="card-text"></p></td>
+                                                <td id="bad_count_text" class="big-text"><p class="card-text"></p></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="set_worker_data_accordion" style="margin-top: 10px; margin-bottom: 10px;">
+                            <div class="card">
+                                <div class="card-header" id="headingOne">
+                                    <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                                        <button class="btn btn-light" data-toggle="collapse" data-target="#set_worker_data_collapse" aria-expanded="true" aria-controls="set_worker_data_collapse">
+                                            <i class="fas fa-angle-double-down"></i> Nastavitve delavca
+                                        </button>
+                                    </h5>
+                                    <span id="current"></span>
+                                    <h5 style="display: inline; margin-left: 10px;" class="mb-0">
+                                        <button id="custom_counter_button" type="button" class="btn btn-light"><i class="fas fa-sort-numeric-up"></i>Pomožni števec</button>
+                                        <button id="tilt_semaphore" type="button" class="btn btn-light"><i class="fas fa-undo"></i>Zavrti semafor</button>
+                                    </h5>
+                                </div>
+
+                                <div id="set_worker_data_collapse" class="collapse" aria-labelledby="headingOne" data-parent="#set_worker_data_accordion">
+                                    <div class="card-body">
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text" id="basic-addon1">ID</span>
+                                            </div>
+                                            <input type="text" id="worker_id" class="form-control" placeholder="Identifikacija" aria-label="Identifikacija" aria-describedby="basic-addon1"
+                                                   value="Neznan">
+                                        </div>
+
+
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" for="inputGroupSelect01">Tip testiranja</label>
+                                            </div>
+                                            <select class="custom-select" id="worker_type">
+                                                <option value="0" selected>Redna proizvodnja</option>
+                                                <option value="1">Kosi iz popravila</option>
+                                                <option value="2">Analiza reklamacije</option>
+                                                <option value="3">Ostalo</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="comment-input">
+                                            <div class="input-group mb-3">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text" id="basic-addon2">Komentar</span>
+                                                </div>
+                                                <input type="text" id="worker_comment" class="form-control" placeholder="Komentar testa" aria-label="Komentar testa" aria-describedby="basic-addon2"
+                                                       value="">
+                                            </div>
+                                        </div>
+
+                                        <button type="button" class="btn btn-primary" id="save_worker_data"><i class="far fa-save"></i>Shrani</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <nav class="footer navbar navbar-light bg-light" style="width: inherit;">
+                <ul class="nav navbar-nav" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link disabled" style="font-size: 12px;">Made by Marcel Jančar | StripsTester &copy; | v1.2</a>
+                    </li>
+                </ul>
+                <a href="../index.html"><img class="navbar-brand larger" src="/img/strips.gif" class="img-thumbnail" align="right"></a>
+            </nav>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
+
+
+<script>
+    $(document).ready(function () {
+        $('#settings_page').hide();
+        $('#plotsite').hide();
+        $("#test_device_more").hide();
+
+        $("#custom_counter_button").click(function () {
+            if ($("#custom_counter").is(":visible")) {
+                $('#custom_counter').modal('hide');
+            } else {
+                $('#custom_counter').modal('show');
+                $('body').css("overflow", "auto");
+                $('#custom_counter .modal-dialog').draggable({
+                    handle: ".modal-header"
+                });
+            }
+        });
+
+        $("#tilt_semaphore").click(function () {
+            $.each($.find(".semaphore .tile"), function (index, value) {
+                $(value).toggleClass("tilt");
+            });
+        });
+
+        $("#good_custom_counter_button_up").click(function () {
+            var old_value = $('#custom_counter #good_count_custom p').text();
+
+            old_value++;
+
+            $('#custom_counter #good_count_custom p').css("color", "#9c9c9c");
+            $('#custom_counter #good_count_custom p').html(old_value);
+        });
+
+        $("#good_custom_counter_button_down").click(function () {
+            var old_value = $('#custom_counter #good_count_custom p').text();
+
+            old_value--;
+
+            if (old_value < 0) old_value = 0;
+            else $('#custom_counter #good_count_custom p').css("color", "#9c9c9c");
+
+            $('#custom_counter #good_count_custom p').html(old_value);
+        });
+
+        $("#bad_custom_counter_button_up").click(function () {
+            var old_value = $('#custom_counter #bad_count_custom p').text();
+
+            old_value++;
+
+            $('#custom_counter #bad_count_custom p').css("color", "#9c9c9c");
+            $('#custom_counter #bad_count_custom p').html(old_value);
+        });
+
+        $("#bad_custom_counter_button_down").click(function () {
+            var old_value = $('#custom_counter #bad_count_custom p').text();
+
+            old_value--;
+
+            if (old_value < 0) old_value = 0;
+            else $('#custom_counter #bad_count_custom p').css("color", "#9c9c9c");
+
+            $('#custom_counter #bad_count_custom p').html(old_value);
+        });
+
+        $("#reset_custom_counter_button").click(function () {
+            sendJSON({"command": "count_custom", "good_custom": 0, "bad_custom": 0, "comment_custom": ""});
+        });
+
+        $("#save_custom_counter_button").click(function () {
+            var good_custom = parseInt($('#custom_counter #good_count_custom p').text());
+            var bad_custom = parseInt($('#custom_counter #bad_count_custom p').text());
+            var comment_custom = $("#counter_comment").val();
+
+            sendJSON({"command": "count_custom", "good_custom": good_custom, "bad_custom": bad_custom, "comment_custom": comment_custom});
+        });
+
+        $('#worker_type').change(function () {
+            if ($(this).val() == 3) {
+                $('#comment-input').fadeIn('fast');
+            } else {
+
+                $('#comment-input').fadeOut('fast', function () {
+                    $('#worker_comment').val("");
+                });
+            }
+        });
+
+        Object.size = function (obj) {
+            var size = 0, key;
+            for (key in obj) {
+                if (obj.hasOwnProperty(key)) size++;
+            }
+            return size;
+        };
+
+        wsOpen("Lokalno","127.0.0.1:8000");
+
+        // Make stopwatches for nests
+        var stopwatch = [];
+        var threaded = false;
+        var blinker = [];
+
+        function wsOpen(name, address) {
+            try {
+                // Try close preopened socket
+                try {
+                    socket.close();
+                } catch (error) {
+                    // Silence.
+                }
+
+                socket = new WebSocket("ws://" + address);
+
+                socket.onopen = function () {
+                    $("#dynamic_gui").empty();
+
+                    $("#profile-tab").removeClass("disabled");
+                    $("#database-tab").removeClass("disabled");
+
+                    // Redirect to GUI
+                    $('#myTab a[href="#profile"]').tab('show')
+
+                    $('#tn_shutdown').fadeIn("fast");
+                };
+
+                socket.onerror = function () {
+                    handleError(name, "<span style='color: red;'>Napaka pri povezavi. <i class='fas fa-times'></i></span>");
+                };
+
+                socket.onmessage = function (message) {
+                    if (!message.data) return;
+
+                    onMessage(JSON.parse(message.data));
+                };
+
+                socket.onclose = function () {
+                    handleError(name, "Odjavljen");
+                };
+
+            } catch (error) {
+                handleError(name, "<span style='color: red;'>Napaka pri povezovanju <i class='fas fa-times'></i></span>");
+            }
+        }
+
+        function handleError(name, message) {
+            $("#profile-tab").addClass("disabled");
+            $('#myTab a[href="#home"]').tab('show')
+            $('#tn_shutdown').fadeOut("fast");
+            $('#custom_counter').modal('hide');
+
+            document.title = "StripsTester OFFLINE";
+
+            // Clear existing timers
+            for (var timer = 0; timer < stopwatch.length; timer++) {
+                stopwatch[timer].reset();  // Clear all intervals
+            }
+            stopwatch = [];
+
+            // Clear existing timers
+            for (var blink = 0; blink < blinker.length; blink++) {
+                clearInterval(blinker[blink]);  // Clear all intervals
+            }
+            blinker = [];
+        }
+
+        function sendJSON(txt) {
+            socket.send(JSON.stringify(txt));
+        }
+
+        String.prototype.replaceAll = function (search, replacement) {
+            var target = this;
+            return target.replace(new RegExp(search, 'g'), replacement);
+        };
+
+        function onMessage(data) {
+            if (data instanceof Array) { // Refractor data
+                for (let i = 0; i < data.length; i++) onMessage(data[i]);
+                return;
+            }
+
+            console.log(data);
+
+            try {
+                onCustomMessage(data);
+                // Custom functions found in custom parser of TN!
+            }
+            catch (error) {
+                // Silence. Custom functions not found.
+            }
+
+            // Custom counter data incoming from test device.
+            if (data.command == "count_custom") {
+                $('#custom_counter #good_count_custom p').fadeOut("fast", function () {
+                    $('#custom_counter #good_count_custom p').css("color", "black");
+                    $('#custom_counter #good_count_custom p').html(data.good_custom);
+                });
+                $('#custom_counter #good_count_custom p').fadeIn("fast");
+
+                $('#custom_counter #bad_count_custom p').fadeOut("fast", function () {
+                    $('#custom_counter #bad_count_custom p').css("color", "black");
+                    $('#custom_counter #bad_count_custom p').html(data.bad_custom);
+                });
+                $('#custom_counter #bad_count_custom p').fadeIn("fast");
+
+                $("#counter_comment").val(data.comment_custom);
+
+            }
+
+            if (data.command == "count") {
+                var good_count = data.good_count;
+                var good_count_today = data.good_count_today;
+                var bad_count = data.bad_count;
+                var bad_count_today = data.bad_count_today;
+
+                if (!good_count && !bad_count) {  // No calculations yet
+                    $('#good_count_title #delta').hide();
+                    $('#bad_count_title #delta').hide();
+                } else {
+                    var percent_good_count = Math.round((good_count / (bad_count + good_count)) * 100.0);
+                    var percent_bad_count = 100 - percent_good_count;
+
+                    $('#good_count_title #delta').fadeOut("fast", function () {
+                        $('#good_count_title #delta').html("(" + percent_good_count + "%)");
+                    });
+                    $('#good_count_title #delta').fadeIn("fast");
+
+                    $('#bad_count_title #delta').fadeOut("fast", function () {
+                        $('#bad_count_title #delta').html("(" + percent_bad_count + "%)");
+                    });
+                    $('#bad_count_title #delta').fadeIn("fast");
+                }
+
+                if (!good_count_today && !bad_count_today) {  // No calculations yet
+                    $('#good_count_today_title #delta').hide();
+                    $('#bad_count_today_title #delta').hide();
+                } else {
+                    var percent_good_count_today = Math.round((good_count_today / (bad_count_today + good_count_today)) * 100.0);
+                    var percent_bad_count_today = 100 - percent_good_count_today;
+
+
+                    $('#good_count_today_title #delta').fadeOut("fast", function () {
+                        $('#good_count_today_title #delta').html("(" + percent_good_count_today + "%)");
+                    });
+                    $('#good_count_today_title #delta').fadeIn("fast");
+
+                    $('#bad_count_today_title #delta').fadeOut("fast", function () {
+                        $('#bad_count_today_title #delta').html("(" + percent_bad_count_today + "%)");
+                    });
+                    $('#bad_count_today_title #delta').fadeIn("fast");
+                }
+
+
+                $('#good_count_text p').fadeOut("fast", function () {
+                    $('#good_count_text p').html(good_count);
+                });
+                $('#good_count_text p').fadeIn("fast");
+
+
+                $('#bad_count_text p').fadeOut("fast", function () {
+                    $('#bad_count_text p').html(bad_count);
+                });
+                $('#bad_count_text p').fadeIn("fast");
+
+                $('#good_count_today p').fadeOut("fast", function () {
+                    $('#good_count_today p').html(good_count_today);
+                });
+                $('#good_count_today p').fadeIn("fast");
+
+
+                $('#bad_count_today p').fadeOut("fast", function () {
+                    $('#bad_count_today p').html(bad_count_today);
+                });
+                $('#bad_count_today p').fadeIn("fast");
+            }
+
+            if (data.command == "semafor") {
+                var nest_id = data.nest;
+
+                if (data.nest == null) nest_id = 0;
+
+                var state = data.value;  // Array e.g. [0,1,1]
+                var blink = data.blink;  // Array e.g. [0,1,1]
+
+                if (state != null) {
+                    if (!state[0]) {
+                        $('#semafor' + (nest_id + 1) + ' .red').addClass("red-off");
+                        $('#semafor' + (nest_id + 1) + ' .red').removeClass("red-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .red').addClass("red-on");
+                        $('#semafor' + (nest_id + 1) + ' .red').removeClass("red-off");
+                    }
+
+                    if (!state[1]) {
+                        $('#semafor' + (nest_id + 1) + ' .yellow').addClass("yellow-off");
+                        $('#semafor' + (nest_id + 1) + ' .yellow').removeClass("yellow-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .yellow').addClass("yellow-on");
+                        $('#semafor' + (nest_id + 1) + ' .yellow').removeClass("yellow-off");
+                    }
+
+                    if (!state[2]) {
+                        $('#semafor' + (nest_id + 1) + ' .green').addClass("green-off");
+                        $('#semafor' + (nest_id + 1) + ' .green').removeClass("green-on");
+                    } else {
+                        $('#semafor' + (nest_id + 1) + ' .green').addClass("green-on");
+                        $('#semafor' + (nest_id + 1) + ' .green').removeClass("green-off");
+                    }
+                }
+
+                if (blink != null) {
+                    function isZero(element) {
+                        return element === 0;
+                    }
+
+                    clearInterval(blinker[nest_id]);
+
+                    if (!blink.every(isZero)) {
+                        blinker[nest_id] = setInterval(function (nest_id, blink) {
+
+                            if (blink[0]) {
+                                $('#semafor' + (nest_id + 1) + ' .red').toggleClass("red-on");
+                                $('#semafor' + (nest_id + 1) + ' .red').toggleClass("red-off");
+                            }
+
+                            if (blink[1]) {
+                                $('#semafor' + (nest_id + 1) + ' .yellow').toggleClass("yellow-on");
+                                $('#semafor' + (nest_id + 1) + ' .yellow').toggleClass("yellow-off");
+                            }
+
+                            if (blink[2]) {
+                                $('#semafor' + (nest_id + 1) + ' .green').toggleClass("green-on");
+                                $('#semafor' + (nest_id + 1) + ' .green').toggleClass("green-off");
+                            }
+                        }, 300, nest_id, blink);
+                    }
+                }
+            }
+
+
+            if (data.command == "threaded") {  // Determine if nests are threaded
+                threaded = data.value;
+            }
+
+            if (data.command == "error") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+
+                nest_id++;
+
+                if (data.value == -1) {
+                    $("#nest_error" + nest_id + " #error_list").hide();
+
+                    $("#nest_error" + nest_id + " #error_list").html(""); // Clean fields
+
+                    if (!$("#error_collapse br").length) {
+                        $("#error_collapse").collapse('hide');
+                        $("#error_count").hide();
+                    }
+
+                    $("#error_count").html($("#error_collapse br").length);
+                } else {
+                    //var html = "- " + data.value + "<br>";
+                    $("#nest_info" + nest_id + " #info_list").show();
+                    $("#nest_error" + nest_id + " #error_list").show();
+                    //$(html).appendTo("#error_list p").fadeIn("fast");
+
+
+                    if (data.type == "image") $("#nest_error" + nest_id + " #error_list").append("<img class='image' src='data:image/jpg;base64, " + data.value + "' /><br>");
+                    else $("#nest_error" + nest_id + " #error_list").append("- " + data.value + "<br>");
+
+                    if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image downloadable' src='data:image/jpg;base64, " + data.value + "' /><br>");
+                    else $("#nest_info" + nest_id + " #info_list").append("<span style='color: red;'>- " + data.value + "</span><br>");
+
+                    $("#error_count").html($("#error_collapse br").length);
+                    $("#error_count").show();
+                    $("#info_count").html($("#info_collapse br").length);
+                    $("#info_count").show();
+
+                    $("#error_collapse").collapse('show');
+                }
+            }
+
+            if (data.command == "info") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+
+                nest_id++;
+
+                if (data.value == -1) {
+                    $("#nest_info" + nest_id + " #info_list").hide()
+                    $("#nest_info" + nest_id + " #info_list").html(""); // Clean fields
+
+                    if (!$("#info_collapse br").length) {
+                        $("#info_collapse").collapse('hide');
+                        $("#info_count").hide();
+                    }
+
+                    $("#info_count").html($("#info_collapse br").length);
+                } else {
+                    $("#nest_info" + nest_id + " #info_list").show();
+
+                    if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image downloadable' src='data:image/jpg;base64, " + data.value + "' /><br>");
+                    else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>");
+
+                    $("#info_count").html($("#info_collapse br").length);
+                    $("#info_count").show();
+                }
+            }
+
+            if (data.command == "status") {
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+                nest_id++;
+
+                // If nests are threaded, show only main status
+                if (!threaded) nest_id = 0;
+
+                $("#nest_status" + nest_id).fadeOut("fast", function () {
+                    $("#nest_status" + nest_id).html(data.value);
+                });
+
+                $("#nest_status" + nest_id).fadeIn("fast");
+            }
+
+            if (data.command == "nests") {
+                var nests = data.value;
+
+                for (var timer = 0; timer < nests; timer++) {  // Make timers plus one (for non-threaded TN)
+                    stopwatch[timer] = new Stopwatch(timer);
+                    stopwatch[timer].reset();
+                }
+
+                for (var blink = 0; blink < nests; blink++) {  // Make timers plus one (for non-threaded TN)
+                    clearInterval(blinker[blink]);
+                }
+
+                $("#dynamic_gui").load("elements/template1.html", function () {
+
+                    if (threaded) $('#nest_time_container0').hide();
+                    else $('#nest_time_container0').show();
+                    $.get("elements/semafor.html", function (data) {
+                        for (var current_nest = 0; current_nest < nests; current_nest++) {
+
+                            var data_temp = data.replaceAll('{id}', current_nest + 1);
+                            $("#semaphores").append(data_temp);
+
+                            if (!threaded) {
+                                $('#nest_time_container' + (current_nest + 1)).hide();
+                            } else {
+                                $('#nest_time_container' + (current_nest + 1)).show();
+                            }
+                        }
+                    });
+
+                    $.get("elements/nest_info.html", function (data) {
+                        for (var current_nest = 0; current_nest < nests; current_nest++) {
+                            data_temp = data.replaceAll('{id}', current_nest + 1);
+                            data_temp = data_temp.replaceAll('{type}', "error");
+                            data_temp = data_temp.replaceAll('{style}', "danger");
+                            $("#errors").append(data_temp);
+
+                            var data_temp = data.replaceAll('{id}', current_nest + 1);
+                            data_temp = data_temp.replaceAll('{type}', "info");
+                            data_temp = data_temp.replaceAll('{style}', "info");
+                            $("#infos").append(data_temp);
+                        }
+
+                        $("#errors #error_list").each(function () {
+                            $(this).hide();
+                        })
+
+                        $("#infos #info_list").each(function () {
+                            $(this).hide();
+                        })
+                    });
+                });
+            }
+            if (data.command == "title") {
+                document.title = data.value + " OFFLINE";
+
+                $("#gui_device_name").fadeOut("fast", function (event) {
+                    $("#gui_device_name").html("Testna naprava " + data.value);
+                });
+
+                $("#gui_device_name").fadeIn("fast");
+            }
+
+            if (data.command == "progress") {
+                var nest_id = data.nest;
+
+                if (data.nest == null) nest_id = 0;
+                else nest_id = data.nest;
+                nest_id++;
+
+                if (data.value > 1) {
+                    $('#semafor' + nest_id + " #info").fadeOut(100, function (event) {
+                        $('#semafor' + nest_id + " #info").html(data.value + "%");
+                    });
+
+                    $('#semafor' + nest_id + " #info").fadeIn(100);
+                }
+                else {
+                    $('#semafor' + nest_id + " #info").fadeOut(100, function (event) {
+                        $('#semafor' + nest_id + " #info").html("");
+                    });
+
+                    $('#semafor' + nest_id + " #info").fadeIn(100);
+                }
+            }
+
+            // Change custom HTML depending on test device
+            if (data.command == "html") {
+                if (data.value) {
+                    $('#custom_html').append(data.value);
+                } else {
+                    $('#custom_html').html("");
+                }
+            }
+
+
+            if (data.command == "set_worker_data") {  // Change custom HTML  DB depending on test device
+                // Retrieve worker data from test device
+                var worker_id = data.worker_id;
+                var worker_type = data.worker_type;
+                var worker_comment = data.worker_comment;
+
+                // Set current worker and type on GUI
+                $('#worker_id').val(worker_id);
+                $('#worker_type').val(worker_type);
+
+                if (worker_type == 3) {
+                    $('#worker_comment').val(worker_comment);
+                    $('#comment-input').fadeIn('fast');
+                } else {
+                    $('#comment-input').fadeOut('fast', function () {
+                        $('#worker_comment').val("");
+                    });
+                }
+
+                $('#set_worker_data_accordion #current').fadeOut("fast", function (event) {
+                    $('#set_worker_data_accordion #current').html("Trenutni: " + worker_id);
+                });
+                $('#set_worker_data_accordion #current').fadeIn("fast");
+
+                $("#custom_counter_title").html("Pomožni števec za delavca #" + worker_id);
+            }
+
+
+            if (data.command == "time") {
+                // Retrieve worker data from test device
+                var mode = data.mode;
+                var nest_id;
+
+                if (data.nest == null) nest_id = 0;  // Use first timer if is signle-threaded
+                else nest_id = data.nest;
+
+                if (mode == "reset") {
+                    stopwatch[nest_id].reset();
+                } else if (mode == "start") {
+                    stopwatch[nest_id].reset();
+                    stopwatch[nest_id].start();
+                } else if (mode == "duration") {
+                    stopwatch[nest_id].stop(data.value);
+                }
+            }
+        }
+
+
+        $("#shutdown_yes").click(function () {
+            sendJSON({"command": "shutdown"});
+        });
+
+        $("#reboot_yes").click(function () {
+            sendJSON({"command": "reboot"});
+        });
+
+        $("#save_worker_data").click(function () {
+            var worker_id = parseInt($("#worker_id").val());
+            var worker_type = parseInt($("#worker_type").find("option:selected").val());
+            var worker_comment = $("#worker_comment").val();
+
+            if (worker_id < -1 || worker_id > 99 || isNaN(worker_id)) worker_id = -1;
+
+            sendJSON({"command": "save_worker_data", "worker_id": worker_id, "worker_type": worker_type, "worker_comment": worker_comment});
+        });
+
+
+        function Stopwatch(id) {
+            var startTime, endTime, instance = this, interval, nest = id;
+
+            this.start = function () {
+                startTime = new Date();
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                // Show timer
+                interval = setInterval(function () {
+                    var duration = (new Date() - startTime) / 1000;
+                    var seconds = Math.round(duration % 60);
+                    // remove seconds from the date
+                    duration = Math.floor(duration / 60);
+                    // get minutes
+                    var minutes = Math.round(duration % 60);
+                    // remove minutes from the date
+                    duration = Math.floor(duration / 60);
+                    // get hours
+                    var hours = Math.round(duration % 24);
+
+                    $('#nest_time' + id).html(pad(hours, 2) + ":" + pad(minutes, 2) + ":" + pad(seconds, 2));
+                }, 1000);
+
+            };
+
+            this.stop = function (seconds) {
+                clearInterval(interval);  // Stop updating timer
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                // Povecaj pisavo
+                duration_secs = Math.round(seconds);
+
+                var text_nice = "sekund";
+                if (duration_secs == 1) text_nice = "sekunda";
+                else if (duration_secs == 2) text_nice = "sekundi";
+                else if (duration_secs == 3) text_nice = "sekunde";
+
+                $('#nest_time' + id).fadeOut("fast", function (event) {
+                    $('#nest_time' + id).html('<b>' + duration_secs + ' ' + text_nice + '</b>');
+                });
+                $('#nest_time' + id).fadeIn("fast");  // Show elapsed
+            }
+
+            this.reset = function () {
+                startTime = null;
+                endTime = null;
+                clearInterval(interval);  // Stop updating timer
+
+                if (!threaded) {
+                    if (nest > 0) return;
+                    else id = 0;
+                }
+                else {
+                    id = nest + 1;
+                }
+
+                $('#nest_time' + id).fadeOut("fast", function (event) {
+                    $('#nest_time' + id).html('00:00:00');
+                });
+                $('#nest_time' + id).fadeIn("fast"); // Show 00:00:00
+            }
+        }
+
+        function pad(n, width, z) {
+            z = z || '0';
+            n = n + '';
+            return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+        }
+    })
+    ;
+</script>

@@ -77,6 +77,32 @@ h1 {
     .jumbotron {
         padding: 1rem 1rem;
     }
+
+    .card-title {
+        font-size: 15px;
+    }
+
+    .btn {
+        font-size: 13px !important;
+    }
+
+    .card-header #current {
+        display: block;
+        font-size: 13px;
+    }
+
+    #tn_shutdown {
+        margin: auto;
+        margin-top: 10px;
+    }
+}
+
+#tn_shutdown {
+    font-size: 13px;
+}
+
+.nav-link {
+    font-size: 18px;
 }
 
 .big-text {
@@ -104,7 +130,7 @@ html, body {
     height: 100%;
 }
 
-.fa-power-off, .fa-save, .fa-cog, .fa-sync, .fa-angle-double-down, .fa-sign-out-alt, .fa-sign-in-alt, .fa-trash-alt, .fa-plug {
+.fa-power-off, .fa-save, .fa-cog, .fa-sync, .fa-angle-double-down, .fa-sign-out-alt, .fa-sign-in-alt, .fa-trash-alt, .fa-plug, .fa-sort-numeric-up, .fa-creative-commons-zero, .fa-undo {
     padding-right: 10px;
 }
 
@@ -190,4 +216,25 @@ html, body {
 
 #test_device_more {
     margin-bottom: 20px;
+}
+
+#online_test_device_list .card {
+    cursor: pointer;
+}
+
+#custom_counter {
+  position: relative;
+}
+
+#custom_counter .modal-dialog {
+  position: fixed;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+}
+
+.custom_buttons .btn {
+    display: block;
+    margin-bottom: 5px;
+    margin-top: 5px;
 }

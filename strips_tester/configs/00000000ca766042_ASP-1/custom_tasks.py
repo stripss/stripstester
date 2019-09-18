@@ -51,7 +51,7 @@ class StartProcedureTask(Task):
 
 class ReadSerial(Task):
     def set_up(self):
-        self.scanner = devices.Honeywell1400(path="/dev/hidraw0")
+        self.scanner = devices.Honeywell1400(path="/dev/hidraw2")
 
     def run(self):
         self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
@@ -91,7 +91,7 @@ class PowerTest(Task):
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
 
         # Start counting, clear GUI
-        self.start_test()
+        self.start_test(0)
 
         # Set relays to NO
         GPIO.output(gpios['12V_AC'], GPIO.LOW)
@@ -157,8 +157,8 @@ class PowerTest(Task):
         expected = (min_current + max_current) / 2
         tolerance = abs(min_current - max_current) / 2
 
-        print("Expected: {}" . format(expected))
-        print("Tolerance: {}" . format(tolerance))
+        #print("Expected: {}" . format(expected))
+        #print("Tolerance: {}" . format(tolerance))
         current = self.ammeter.read()
         gui_web.send({"command": "measurements", "ammeter": round(current,2)})
         while not self.in_range(current, expected, tolerance, False):
@@ -224,10 +224,6 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
 
-        time.sleep(1)
-
-        GPIO.output(gpios['BUZZER'], GPIO.LOW)
-
         # Set relays to NO
         GPIO.output(gpios['12V_AC'], GPIO.LOW)
         GPIO.output(gpios['12V_DC'], GPIO.LOW)
@@ -235,6 +231,10 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['24V_DC'], GPIO.LOW)
         GPIO.output(gpios['48V_AC'], GPIO.LOW)
         GPIO.output(gpios['48V_DC'], GPIO.LOW)
+
+        time.sleep(1)
+
+        GPIO.output(gpios['BUZZER'], GPIO.LOW)
 
         # Wait for lid to open
         while not self.lid_closed():

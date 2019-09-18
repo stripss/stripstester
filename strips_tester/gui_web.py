@@ -52,6 +52,7 @@ class SimpleChat(WebSocket):
                 if strips_tester.data['db_connection'] is not None:
                     test_device_col = strips_tester.data['db_database']["test_device"]
                     test_worker_col = strips_tester.data['db_database']["test_worker"]
+
                     test_device_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']}})
 
                     try:
@@ -59,7 +60,7 @@ class SimpleChat(WebSocket):
                         strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
                         strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
 
-                    except IndexError:  # Pass exceptions if record does not exist in database
+                    except (IndexError, TypeError):  # Pass exceptions if record does not exist in database
                         strips_tester.data['good_custom'] = 0
                         strips_tester.data['bad_custom'] = 0
                         strips_tester.data['comment_custom'] = ""
@@ -68,31 +69,28 @@ class SimpleChat(WebSocket):
                 send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
                 send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
+            # Set custom counter data
             if "count_custom" in data['command']:
-                if strips_tester.data['db_connection'] is not None:
+                strips_tester.data['good_custom'] = data['good_custom']
+                strips_tester.data['bad_custom'] = data['bad_custom']
+                strips_tester.data['comment_custom'] = data['comment_custom']
+
+                if strips_tester.data['db_connection'] is not None:  # RemoteDB is accessible
                     # Get current worker
                     test_worker_col = strips_tester.data['db_database']["test_worker"]
 
-                    # Reset worker custom counter data
-                    test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": data['good_custom'], "bad": data['bad_custom'], "comment": data['comment_custom']}}, True)
+                    # Set worker custom counter data (if not exist -> insert new column)
+                    test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": strips_tester.data['good_custom'], "bad": strips_tester.data['bad_custom'], "comment": strips_tester.data['comment_custom']}}, True)
 
-                    try:
-                        # Get latest info from DB
-                        strips_tester.data['good_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                        strips_tester.data['bad_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-                        strips_tester.data['comment_custom'] = test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
-
-                    except Exception:
-                        pass
-
-                # Broadcast new data
+                # Broadcast new custom counter data
                 send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
             if custom_parser:
                 Parser = getattr(parser, "Parser")
                 parser_in = Parser()
                 parser_in.parse(self, data)  # Parse command depending on test device
-        except Exception as e:
+
+        except Exception as e:  # Error handle in this thread
             module_logger.error(e)
 
     def handleConnected(self):
@@ -103,7 +101,7 @@ class SimpleChat(WebSocket):
         try:
             with open(strips_tester.settings.test_dir + '/custom.html', 'r') as custom_html:
                 sendTo(self, {"command": "html", "value": custom_html.read()})
-        except IOError:
+        except IOError:  # Do nothing if file does not exist
             pass
 
         sendTo(self, {"command": "threaded", "value": strips_tester.settings.thread_nests})  # Tell GUI if tester is threaded
@@ -144,7 +142,7 @@ def send_ping():
             strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
 
         except pymongo.errors.NetworkTimeout:
-            module_logger.error("Lost connection to DB, switching to Local DB")
+            module_logger.error("Lost connection to RemoteDB - switching to LocalDB")
 
             strips_tester.data['db_connection'] = None
 

@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+          crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay"
+          crossorigin="anonymous">
+
+    <link rel="stylesheet" type="text/css" href="/utils/manipulator/style.css">
+    <link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <title>StripsTester - Mask manipulator</title>
+
+    <script
+            src="https://code.jquery.com/jquery-3.4.1.js"
+            integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+            crossorigin="anonymous"></script>
+    <script src="/plugins/jquery-ui-1.12.1/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+            crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+
+    <script src="/plugins/opencv.js" type="text/javascript"></script>
+
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-3">
+            <div class="card text-white bg-dark">
+                <h5 class="card-header">
+                    SIDEBAR
+                </h5>
+                <div class="card-body">
+
+                    <h5 class="card-title">OPTIONS</h5>
+                    <p class="card-text" style="margin-bottom: 0px;">
+                        <label for="load_image_file" class="btn btn-primary">Load images</label>
+                    <div class="input-group" style="display: none;">
+                        <div class="custom-file">
+                            <input type="file" id="load_image_file" aria-describedby="inputGroupFileAddon01" webkitdirectory directory multiple>
+                        </div>
+                    </div>
+                    <!--<button type="button" class="btn btn-primary" id="add_new_mask">Add new mask</button>-->
+
+                    <label for="load_mask_file" class="btn btn-primary disabled">Load mask</label>
+                    <div class="input-group" style="display: none;">
+                        <div class="custom-file">
+                            <input type="file" id="load_mask_file" aria-describedby="inputGroupFileAddon02">
+                        </div>
+                    </div>
+                    <br>
+                    <button type="button" class="btn btn-primary disabled" id="save_mask">Save mask</button>
+                    <br>
+
+                    <button type="button" class="btn btn-primary disabled" id="prev_image">Previous image</button>
+
+                    <button type="button" class="btn btn-primary disabled" id="next_image">Next image</button>
+
+                    </p>
+
+                    <h5>HSV Colorspace</h5>
+                    <p>Using only the Hue component makes the algorithm less sensitive (if not invariant) to lighting variations.</p>
+                    <img src="hsv.png" class="text-center" style="width: 100%;"/>
+                </div>
+            </div>
+
+            <div class="copyright">
+                <img src="/img/strips.gif"/>
+                <div class="text-center">Made by Marcel Jančar</div>
+            </div>
+        </div>
+
+        <div class="col-9">
+            <div class="card text-white bg-dark">
+                <h5 class="card-header">
+                    <div class="row">
+                        <div class="col-4 float-left">
+                            <button type="button" class="btn btn-secondary" id="prev_mask"><i class="fas fa-backward"></i></button>
+                        </div>
+                        <div class="col-4 text-center current_mask_title"></div>
+                        <div class="col-4 text-right">
+                            <button type="button" class="btn btn-secondary" id="next_mask"><i class="fas fa-forward"></i></button>
+                        </div>
+                    </div>
+                </h5>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-4">
+                            <h5 class="card-title">Mask</h5>
+
+                            <div class="row" id="mask_container">
+                                <div class="col-auto status"></div>
+                                <div class="col mask-text" id="current_mask_info">Mask coverage <span id="mask_coverage_percent"></span></div>
+                            </div>
+                            <br>
+                            <button class="btn btn-success" id="select_whole_mask_button">Select whole mask</button>
+                            <button class="btn btn-success" id="select_vertex_current_color_button">Set vertex current colors</button>
+
+                            <h5 class="card-title">Vertices</h5>
+                            <p class="card-text">
+                            <div id="vertex_list">
+                                Upload new images and open a mask.
+                            </div>
+                            <div id="roi_image">
+                                <canvas id="roi_image_canvas"></canvas>
+                                <p id="binary_stats"></p>
+                            </div>
+                            </p>
+                        </div>
+                        <div class="col-8 vertex-info">
+                            <h5 class="card-title">Vertex info</h5>
+                            <p class="card-text">
+                            <div class="row" id="slider-container">
+                                <div class="col">
+
+                                    <input type="text" id="input_hue1" size="3" class="form-control small-form" placeholder="HUE"><div id="hue1"></div>
+                                    <input type="text" id="input_sat1" size="3" class="form-control small-form" placeholder="SAT"><div id="sat1"></div>
+                                    <input type="text" id="input_val1" size="3" class="form-control small-form" placeholder="VAL"><div id="val1"></div>
+
+                                </div>
+                                <div class="col">
+                                     <input type="text" id="input_hue2" size="3" class="form-control small-form" placeholder="HUE"><div id="hue2"></div>
+                                    <input type="text" id="input_sat2" size="3" class="form-control small-form" placeholder="SAT"><div id="sat2"></div>
+                                    <input type="text" id="input_val2" size="3" class="form-control small-form" placeholder="VAL"><div id="val2"></div>
+
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <br>
+                                    <div class="wrapper" style="position: relative;">
+                                        <img id="current_image" style="position: absolute;" class="current_image" class="text-center">
+                                        <div class="points" id="points" style="position: absolute;">
+
+                                        </div>
+
+
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <canvas id="thresholded" class="current_image" class="text-center"></canvas>
+                                </div>
+                            </div>
+
+
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+
+</body>
+</html>
+
+<script type="text/javascript">
+    var mask = [];
+    var images = [];
+    var images_names = [];
+    var selected_mask = 0;
+    var selected_vertex = 0;
+    var img_index = 0;
+    var chained = false;
+    var move_speed = 1;
+
+    Object.defineProperty(Array.prototype, 'first', {
+        value() {
+            return this.find(Boolean);     // or this.find(e => e)
+        }
+    });
+
+    String.prototype.replaceAll = function (search, replacement) {
+        var target = this;
+        return target.replace(new RegExp(search, 'g'), replacement);
+    };
+
+    $(document).ready(function () {
+        $("#slider-container").hide();
+        $("#roi-image").hide();
+
+        load_mask = function (json) {
+            $("#points").empty();  // Empty pre-defined points
+
+            mask = [];
+            console.log("Mask loaded.");
+            $("#save_mask").removeClass("disabled");
+
+            $.each(json, function (mask_index, mask_value) {
+                mask.push(mask_value);
+            });
+
+            $("#vertex_list").empty();
+
+            $.each(mask, function (mask_index, vertices) {
+                // Div containing points from mask
+                $("#points").append("<div id='mask" + mask_index + "'></div>");
+
+                //$("#vertex_list").append("<div class='mask_title' id='mask" + mask_index + "'><div class='status'></div><div class='title'>Mask index " + mask_index + "</div></div><ul id='" + mask_index + "'>");
+
+                $.each(vertices, function (vertex_index) {
+                    //$("#vertex_list #vertex_container" + vertex_index + " .mask-vertices").append(data2.replaceAll('{id}', vertex_index));
+
+                    $("#points div#mask" + mask_index).append("<span class='child' id='vertex" + vertex_index + "' style='position: absolute;'>&times;</span>");
+
+                    update_point(mask_index, vertex_index);
+                });
+
+
+                /*
+                $("#mask_list #mask_container" + mask_index + " .mask-title").click(function (e) {
+                    chained = true;
+                    select_current_point(mask_index, 0);
+                    // Color mask vertices to yellow
+                });
+
+                $("#mask_list #mask_container" + mask_index + " .mask-title").mouseenter(function (e) {
+                    // Color mask vertices to yellow
+
+                    $.each($("#points div#mask" + mask_index + " span"), function () {
+                        $(this).css("color", "yellow");
+                    });
+                });
+
+                $("#mask_list #mask_container" + mask_index + " .mask-title").mouseleave(function (e) {
+                    $.each($("#points div#mask" + mask_index + " span"), function () {
+                        $(this).css("color", "red");
+                    });
+                });
+                */
+            });
+
+            update_mask_window(selected_mask);
+        };
+
+        add_new_vertex = function () {
+            console.log("Created new vertex " + selected_vertex + " on mask " + selected_mask);
+
+            if (mask[selected_mask].length) {
+                mask[selected_mask].push(mask[selected_mask][selected_vertex])
+            } else {
+                mask[selected_mask].push([{x: 0, y: 0, h1: 0, s1: 0, v1: 0, h2: 0, s2: 0, v2: 0}]);
+            }
+
+            selected_vertex = mask[selected_mask].length - 1;
+        };
+
+        add_new_mask = function () {
+            console.log("Created new mask " + selected_mask);
+
+            selected_mask = mask.length - 1;
+        };
+
+        colorChange = function (index, event) {
+            if (!$("#current_image").prop('src') || !mask.length) return;
+
+            var src = cv.imread(document.getElementById('current_image'));
+            var hsv = new cv.Mat();
+
+            if (event.originalEvent) {  // Event was triggered by user
+                mask[selected_mask][selected_vertex]['h' + index] = $("#hue" + index).slider("value");
+                mask[selected_mask][selected_vertex]['s' + index] = $("#sat" + index).slider("value");
+                mask[selected_mask][selected_vertex]['v' + index] = $("#val" + index).slider("value");
+
+                $("#input_hue" + index).val($("#hue" + index).slider("value"));
+                $("#input_sat" + index).val($("#sat" + index).slider("value"));
+                $("#input_val" + index).val($("#val" + index).slider("value"));
+            } else {  // Event was triggered by script
+
+            }
+
+            var h1 = mask[selected_mask][selected_vertex].h1;
+            var s1 = mask[selected_mask][selected_vertex].s1;
+            var v1 = mask[selected_mask][selected_vertex].v1;
+
+            var h2 = mask[selected_mask][selected_vertex].h2;
+            var s2 = mask[selected_mask][selected_vertex].s2;
+            var v2 = mask[selected_mask][selected_vertex].v2;
+
+            $("#colorinfo" + index).html("HSV: (" + mask[selected_mask][selected_vertex]['h' + index] + "," + mask[selected_mask][selected_vertex]['s' + index] + "," + mask[selected_mask][selected_vertex]['v' + index] + ")");
+
+            $("#vertex_list #vertex_container" + selected_vertex + " .vertex-hsv" + index).css('background-color', hsvToHex(mask[selected_mask][selected_vertex]['h' + index], mask[selected_mask][selected_vertex]['s' + index], mask[selected_mask][selected_vertex]['v' + index]));
+
+            $("#sat" + index).css('background-color', "hsv(" + mask[selected_mask][selected_vertex]['h' + index] + "," + mask[selected_mask][selected_vertex]['s' + index] + "," + mask[selected_mask][selected_vertex]['v' + index] + ")");
+
+            let lower = [h1, s1, v1, 0];
+            let higher = [h2, s2, v2, 255];
+
+            cv.cvtColor(src, hsv, cv.COLOR_BGR2HSV);
+
+            let mask_min = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), lower);
+            let mask_max = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), higher);
+
+            cv.inRange(hsv, mask_min, mask_max, hsv);
+            //cv.bitwise_not(hsv, hsv);
+
+            cv.imshow('thresholded', hsv);
+
+            update_point(selected_mask, selected_vertex);
+
+            src.delete();
+            hsv.delete();
+            mask_min.delete();
+            mask_max.delete();
+        };
+
+        // Color conversions
+
+        function HSVtoRGB(h, s, v) {
+            h /= 180.0;
+            s /= 255.0;
+            v /= 255.0;
+
+            var r, g, b, i, f, p, q, t;
+            if (arguments.length === 1) {
+                s = h.s, v = h.v, h = h.h;
+            }
+            i = Math.floor(h * 6);
+            f = h * 6 - i;
+            p = v * (1 - s);
+            q = v * (1 - f * s);
+            t = v * (1 - (1 - f) * s);
+            switch (i % 6) {
+                case 0:
+                    r = v, g = t, b = p;
+                    break;
+                case 1:
+                    r = q, g = v, b = p;
+                    break;
+                case 2:
+                    r = p, g = v, b = t;
+                    break;
+                case 3:
+                    r = p, g = q, b = v;
+                    break;
+                case 4:
+                    r = t, g = p, b = v;
+                    break;
+                case 5:
+                    r = v, g = p, b = q;
+                    break;
+            }
+            return {
+                r: Math.round(r * 255),
+                g: Math.round(g * 255),
+                b: Math.round(b * 255)
+            };
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        function hsvToHex(h,s,v) {
+            var rgb = HSVtoRGB(h, s, v);
+            return rgbToHex(rgb.r,rgb.g,rgb.b);
+        }
+
+        select_current_point = function (mask_index, vertex_index) {
+            var old_mask_index = selected_mask;
+
+            console.log("Selecting new point mask " + mask_index + " and vertex " + vertex_index + "... old mask was " + old_mask_index);
+            if (mask_index > mask.length - 1) mask_index = mask.length - 1;
+            else if (mask_index < 0) mask_index = 0;
+
+            // Check if vertex index is in limits
+            if (vertex_index > mask[mask_index].length - 1) vertex_index = mask[mask_index].length - 1;
+            else if (vertex_index < 0) vertex_index = 0;
+
+            selected_vertex = vertex_index;
+            selected_mask = mask_index;
+
+            $(".current_mask_title").html("MASK " + selected_mask);
+
+            // Loop through vertices of old mask
+            $.each(mask[old_mask_index], function (vertex_index2) {
+                update_point(old_mask_index, vertex_index2);  // Update points to deselect vertices
+
+                // Deselect all vertices in old mask
+                //$("#vertex_list #vertex_container" + vertex_index2).removeClass("selected");
+            });
+
+            // Set slides to show selected vertex values (HSV)
+            for (var i = 1; i < 3; i++) {
+                $("#hue" + i).slider("value", mask[selected_mask][selected_vertex]["h" + i]);
+                $("#sat" + i).slider("value", mask[selected_mask][selected_vertex]["s" + i]);
+                $("#val" + i).slider("value", mask[selected_mask][selected_vertex]["v" + i]);
+
+                $("#input_hue" + i).val(mask[selected_mask][selected_vertex]["h" + i]);
+                $("#input_sat" + i).val(mask[selected_mask][selected_vertex]["s" + i]);
+                $("#input_val" + i).val(mask[selected_mask][selected_vertex]["v" + i]);
+            }
+
+            // Loop through vertices of current mask
+            $.each(mask[selected_mask], function (vertex_index2) {
+                update_point(mask_index, vertex_index2);  // Update points to select / deselect vertices
+
+                // Update selected vertex status
+                //if (vertex_index2 == selected_vertex || chained) $("#vertex_list #vertex_container" + vertex_index2).addClass("selected");
+                //else $(w"#vertex_list #vertex_container" + vertex_index2).removeClass("selected");
+            });
+        };
+
+
+        update_point = function (mask_index, vertex_index) {
+            var current_vertex = $("#points div#mask" + mask_index + " span#vertex" + vertex_index);
+
+            // Position current vertex on screen
+            var calculated_top = mask[mask_index][vertex_index].y - (current_vertex.height() / 2) - 2;
+            var calculated_left = mask[mask_index][vertex_index].x - (current_vertex.width() / 2);
+
+            current_vertex.css("top", calculated_top + "px");
+            current_vertex.css("left", calculated_left + "px");
+
+            // Color vertices depending on selection
+            if (mask_index == selected_mask) {
+                if (vertex_index == selected_vertex || chained) {  // Vertex is in mask and selected
+                    current_vertex.addClass("selectedvertex");
+                    current_vertex.removeClass("selectedmask");
+                    $("#vertex_list #vertex_container" + vertex_index).addClass("selected");
+                } else {  // Vertex is in mask, but not selected
+                    current_vertex.addClass("selectedmask");
+                    current_vertex.removeClass("selectedvertex");
+                    $("#vertex_list #vertex_container" + vertex_index).removeClass("selected");
+                }
+            } else {
+                current_vertex.removeClass("selectedvertex");
+                current_vertex.removeClass("selectedmask");
+            }
+
+            if (detect_point_state(mask_index, vertex_index, 3)[0]) {
+                $("#vertex_list #vertex_container" + vertex_index + " .status").addClass("hovered");
+                $("#points div#mask" + mask_index + " span#vertex" + vertex_index).addClass("hovered");
+
+            } else {
+                $("#vertex_list #vertex_container" + vertex_index + " .status").removeClass("hovered");
+                $("#points div#mask" + mask_index + " span#vertex" + vertex_index).removeClass("hovered");
+            }
+
+            $("#vertex_list #vertex_container" + vertex_index + " .vertex-text").html("<b>x</b>: " + mask[mask_index][vertex_index].x + "px &nbsp;&nbsp;&nbsp;<b>y</b>: " + mask[mask_index][vertex_index].y + "px");
+
+            $("#vertex_list #vertex_container" + vertex_index + " .vertex-hsv1").css('background-color', hsvToHex(mask[mask_index][vertex_index].h1, mask[mask_index][vertex_index].s1, mask[mask_index][vertex_index].v1));
+            $("#vertex_list #vertex_container" + vertex_index + " .vertex-hsv2").css('background-color', hsvToHex(mask[mask_index][vertex_index].h2, mask[mask_index][vertex_index].s2, mask[mask_index][vertex_index].v2));
+
+            var masks_ok = $("#vertex_list .hovered").length;
+
+            if (masks_ok == mask[mask_index].length) {
+                $("#mask_container .status").addClass("hovered");
+            } else {
+                $("#mask_container .status").removeClass("hovered");
+            }
+        };
+
+        //Must be fixed
+        delete_vertex = function (index) {
+            if (mask[selected_mask][index] != null) {
+                $(".points #" + selected_mask + "_" + index).remove();
+
+                mask[selected_mask].remove(index, 1);
+
+                if (selected_vertex == index) selected_vertex = mask[selected_mask].first();
+            } else {
+                console.log("Try to delete vertex but it does not exist");
+            }
+
+            // select one before
+            // if none selected, select one from other mask
+            // if no mask selected naredi nekaj
+
+            var current_vertex = $(".points #" + selected_mask + "_" + selected_vertex);
+
+            var calculated_top = mask[selected_mask][selected_vertex].y - (current_vertex.height() / 2) - 2;
+            var calculated_left = mask[selected_mask][selected_vertex].x - (current_vertex.width() / 2);
+
+            current_vertex.css("top", calculated_top + "px");
+            current_vertex.css("left", calculated_left + "px");
+        };
+
+        // Works
+        detect_point_state = function (mask_index, vertex_index, roi_size) {
+            var src = cv.imread(document.getElementById('current_image'));
+            var dst = new cv.Mat();
+            var hsv = new cv.Mat();
+
+            var x = mask[mask_index][vertex_index].x;
+            var y = mask[mask_index][vertex_index].y;
+
+            var h1 = mask[mask_index][vertex_index].h1;
+            var s1 = mask[mask_index][vertex_index].s1;
+            var v1 = mask[mask_index][vertex_index].v1;
+
+            var h2 = mask[mask_index][vertex_index].h2;
+            var s2 = mask[mask_index][vertex_index].s2;
+            var v2 = mask[mask_index][vertex_index].v2;
+
+            try {
+                // Get region of interest
+                var rect = new cv.Rect(x - roi_size, y - roi_size, roi_size * 2, roi_size * 2);
+                dst = src.roi(rect);
+            } catch (error) {
+                console.log("ROI not defined there!");
+                return false;
+            }
+
+            let lower = [h1, s1, v1, 0];
+            let higher = [h2, s2, v2, 255];
+
+            cv.cvtColor(dst, hsv, cv.COLOR_BGR2HSV);
+
+            let mask_min = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), lower);
+            let mask_max = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), higher);
+
+            cv.inRange(hsv, mask_min, mask_max, hsv);
+            //cv.bitwise_not(hsv, hsv);
+
+            var white = cv.countNonZero(hsv);
+            var black = ((roi_size * roi_size * 4)) - white;
+
+            cv.imshow('roi_image_canvas', hsv);
+
+            src.delete();
+            dst.delete();
+            mask_min.delete();
+            mask_max.delete();
+
+            var result = false;
+
+            //  Return True if there is more white than black
+            if (white > black) result = true;
+
+            var match = (white / ((roi_size * roi_size * 4))) * 100.0;
+
+            $("#binary_stats").html("Black: " + black + "<br>White: " + white + "<br>" + "Match: " + Math.round(match) + "%");
+
+            //console.log("Mask "+mask_index+" vertex "+vertex_index + ": black " + black + " white " + white + " result: " + result);
+
+            return [result, white, black];
+        };
+
+        update_mask_window = function (mask_index) {
+            //console.log("Updating mask window for mask " + mask_index);
+            // Load vertex container template
+            $.get("/utils/manipulator/vertex_container.html", function (data) {
+                $("#slider-container").fadeIn(100);
+                $(".roi-image").fadeIn(100);
+
+                $("#vertex_list").empty();
+
+                $.each(mask[mask_index], function (vertex_index, vertex_value) {
+                    $("#vertex_list").append(data.replaceAll('{id}', vertex_index));
+
+                    $("#vertex_list #vertex_container" + vertex_index).click(function () {
+                        // Select mask and index
+                        chained = false;
+                        select_current_point(mask_index, vertex_index);
+                    });
+
+                    $("#vertex_list #vertex_container" + vertex_index).mouseenter(function () {
+                        // Color mask vertices to yellow
+                        $("#points div#mask" + mask_index + " span#vertex" + vertex_index).addClass("mousehover");
+                    });
+
+                    $("#vertex_list #vertex_container" + vertex_index).mouseleave(function () {
+                        $("#points div#mask" + mask_index + " span#vertex" + vertex_index).removeClass("mousehover");
+                    });
+
+                    update_point(mask_index, vertex_index);
+                });
+
+            });
+        };
+
+        function image_exists(filename) {
+            // Define the promise
+            const imgPromise = new Promise(function imgPromise(resolve, reject) {
+                // Create the image
+                const imgElement = new Image();
+
+                // When image is loaded, resolve the promise
+                imgElement.addEventListener('load', function imgOnLoad() {
+                    resolve(this);
+                });
+
+                // When there's an error during load, reject the promise
+                imgElement.addEventListener('error', function imgOnError() {
+                    reject();
+                });
+
+                // Assign URL
+                imgElement.src = filename;
+            });
+
+            return imgPromise;
+        }
+
+        $("#select_whole_mask_button").click(function () {
+            if (!mask.length) return;
+
+            chained = true;
+
+            select_current_point(selected_mask, selected_vertex);
+        });
+
+        $("#select_vertex_current_color_button").click(function () {
+            if (!mask.length) return;
+
+            $.each(mask[selected_mask], function (vertex_index, vertex_value) {
+                // set vertex hsv like HSV slider
+
+                for (var i = 1; i < 3; i++) {
+                    mask[selected_mask][vertex_index]["h" + i] = $("#hue" + i).slider("value");
+                    mask[selected_mask][vertex_index]["s" + i] = $("#sat" + i).slider("value");
+                    mask[selected_mask][vertex_index]["v" + i] = $("#val" + i).slider("value");
+                }
+
+                update_point(selected_mask, vertex_index);
+            });
+        });
+
+        $("#hue1").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 180,
+            value: 30,
+            change: function (event) {
+                colorChange(1, event)
+            },
+            slide: function (event) {
+                colorChange(1, event)
+            }
+        });
+
+        $("#sat1").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 255,
+            value: 128,
+            change: function (event) {
+                colorChange(1, event)
+            },
+            slide: function (event) {
+                colorChange(1, event)
+            }
+        });
+
+        $("#val1").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 255,
+            value: 128,
+            change: function (event) {
+                colorChange(1, event)
+            },
+            slide: function (event) {
+                colorChange(1, event)
+            }
+        });
+
+
+        $("#hue2").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 180,
+            value: 90,
+            change: function (event) {
+                colorChange(2, event)
+            },
+            slide: function (event) {
+                colorChange(2, event)
+            }
+        });
+
+        $("#sat2").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 255,
+            value: 128,
+            change: function (event) {
+                colorChange(2, event)
+            },
+            slide: function (event) {
+                colorChange(2, event)
+            }
+        });
+
+        $("#val2").slider({
+            orientation: "horizontal",
+            range: "min",
+            max: 255,
+            value: 128,
+            change: function (event) {
+                colorChange(2, event)
+            },
+            slide: function (event) {
+                colorChange(2, event)
+            }
+        });
+
+        $("#input_hue1, #input_hue2, #input_sat1, #input_sat2, #input_val1, #input_val2").on('input', function(event) {
+            // Set slides to show selected vertex values (HSV)
+            var slider_id = event.target.id.slice(-4);
+
+            $("#" + slider_id).slider("value", $(this).val());
+        });
+
+        $("#add_new_mask").click(function () {
+            add_new_mask();
+        });
+
+        $("#add_new_vertex").click(function () {
+            add_new_vertex();
+        });
+
+        $("#delete_vertex").click(function () {
+            delete_vertex(selected_vertex);
+        });
+
+
+        $("#load_image_file").change(function () {
+            var files = document.getElementById('load_image_file').files;
+            if (files.length <= 0) return false;
+
+            images = [];
+            images_names = [];
+
+            $("label[for='load_mask_file']").removeClass("disabled");
+            $("#prev_image").removeClass("disabled");
+            $("#next_image").removeClass("disabled");
+
+            for (var i = 0; i < files.length; i++) {
+                var fr = new FileReader();
+
+                fr.onloadend = (function (file) {
+                    return function (evt) {
+                        createListItem(evt, file)
+                    };
+                })(files[i]);
+
+                fr.readAsDataURL(files[i]);
+            }
+
+        });
+
+        $("#load_mask_file").change(function () {
+            // Prevent if no image selected
+
+            var files = document.getElementById('load_mask_file').files;
+            if (files.length <= 0) return false;
+
+            mask = [];
+
+            var fr = new FileReader();
+
+            fr.onload = function (e) {
+                var result = JSON.parse(e.target.result);
+
+                load_mask(result);
+            }
+
+            fr.readAsText(files.item(0));
+        });
+
+        function createListItem(evt, file) {
+            // Order images by their name!
+            images.push(evt.target.result);
+            images_names.push(file.name);
+
+            //console.log(file.name);
+
+            $("#current_image").prop("src", images[0]);
+            $("#current_image").fadeIn(100, function () {
+                $("#thresholded").css("margin-top", $("#current_image").height() + "px");
+                $("div.wrapper").css("height", $("#current_image").height() + "px");
+            });
+        }
+
+        $("#next_image").click(function () {
+            // Prevent if no image selected
+            var files = document.getElementById('load_image_file').files;
+            if (files.length <= 0) return false;
+
+            img_index++;
+            if (img_index > images.length - 1) img_index = images.length - 1;
+
+            $("#current_image").prop("src", images[img_index]);
+
+            $("#current_mask_info").html("Current image: " + images_names[img_index]);
+
+            update_all_points();
+
+            select_current_point(selected_mask, 0);
+        });
+
+        $("#prev_image").click(function () {
+            // Prevent if no image selected
+            var files = document.getElementById('load_image_file').files;
+            if (files.length <= 0) return false;
+
+            img_index--;
+            if (img_index < 0) img_index = 0;
+
+            $("#current_image").prop("src", images[img_index]);
+
+            $("#current_mask_info").html("Current image: " + images_names[img_index]);
+
+            update_all_points();
+
+            select_current_point(selected_mask, 0);
+        });
+
+        update_all_points = function () {
+            $.each(mask, function (mask_index3, vertices3) {
+                $.each(vertices3, function (vertex_index3) {
+                    update_point(mask_index3, vertex_index3);
+                });
+            });
+        };
+
+        $("#save_mask").click(function () {
+            if ($(this).hasClass("disabled")) return;
+
+            var a = document.createElement("a");
+            var file = new Blob([JSON.stringify(mask)], {type: "application/json"});
+            a.href = URL.createObjectURL(file);
+            a.download = "mask.json";
+            a.click();
+        });
+
+        $("#prev_mask").click(function () {
+            if (!mask.length) return;
+
+            chained = false;
+            select_current_point(selected_mask - 1, 0);
+            update_mask_window(selected_mask);
+
+        });
+
+        $("#next_mask").click(function () {
+            if (!mask.length) return;
+
+            chained = false;
+
+            select_current_point(selected_mask + 1, 0);
+            update_mask_window(selected_mask);
+        });
+
+        $(document).keydown(function () {
+            if (event.which == 87) {  //w
+
+                $.each(mask[selected_mask], function (vertex_index) {
+                    if (!chained && vertex_index != selected_vertex) return true;
+
+                    mask[selected_mask][vertex_index].y-=move_speed;
+                    if (mask[selected_mask][vertex_index].y < 0) {
+                        mask[selected_mask][vertex_index].y = 0;
+                    }
+
+                    update_point(selected_mask, vertex_index);
+                });
+            }
+            if (event.which == 65) {  //a
+                $.each(mask[selected_mask], function (vertex_index) {
+                    if (!chained && vertex_index != selected_vertex) return true;
+
+                    mask[selected_mask][vertex_index].x-=move_speed;
+                    if (mask[selected_mask][vertex_index].x < 0) {
+                        mask[selected_mask][vertex_index].x = 0;
+                    }
+
+                    update_point(selected_mask, vertex_index);
+                });
+            }
+            if (event.which == 83) {  //s
+                $.each(mask[selected_mask], function (vertex_index) {
+                    if (!chained && vertex_index != selected_vertex) return true;
+
+                    mask[selected_mask][vertex_index].y+=move_speed;
+
+                    if (mask[selected_mask][vertex_index].y > $("#current_image").height()) {
+                        mask[selected_mask][vertex_index].y = $("#current_image").height();
+                    }
+
+                    update_point(selected_mask, vertex_index);
+                });
+            }
+            if (event.which == 68) {  //d
+                $.each(mask[selected_mask], function (vertex_index) {
+                    if (!chained && vertex_index != selected_vertex) return true;
+
+                    mask[selected_mask][vertex_index].x+=move_speed;
+
+                    if (mask[selected_mask][vertex_index].x > $("#current_image").width()) {
+                        mask[selected_mask][vertex_index].x = $("#current_image").width();
+                    }
+
+                    update_point(selected_mask, vertex_index);
+                });
+            }
+
+            if (event.which == 16) {  //q
+                if(move_speed == 1) move_speed = 10;
+                else move_speed = 1;
+            }
+
+            if (event.which == 81) {  //q
+                $("#prev_image").click();
+            }
+
+            if (event.which == 69) {  //e
+                $("#next_image").click();
+            }
+            // Update mask list text
+        });
+    })
+    ;
+</script>

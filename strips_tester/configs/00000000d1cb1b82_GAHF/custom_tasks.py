@@ -46,16 +46,10 @@ class StartProcedureTask(Task):
         GPIO.output(gpios["right_red_led"], True)
         GPIO.output(gpios["right_green_led"], True)
 
-        for i in range(2):
-            gui_web.send({"command": "error", "nest": i, "value": -1})  # Clear all error messages
-            gui_web.send({"command": "info", "nest": i, "value": -1})  # Clear all error messages
-            gui_web.send({"command": "semafor", "nest": i, "value": (0, 1, 0), "blink": (0, 0, 0)})
-
-            strips_tester.data['start_time'][i] = datetime.datetime.utcnow()  # Get start test date
-            gui_web.send({"command": "time", "mode": "start", "nest": i})  # Start count for test
-
         # Product detection
         for i in range(2):
+            self.start_test(i)
+
             # Must be held high, otherwise E2 error
             GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.HIGH)
 
@@ -129,7 +123,7 @@ class FinishProcedureTask(Task):
         # Product power off
         self.relay.clear(0x1)
 
-        for current_nest in range(strips_tester.data['test_device_nests']):
+        for current_nest in range(strips_tester.settings.test_device_nests):
             if strips_tester.data['exist'][current_nest]:
                 if strips_tester.data['status'][current_nest] == -1:
                     strips_tester.data['status'][current_nest] = True

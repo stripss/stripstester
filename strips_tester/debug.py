@@ -18,7 +18,8 @@ except Exception:
 
 def insert_test_device(name, nests, address, description, author, image_link):
     date_of_creation = datetime.datetime.utcnow()
-    myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    #myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    myclient = pymongo.MongoClient("mongodb://192.168.88.243:27017/")
     mydb = myclient["stripstester"]
     mycol = mydb['test_device']
 
@@ -71,7 +72,6 @@ def recreate_counters():
     print("Counter database recreation FINISHED.")
     myclient.close()
 
-
 def rpi_camera_preview():
     # import the necessary packages
     from picamera.array import PiRGBArray
@@ -118,39 +118,38 @@ def main():
     rpi =0
     #recreate_counters()
     #rpi_camera_preview()
-    #insert_test_device("ASP-2", 1, 8000, "Aspoeck LED tubular light", "Marcel Jancar", "/img/logos/aspoeck.png")
+    insert_test_device("ASP-1", 1, 8000, "Aspoeck", "Marcel Jancar", "/img/logos/aspoeck.png")
     #
-
-    visual = Visual()
-    if rpi:
-        visual.load_image("C:/Users/marcelj/Desktop/masks/img1.jpg")  # Load target image
-        #visual.load_mask("/strips_tester_project/strips_tester/configs/00000000d1cb1b82_GAHF/mask/mask.json")  # Load target mask
-        #visual.define_mask("/strips_tester_project/strips_tester/configs/00000000d1cb1b82_GAHF/mask/mask.json")
-        visual.define_mask("C:/Users/marcelj/Desktop/masks/mask1.json")
-
-        cam_device = PiCamera()
-        cam_device.resolution = (640,480)
-        cam_device.framerate = 32
-
-        stream = PiRGBArray(cam_device)
-        time.sleep(1)
-
-        for frame in cam_device.capture_continuous(stream, format="bgr", use_video_port=False):
-            # grab the raw NumPy array representing the image, then initialize the timestamp
-            # and occupied/unoccupied text
-            image = frame.array
-            visual.set_image(image)
-            #cv2.imshow("magic", image)
-            #cv2.waitKey(1)
-            # clear the stream in preparation for the next frame
-            stream.truncate(0)
-
-            print(visual.compare_mask(True))
-
-    else:
-        visual.load_image("C:/Users/marcelj/Desktop/masks/test.jpg")  # Load target image
-        visual.define_mask("C:/Users/marcelj/Desktop/masks/mask8.json")
-
+    #
+    # visual = Visual()
+    # if rpi:
+    #     visual.load_image("C:/Users/marcelj/Desktop/masks/img1.jpg")  # Load target image
+    #     #visual.load_mask("/strips_tester_project/strips_tester/configs/00000000d1cb1b82_GAHF/mask/mask.json")  # Load target mask
+    #     #visual.define_mask("/strips_tester_project/strips_tester/configs/00000000d1cb1b82_GAHF/mask/mask.json")
+    #     visual.define_mask("C:/Users/marcelj/Desktop/masks/mask1.json")
+    #
+    #     cam_device = PiCamera()
+    #     cam_device.resolution = (640,480)
+    #     cam_device.framerate = 32
+    #
+    #     stream = PiRGBArray(cam_device)
+    #     time.sleep(1)
+    #
+    #     for frame in cam_device.capture_continuous(stream, format="bgr", use_video_port=False):
+    #         # grab the raw NumPy array representing the image, then initialize the timestamp
+    #         # and occupied/unoccupied text
+    #         image = frame.array
+    #         visual.set_image(image)
+    #         #cv2.imshow("magic", image)
+    #         #cv2.waitKey(1)
+    #         # clear the stream in preparation for the next frame
+    #         stream.truncate(0)
+    #
+    #         print(visual.compare_mask(True))
+    #
+    # else:
+    #     visual.load_image("C:/Users/marcelj/Desktop/masks/test.jpg")  # Load target image
+    #     visual.define_mask("C:/Users/marcelj/Desktop/masks/mask8.json")
 
 class Visual:
     def __init__(self):

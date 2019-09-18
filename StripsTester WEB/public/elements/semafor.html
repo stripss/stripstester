@@ -1,124 +1,130 @@
 <style>
 
+    .semaphore {
+        margin: auto;
+        width: fit-content;
+        border-radius: 6px 6px 6px 6px;
+        -moz-border-radius: 6px 6px 6px 6px;
+        -webkit-border-radius: 6px 6px 6px 6px;
+        border: 5px solid black;
+        cursor: pointer;
+    }
+
+    .semaphore .tile {
+        height: 120px;
+        width: 120px;
+        border: 5px solid black;
+        display: block;
+    }
+
+    .tilt {
+        display: table-cell !important;
+    }
+
+    .nest_title, .nest_time_container {
+        text-align: center;
+    }
+
+    .yellow #info {
+        font-size: 40px;
+        text-align: center;
+        color: black;
+        vertical-align: middle;
+        display: table-cell;
+        width: inherit;
+        height: inherit;
+    }
+
+    @media (max-width: 768px) {
+        .semaphore .tile {
+            width: 50px;
+            height: 50px;
+        }
+
         .semaphore {
-            margin: auto;
-            width: 130px;
             border-radius: 6px 6px 6px 6px;
             -moz-border-radius: 6px 6px 6px 6px;
             -webkit-border-radius: 6px 6px 6px 6px;
-            border: 5px solid black;
-        }
-
-        .semaphore .tile {
-            height: 120px;
-            border: 5px solid black;
-        }
-
-        .nest_title, .nest_time_container {
-            text-align: center;
-        }
-
-        .yellow {
-            vertical-align: middle;
-            display: table-cell;
-            width: inherit;
-            color: black;
+            border: 3px solid black;
+            display: inline-flex;
         }
 
         .yellow #info {
-            font-size: 40px;
-            text-align: center;
-            color: black;
+            font-size: 15px;
+            text-shadow: 0 0 0px black;
+            display: table-cell;
+            vertical-align: middle;
+            height: inherit;
+            width: inherit;
         }
 
-        @media (max-width: 768px) {
-            .semaphore .tile {
-                width: 50px;
-                height: 50px;
-            }
-
-            .semaphore {
-                border-radius: 6px 6px 6px 6px;
-                -moz-border-radius: 6px 6px 6px 6px;
-                -webkit-border-radius: 6px 6px 6px 6px;
-                border: 3px solid black;
-                display: inline-flex;
-            }
-
-            .yellow #info {
-                font-size: 15px;
-                text-shadow: 0 0 0px black;
-                display: table-cell;
-                vertical-align: middle;
-                height: inherit;
-                width: inherit;
-            }
-
-            .semaphore .tile {
-                border: 2px solid black;
-            }
+        .semaphore .tile {
+            border: 2px solid black;
         }
+    }
 
-        .semaphore .red-on {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#ff1414+0,ff2626+100 */
-            background: #ff1414; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #ff1414 0%, #ff2626 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff1414', endColorstr='#ff2626', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .red-on {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#ff1414+0,ff2626+100 */
+        background: #ff1414; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #ff1414 0%, #ff2626 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #ff1414 0%, #ff2626 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff1414', endColorstr='#ff2626', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
-        .semaphore .red-off {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#2a0000+0,2c0000+100 */
-            background: #2a0000; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #2a0000 0%, #2c0000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#2a0000', endColorstr='#2c0000', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .red-off {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#2a0000+0,2c0000+100 */
+        background: #2a0000; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #2a0000 0%, #2c0000 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #2a0000 0%, #2c0000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#2a0000', endColorstr='#2c0000', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
-        .semaphore .yellow-on {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#fff719+0,ffbb00+100 */
-            background: #fff719; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #fff719 0%, #ffbb00 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff719', endColorstr='#ffbb00', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .yellow-on {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#fff719+0,ffbb00+100 */
+        background: #fff719; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #fff719 0%, #ffbb00 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #fff719 0%, #ffbb00 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff719', endColorstr='#ffbb00', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
-        .semaphore .yellow-off {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#6e6a00+0,644900+100 */
-            background: #6e6a00; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #6e6a00 0%, #644900 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#6e6a00', endColorstr='#644900', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .yellow-off {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#6e6a00+0,644900+100 */
+        background: #6e6a00; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #6e6a00 0%, #644900 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #6e6a00 0%, #644900 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#6e6a00', endColorstr='#644900', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
-        .semaphore .green-on {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#4cff00+0,48ad05+100 */
-            background: #4cff00; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #4cff00 0%, #48ad05 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#4cff00', endColorstr='#48ad05', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .green-on {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#4cff00+0,48ad05+100 */
+        background: #4cff00; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #4cff00 0%, #48ad05 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #4cff00 0%, #48ad05 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#4cff00', endColorstr='#48ad05', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
-        .semaphore .green-off {
-            /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#195400+0,183802+100 */
-            background: #195400; /* Old browsers */
-            background: -moz-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* FF3.6-15 */
-            background: -webkit-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* Chrome10-25,Safari5.1-6 */
-            background: radial-gradient(ellipse at center, #195400 0%, #183802 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#195400', endColorstr='#183802', GradientType=1); /* IE6-9 fallback on horizontal gradient */
-        }
+    .semaphore .green-off {
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#195400+0,183802+100 */
+        background: #195400; /* Old browsers */
+        background: -moz-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* FF3.6-15 */
+        background: -webkit-radial-gradient(center, ellipse cover, #195400 0%, #183802 100%); /* Chrome10-25,Safari5.1-6 */
+        background: radial-gradient(ellipse at center, #195400 0%, #183802 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#195400', endColorstr='#183802', GradientType=1); /* IE6-9 fallback on horizontal gradient */
+    }
 
 </style>
 <div class="col text-center">
     <div id="nest_status{id}" class="nest_status text-center"></div>
     <div id="semafor{id}" class="semaphore">
         <div class="tile red red-off"></div>
-        <div class="tile yellow yellow-off"><div id="info"></div></div>
+        <div class="tile yellow yellow-off">
+            <div id="info"></div>
+        </div>
         <div class="tile green green-off"></div>
     </div>
     <div id="nest_title{id}" class="nest_title text-center">Ležišče #{id}</div>
@@ -126,3 +132,11 @@
         <div id="nest_time{id}" class="nest_time">00:00:00</div>
     </div>
 </div>
+
+<script>
+    $(document).ready(function () {
+       $("#semafor{id}").click(function() {
+           $("#tilt_semaphore").click();  // Fire tilt semaphore button event
+       });
+    });
+</script>

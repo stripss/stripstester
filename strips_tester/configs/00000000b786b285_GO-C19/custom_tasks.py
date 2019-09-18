@@ -858,7 +858,7 @@ class ProductConfigTask(Task):
         module_logger.debug("ProductConfigTask init")
 
     def run(self):
-        for current_nest in range(strips_tester.data['test_device_nests']):
+        for current_nest in range(strips_tester.settings.test_device_nests):
             if strips_tester.data['exist'][current_nest]:
                 if strips_tester.data['status'][current_nest] == -1:
                     strips_tester.data['status'][current_nest] = True

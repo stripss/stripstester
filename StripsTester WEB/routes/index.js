@@ -23,28 +23,40 @@ router.post('/login', (req, res) => { // Respond with HTML page
     }
 });
 
+
 router.get('/stats', async (req, res, next) => { // Asynchronous because of nested queries
-    var connection = await MongoClient.connect(db_url,{ useNewUrlParser: true });
+    var connection = await MongoClient.connect(db_url, {useNewUrlParser: true});
     var dbo = connection.db("stripstester");
 
     var test_devices = await dbo.collection("test_device").find({}).toArray();
 
-    var date_at_midnight = new Date(new Date().setHours(0, 0, 0, 0));
-
     for (const element of test_devices) {
         var index = test_devices.indexOf(element);
 
-        var good = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 1}).count();
+        test_devices[index]['extra'] = await dbo.collection("test_count").findOne({'test_device': ObjectId(element['_id'])});
 
-        var bad = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 0}).count();
-        var good_today = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 1, "datetime": {"$gt": date_at_midnight}}).count();
-        var bad_today = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id']), "result": 0, "datetime": {"$gt": date_at_midnight}}).count();
+        // Check if extra parameter exists for that test device.
+        if (test_devices[index]['extra'] != null) {
+            // Check if counter is not null
+            if (test_devices[index]['extra']['good_today'] != 0 || test_devices[index]['extra']['good_today'] != 0) {
+                var midnight = new Date();
+                midnight.setHours(0, 0, 0, 0);
 
-        var last_test = await dbo.collection("test_info").find({'test_device': ObjectId(element['_id'])}).sort({"_id": -1}).limit(1).toArray();
+                // Check if last test if exceeded today date
+                if (test_devices[index]['extra']['today_date'] < midnight) {
+                    console.log("Test device " + test_devices[index]['name'] + " today counter reset to zero");
 
-        if (last_test.length) test_devices[index]['last_test'] = last_test[0]['datetime'];
-
-        test_devices[index]['extra'] = {good: good, bad: bad, good_today: good_today, bad_today: bad_today};
+                    // Update count collection and set good_today and bad_today to zero.
+                    try {
+                        await dbo.collection("test_count").updateOne({'test_device': ObjectId(element['_id'])}, {'$set': {'good_today': 0, 'bad_today': 0}});
+                        // Get fresh data
+                        test_devices[index]['extra'] = await dbo.collection("test_count").findOne({'test_device': ObjectId(element['_id'])});
+                    } catch (error) {
+                        console.log(error);
+                    }
+                }
+            }
+        }
     }
 
     res.setHeader('Content-Type', 'application/json');
@@ -53,10 +65,18 @@ router.get('/stats', async (req, res, next) => { // Asynchronous because of nest
     await connection.close();
 });
 
+// Get server UTC time (cannot trust client time)
+router.get('/time', (req, res) => {
+    var utc_time = Math.floor((new Date()).getTime());
+
+    res.setHeader('Content-Type', 'application/json');
+    res.json({'time': utc_time});
+});
+
 router.get('/db', (req, res) => {
     var id = req.query.tid;  // Get ID from URL
 
-    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+    MongoClient.connect(db_url, {useNewUrlParser: true}, function (err, db) {
         if (err) throw err;
         var dbo = db.db("stripstester");
 
@@ -80,7 +100,7 @@ router.get('/db', (req, res) => {
 
 router.get('/tn', (req, res) => {
 
-    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+    MongoClient.connect(db_url, {useNewUrlParser: true}, function (err, db) {
         if (err) throw err;
         var dbo = db.db("stripstester");
 
@@ -98,7 +118,7 @@ router.get('/tn', (req, res) => {
 router.get('/idinfo', (req, res) => {
     var id = req.query.id;
 
-    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
+    MongoClient.connect(db_url, {useNewUrlParser: true}, function (err, db) {
         if (err) throw err;
         var dbo = db.db("stripstester");
 
@@ -113,24 +133,54 @@ router.get('/idinfo', (req, res) => {
     });
 });
 
-router.post('/delmeas', (req, res) => { // Respond with HTML page
+
+router.post('/delmeas', async (req, res, next) => { // Asynchronous because of nested queries
     var id = req.body.tid;  // Get ID from POST
 
     res.setHeader('Content-Type', 'application/json');
-    MongoClient.connect(db_url,{ useNewUrlParser: true }, function (err, db) {
-        if (err) throw err;
-        var dbo = db.db("stripstester");
 
-        dbo.collection("test_info").deleteOne({'_id': ObjectId(id)}, function (err, result) {
-            res.setHeader('Content-Type', 'application/json');
+    var connection = await MongoClient.connect(db_url, {useNewUrlParser: true});
+    var dbo = connection.db("stripstester");
 
-            if (err) throw err;
-            //console.log("Measurement deleted for id " + id + " with success of " + result['deletedCount']);
-            res.json({'success': result['deletedCount']});
+    var test_device_id = await dbo.collection("test_info").findOne({'_id': ObjectId(id)});
 
-            db.close();
-        });
-    });
+    var result = await dbo.collection("test_info").deleteOne({'_id': ObjectId(id)});
+
+    res.setHeader('Content-Type', 'application/json');
+    res.json({'success': result['deletedCount']});
+
+    await connection.close();
+
+    // If delete success, recreate counter for that TN
+    if (result['deletedCount']) recreate_count(test_device_id['test_device']);
 });
+
+
+async function recreate_count(test_device_id) {
+    var connection = await MongoClient.connect(db_url, {useNewUrlParser: true});
+    var dbo = connection.db("stripstester");
+
+    var good = await dbo.collection("test_info").find({'test_device': ObjectId(test_device_id), 'result': 1}).count();
+    var bad = await dbo.collection("test_info").find({'test_device': ObjectId(test_device_id), 'result': 0}).count();
+
+    var midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+
+    var good_today = await dbo.collection("test_info").find({'test_device': ObjectId(test_device_id), 'result': 1, 'datetime': {'$gt': midnight}}).count();
+    var bad_today = await dbo.collection("test_info").find({'test_device': ObjectId(test_device_id), 'result': 0, 'datetime': {'$gt': midnight}}).count();
+    //console.log(good, bad, good_today, bad_today);
+
+    var today_date = await dbo.collection("test_info").find({'test_device': ObjectId(test_device_id)}).sort({'_id': -1}).limit(1)[0];
+    if (today_date == null) today_date = midnight;
+
+    // Update count collection and set good_today and bad_today to zero.
+    try {
+        await dbo.collection("test_count").updateOne({'test_device': ObjectId(test_device_id)}, {'$set': {'good': good, 'bad': bad, 'good_today': good_today, 'bad_today': bad_today, 'today_date': today_date}});
+        //console.log("Successful recreated counters.");
+    } catch (error) {
+        //console.log(error);
+    }
+
+    await connection.close();
+}
 
 module.exports = router;

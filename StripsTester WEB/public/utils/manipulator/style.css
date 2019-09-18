@@ -1,0 +1,140 @@
+#vertex_list .row:hover {
+    background-color: #4e4e4e;
+    cursor: pointer;
+}
+
+#vertex_list .row.selected {
+    background-color: #636363;
+}
+
+#vertex_list .status, #mask_container .status {
+    background-color: red;
+    width: 4px;
+    padding: 0px;
+}
+
+#vertex_list .row {
+    margin-bottom: 5px;
+}
+
+#thresholded {
+    padding-top: 20px;
+}
+
+#vertex_list .vertex-hsv1, .vertex-hsv2 {
+    width: 15px;
+    height: 15px;
+    border: 1px solid #e6e6e6;
+    padding: 0px;
+    margin: 5px;
+}
+
+#vertex_list .hovered, #mask_container .hovered {
+    background-color: #00CC00 !important;
+}
+
+#points .hovered {
+    color: #00CC00;
+}
+
+#points .mousehover {
+    color: yellow !important;
+}
+
+#points {
+    opacity: 1.0;
+    font-size: 20px;
+    color: red;
+}
+
+.selectedmask {
+    color: goldenrod !important;
+}
+
+.selectedvertex {
+    color: yellow !important;
+}
+
+.editor, .sidebar {
+    padding: 20px;
+}
+
+img {
+    display: block;
+    margin: auto;
+}
+
+h3 {
+    font-size: 16px;
+}
+
+.points {
+    width: 100%;
+    height: 100%;
+    display: table;
+    text-align: center;
+}
+
+.points > .child {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+button {
+    display: block;
+}
+
+.table td {
+    padding: 5px;
+}
+
+button {
+    margin-bottom: 10px;
+}
+
+#hue1, #hue2 {
+    background-image: linear-gradient(to right,red,orange,yellow,green,blue,indigo,violet);
+}
+
+#hue1 .ui-slider-range, #hue2 .ui-slider-range, #sat1 .ui-slider-range, #sat2 .ui-slider-range, #val1 .ui-slider-range,#val2 .ui-slider-range {
+    display: none;
+}
+
+#sat1, #sat2 {
+    background-image: linear-gradient(to right, #494949 0%, transparent 100%), linear-gradient(to right, #fff 0%, transparent 0%);
+}
+
+#val1, #val2 {
+    background-image: linear-gradient(to right, #000 0%, transparent 100%), linear-gradient(to right, #fff 0%, transparent 100%);
+}
+
+#hue1, #hue2, #sat1, #sat2, #val1, #val2 {
+    float: right;
+    display: inline-block;
+    clear: left;
+    width: 80%;
+    margin-top: 12px;
+}
+
+#roi_image {
+    margin-top: 30px;
+    text-align: center;
+}
+
+#roi_image_canvas {
+    width: 150px;
+    height: auto;
+}
+
+.small-form {
+    display: inline-block;
+    width: 15%;
+    padding: 0px;
+    text-align: center;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.copyright {
+    font-size: 12px;
+}

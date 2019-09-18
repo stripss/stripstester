@@ -59,7 +59,7 @@ class StartProcedureTask(Task):
         status = arduino.write("move 0", 5)
 
         if not status:
-            for current_nest in range(strips_tester.data['test_device_nests']):
+            for current_nest in range(strips_tester.settings.test_device_nests):
                 strips_tester.data['exist'][current_nest] = False
 
             self.end_test()
@@ -82,7 +82,7 @@ class FinishProcedureTask(Task):
         pass
 
     def run(self):
-        for current_nest in range(strips_tester.data['test_device_nests']):
+        for current_nest in range(strips_tester.settings.test_device_nests):
             if strips_tester.data['exist'][current_nest]:
                 if strips_tester.data['status'][current_nest] == -1:
                     strips_tester.data['status'][current_nest] = True
@@ -156,7 +156,7 @@ class VoltageTest(Task):
         status = arduino.write("move 5000", 5)
 
         if not status:
-            for current_nest in range(strips_tester.data['test_device_nests']):
+            for current_nest in range(strips_tester.settings.test_device_nests):
                 strips_tester.data['exist'][current_nest] = False
 
             self.end_test()
