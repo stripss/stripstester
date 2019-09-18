@@ -477,7 +477,7 @@ if __name__ == "__main__":
 
             try:
                 strips_tester.data['serial'] = test_device['serial']
-            except IndexError:  # Serial does not exist for this test device
+            except KeyError:  # Serial does not exist for this test device
                 strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"serial": 0}}, True)
 
             try:
