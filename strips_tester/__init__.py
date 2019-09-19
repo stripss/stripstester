@@ -28,7 +28,7 @@ DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
 # RemoteDB address
-remoteDB = "172.30.129.19:27017
+remoteDB = "172.30.129.19:27017"
 
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
