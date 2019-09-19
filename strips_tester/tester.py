@@ -30,18 +30,22 @@ class Task:
         self.test_data = {}
         self.test_data['end'] = False
 
+    # Prepare and initialize devices, used for this task
     def set_up(self):
         """Used for environment initial_setup"""
         pass
 
+    # Execute task procedure
     def run(self) -> (bool, str):
         """returns bool for test fail/pass, and result(value) if applicable"""
         return False, "You should override 'run()' function!"
 
+    # Close all running devices in this task
     def tear_down(self):
         """Clean up after task, close_relay connections etc..."""
         pass
 
+    # Add new measurement to database
     def add_measurement(self, nest_id, measurement_state, measurement_name, measurement_value, measurement_unit = "N/A", end_task = False):
         strips_tester.data['measurement'][nest_id][type(self).__name__][measurement_name] = [measurement_value, measurement_state, measurement_unit]
 
@@ -54,10 +58,12 @@ class Task:
         if end_task:
             self.test_data['end'] = True
 
+    # End test procedure as fatal error
     def end_test(self):
         module_logger.error("[StripsTester] Fatal error - force task {} to end." . format(type(self).__name__))
         self.test_data['end'] = True
 
+    # Check whether product exists and have no errors to this point during test
     def is_product_ready(self, nest_id = 0):  # Product is either untested or good
         if strips_tester.data['exist'][nest_id] and strips_tester.data['status'][nest_id] is not False:
             return True
@@ -89,6 +95,7 @@ class Task:
 
             return self
 
+    # Definition of in_range function for measurements
     def in_range(self, value, expected, tolerance, percent=True):
         if percent:
             tolerance_min = expected - expected * (tolerance / 100.0)
@@ -357,7 +364,7 @@ def update_database():
 
         gui_web.send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
-    except pymongo.errors.NetworkTimeout:
+    except (pymongo.errors.NetworkTimeout, pymongo.errors.ServerSelectionTimeoutError):
         module_logger.error("Lost connection to DB, switching to Local DB")
 
         # Send notification that TN is working OFFLINE!
@@ -370,14 +377,11 @@ def update_database():
 
 # This function is used to synchronize Local DB to Remote DB when Remote DB is available.
 def synchronize_remote_db():
-    module_logger.info("[StripsTesterDB] Remote DB is available. ")
-
     test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
 
     result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info;''').fetchall()
 
-    if result:
-        # Update RemoteDB test_device to have the same values as LocalDB
+    if result:  # If results found, that means that LocalDB is newer than RemoteDB. Update RemoteDB worker to local and serial
         module_logger.info("[StripsTesterDB] Updating RemoteDB (older) values from LocalDB (newer)...")
 
         result2 = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device;''').fetchone()
@@ -385,35 +389,34 @@ def synchronize_remote_db():
         strips_tester.test_devices_col.update_one({'_id': test_device_id}, {"$set": {'serial': result2['serial'],
         'worker_id': result2['worker_id'], 'worker_type': result2['worker_type'], 'worker_comment': result2['worker_comment']}}, True)
 
-        # If results found, that means that LocalDB is newer than RemoteDB. Update RemoteDB worker to local and serial
         module_logger.info("[StripsTesterDB] Synchronizing {} measurements..." . format(len(result)))
+
+        for record in result:
+            # Each nest test counts as one test individually
+            test_info_data = {"datetime": datetime.datetime.strptime(record['datetime'], "%Y-%m-%d %H:%M:%S.%f"),
+                              "start_test": datetime.datetime.strptime(record['start_test'], "%Y-%m-%d %H:%M:%S.%f"),
+                              "test_device": test_device_id,
+                              "worker": record['worker'],
+                              "comment": record['comment'],
+                              "type": record['type'],
+                              "result": record['result'],
+                              "nest": record['nest'],
+                              "measurements": json.loads(record['measurements'])}
+
+            strips_tester.test_info_col.insert_one(test_info_data)
+            module_logger.info("[StripsTesterDB] Transferring measurement #{} into Remote DB..." .format(record['id']))
+
+            # Increase worker custom counter data (applied to LocalDB)
+            increase_good = record['result'] * 1
+            increase_bad = (not record['result']) * 1
+
+            strips_tester.test_worker_col.update_one({"id": record['worker']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
+
+            # Delete measurement from local DB, which was transferred to Remote DB
+            strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_info WHERE id = ?;''', (record['id'],))
+            strips_tester.data['db_local_connection'].commit()
     else:
         module_logger.info("[StripsTesterDB] Local DB is the same as Remote DB - No synchronization needed.")
-
-    for record in result:
-        # Each nest test counts as one test individually
-        test_info_data = {"datetime": datetime.datetime.strptime(record['datetime'], "%Y-%m-%d %H:%M:%S.%f"),
-                          "start_test": datetime.datetime.strptime(record['start_test'], "%Y-%m-%d %H:%M:%S.%f"),
-                          "test_device": test_device_id,
-                          "worker": record['worker'],
-                          "comment": record['comment'],
-                          "type": record['type'],
-                          "result": record['result'],
-                          "nest": record['nest'],
-                          "measurements": json.loads(record['measurements'])}
-
-        strips_tester.test_info_col.insert_one(test_info_data)
-        module_logger.info("[StripsTesterDB] Transferring measurement #{} into Remote DB..." .format(record['id']))
-
-        # Increase worker custom counter data (applied to LocalDB)
-        increase_good = record['result'] * 1
-        increase_bad = (not record['result']) * 1
-
-        strips_tester.test_worker_col.update_one({"id": record['worker']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
-
-        # Delete measurement from local DB, which was transferred to Remote DB
-        strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_info WHERE id = ?;''', (record['id'],))
-        strips_tester.data['db_local_connection'].commit()
 
     return
 
@@ -424,10 +427,10 @@ if __name__ == "__main__":
     module_logger.info("Starting StripsTester ...")
     initialize_gpios()
 
+    # Prepare data dictionary structure and reset to default values
     strips_tester.data['exist'] = {}
     strips_tester.data['status'] = {}
 
-    # Prepare data dictionary structure and reset to default values
     strips_tester.data['measurement'] = {}
     strips_tester.data['start_time'] = {}
 
@@ -456,53 +459,83 @@ if __name__ == "__main__":
     date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
 
     if strips_tester.data['db_connection'] is not None:
+        module_logger.info("[StripsTesterDB] RemoteDB is available.")
+
         # Find test device in StripsTester database based on its name
         test_device = strips_tester.test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
 
-        if test_device is not None:
-            module_logger.info("[StripsTesterDB] Test device {} found in database!" . format(test_device['name']))
+        # Check if test device exists in RemoteDB
+        if test_device is None:
+            module_logger.warning("[StripsTesterDB] Test device {name} not found in database. Creating skeletons for {name}...".format(name=strips_tester.settings.test_device_name))
 
-            # Synchronize LocalDB with RemoteDB
-            synchronize_remote_db()
+            # Create new reference in test_device
+            data = {'name': strips_tester.settings.test_device_name,
+                    'nests': strips_tester.settings.test_device_nests,
+                    'address': '127.0.0.1',  # Will be changed immediately on ping update
+                    'description': 'Unknown',
+                    'author': 'Itself',
+                    'date_of_creation': datetime.datetime.utcnow(),
+                    'worker_id': 1,
+                    'worker_type': 0,
+                    'worker_comment': "",
+                    'status': datetime.datetime.utcnow(),
+                    'client': 'strips.gif',
+                    'serial': 0}
 
-            # Load counts from DB
+            result = strips_tester.data['db_database']['test_device'].insert_one(data)
+            test_device_id = result.inserted_id  # Get inserted ID as test device ID
+
+            # Create test_count reference
+            data = {
+                'test_device': test_device_id,
+                'good': 0,
+                'bad': 0,
+                'good_today': 0,
+                'bad_today': 0,
+                'last_test': datetime.datetime.utcnow(),
+                'today_date': date_at_midnight
+            }
+
+            strips_tester.data['db_database']['test_count'].insert_one(data)
+            test_device = strips_tester.test_devices_col.find_one({'name': strips_tester.settings.test_device_name})
+
+        module_logger.warning("[StripsTesterDB] Loading {name} skeletons...".format(name=strips_tester.settings.test_device_name))
+
+        # Synchronize LocalDB with RemoteDB
+        synchronize_remote_db()
+
+        # Retrieve last test device settings
+        strips_tester.data['worker_id'] = int(test_device['worker_id'])
+        strips_tester.data['worker_type'] = int(test_device['worker_type'])
+        strips_tester.data['worker_comment'] = test_device['worker_comment']
+        strips_tester.data['serial'] = int(test_device['serial'])
+
+        try: # Load counters from DB
             strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
             strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
 
             strips_tester.data['good_count_today'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
             strips_tester.data['bad_count_today'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
+        except TypeError:  # No tests were made -> keep count as zero
+            pass
 
-            # Retrieve last settings
-            strips_tester.data['worker_id'] = int(test_device['worker_id'])
-            strips_tester.data['worker_type'] = int(test_device['worker_type'])
-            strips_tester.data['worker_comment'] = test_device['worker_comment']
+        try:
+            strips_tester.data['good_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
+            strips_tester.data['bad_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
+            strips_tester.data['comment_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
+        except TypeError:  # Create custom counter skeleton in MongoDB
+            strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
 
-            try:
-                strips_tester.data['serial'] = test_device['serial']
-            except KeyError:  # Serial does not exist for this test device
-                strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"serial": 0}}, True)
+        # Truncate local DB
+        strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_device''')
+        strips_tester.data['db_local_connection'].commit()
 
-            try:
-                strips_tester.data['good_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
-                strips_tester.data['bad_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
-                strips_tester.data['comment_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
-            except (IndexError, TypeError):  # Create custom counter skeleton in MongoDB
-                strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
+        # Update local DB counters
+        strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial) VALUES(?,?,?,?,?,?,?,?,?)''', (
+            strips_tester.settings.test_device_name, strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
+            strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial']))
+        strips_tester.data['db_local_connection'].commit()
 
-            # Truncate local DB
-            strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_device''')
-            strips_tester.data['db_local_connection'].commit()
-
-            # Update local DB counters
-            strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial) VALUES(?,?,?,?,?,?,?,?,?)''', (
-                strips_tester.settings.test_device_name,strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
-                strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial']))
-            strips_tester.data['db_local_connection'].commit()
-        else:
-            module_logger.warning("[StripsTesterDB] Test device '{}' not found in database. Please add it manually." . format(strips_tester.settings.test_device_name))
-
-            while True:  # Wait forever
-                time.sleep(1)
     else:  # Remote DB is not accessible
         module_logger.warning("[StripsTesterDB] RemoteDB is not available. Switching to LocalDB.")
 
@@ -519,6 +552,9 @@ if __name__ == "__main__":
 
         strips_tester.data['good_count_today'] += len(strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info WHERE result = 1 AND datetime(?) < datetime;''',(str(date_at_midnight),)).fetchall())
         strips_tester.data['bad_count_today'] += len(strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info WHERE result = 0 AND datetime(?) < datetime;''',(str(date_at_midnight),)).fetchall())
+
+    strips_tester.websocket.start()
+    strips_tester.httpserver.start()
 
     # Initialize global lock to avoid racing
     strips_tester.data['lock'] = threading.Lock()

@@ -139,9 +139,9 @@ def send_ping():
 
     if strips_tester.data['db_connection'] is not None:
         try:
-            strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
+            strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"status": date}})
 
-        except pymongo.errors.NetworkTimeout:
+        except (pymongo.errors.NetworkTimeout, pymongo.errors.ServerSelectionTimeoutError):
             module_logger.error("Lost connection to RemoteDB - switching to LocalDB")
 
             strips_tester.data['db_connection'] = None
@@ -161,7 +161,7 @@ def update_address_info(server):
 
     if strips_tester.data['db_connection'] is not None:
         # Save current port to DB
-        strips_tester.data['db_database']['test_device'].update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
+        strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
 
     module_logger.info("[StripsTester] WebSocket server started on {}" . format(ip_address))
 

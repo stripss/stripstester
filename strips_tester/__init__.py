@@ -27,6 +27,9 @@ INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
+# RemoteDB address
+remoteDB = "172.30.129.19:27017
+
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
     lgr.setLevel(level)
@@ -73,7 +76,7 @@ http_port = 80
 
 # Initiate Remote DB
 try:
-    data['db_connection'] = pymongo.MongoClient("mongodb://172.30.129.19:27017/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
+    data['db_connection'] = pymongo.MongoClient("mongodb://" + remoteDB + "/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
     data['db_connection'].server_info()
 except pymongo.errors.ServerSelectionTimeoutError:
     data['db_connection'] = None
@@ -91,12 +94,11 @@ if data['db_connection'] is not None:
 # Websocket serves as pipeline between GUI and test device
 websocket = threading.Thread(target=gui_web.start_server, args=(websocket_port,))
 websocket.daemon = True
-websocket.start()
 
 # HTTPServer serves as backup server if main HTTP Server is not available
 httpserver = threading.Thread(target=gui_web.start_http_server, args=(http_port,))
 httpserver.daemon = True
-httpserver.start()
 
+print(os.environ)
 # Open webbrowser on RPi
 subprocess.Popen(['chromium-browser','--no-sandbox','http://localhost/index_local.html','--start-fullscreen'])
