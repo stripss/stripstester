@@ -793,7 +793,6 @@ class VisualTest(Task):
             self.camera.get_image()
             self.camera.crop_image(90, 174, 465, 66)
 
-
             for k in range(2):
                 if not self.is_product_ready(k):
                     continue
@@ -875,25 +874,10 @@ class VisualTest(Task):
                 gui_web.send({"command": "info", "nest": nest, "value": "Display OK."})
 
 
-        # Do not exit procution mode because camera needs to be tested.
-        #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
+        # Exit procution mode
+        self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
 
-
-        # # Product detection
-        # for i in range(2):
-        #     if not self.is_product_ready(i):
-        #         continue
-        #
-        #     # Must be held high, otherwise E2 error
-        #     GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.LOW)
-        #
-        # time.sleep(5)
-        #
-        # self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5) # Exit production mode
-        # # Initialize camera
-        # Send UART code, wait for response
-        # If response good, take pictures
-        # Given picture, compare with mask provided
+        return
 
     # Check mask for both nests
     def check_mask(self, nest, mask):

@@ -1,0 +1,7 @@
+rules.d -> 99-usb-serial.rules
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0557", ATTRS{idProduct}=="2008", SYMLINK+="segger"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", KERNELS=="1-1.2.1.4", SYMLINK+="ohmmeter"
+SUBSYSTEM=="tty", KERNEL=="ttyUSB*", KERNELS=="1-1.5", SYMLINK+="arduino"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", SYMLINK+="godex"
+ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="e008", SYMLINK+="voltcraft"
