@@ -99,6 +99,5 @@ websocket.daemon = True
 httpserver = threading.Thread(target=gui_web.start_http_server, args=(http_port,))
 httpserver.daemon = True
 
-print(os.environ)
 # Open webbrowser on RPi
 subprocess.Popen(['chromium-browser','--no-sandbox','http://localhost/index_local.html','--start-fullscreen'])
