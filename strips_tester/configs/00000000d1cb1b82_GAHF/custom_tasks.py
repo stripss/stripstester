@@ -875,9 +875,9 @@ class VisualTest(Task):
 
 
         # Exit procution mode
-        self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
+        #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
 
-        return
+        #return
 
     # Check mask for both nests
     def check_mask(self, nest, mask):
