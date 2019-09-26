@@ -84,12 +84,17 @@ class VisualTest(Task):
 
                 if gpio_response == led_request:
                     module_logger.info("Input {} is measured {}, needed to be {}. Sequence: {}" . format(current_led, gpio_response, led_request, current_seq))
-                    gui_web.send({"command": "info", "nest": 0, "value": "Sekvenca {} ustrezna - {} naj bi imel vrednost {}, izmerjeno {}" . format(current_seq, custom_data['pin_order'][current_led], led_request, gpio_response)})
-                    self.add_measurement(0, True, "sek_{}_{}".format(current_seq, custom_data['pin_order'][current_led]), "OK", "")
+                    #gui_web.send({"command": "info", "nest": 0, "value": "Sekvenca {} ustrezna - {} naj bi imel vrednost {}, izmerjeno {}" . format(current_seq, custom_data['pin_order'][current_led], led_request, gpio_response)})
+                    gui_web.send({"command": "info", "nest": 0, "value": "Proženi releji: {}. Odziv OK." . format(sequence_output[current_seq])})
+
+                    #self.add_measurement(0, True, "sek_{}_{}".format(current_seq, custom_data['pin_order'][current_led]), "OK", "")
+                    self.add_measurement(0, True, "Proženi releji: {}" . format(sequence_output[current_seq]), "OK", "")
                 else:
                     module_logger.error("Input {} is measured {}, needed to be {}! Sequence: {}" . format(current_led, gpio_response, led_request, current_seq))
-                    gui_web.send({"command": "error", "nest": 0, "value": "Sekvenca {} neustrezna - {} naj bi imel vrednost {}, izmerjeno {}" . format(current_seq, custom_data['pin_order'][current_led], led_request, gpio_response)})
-                    self.add_measurement(0, False, "sek_{}_{}" . format(current_seq, custom_data['pin_order'][current_led]), "FAIL", "")
+                    #gui_web.send({"command": "error", "nest": 0, "value": "Sekvenca {} neustrezna - {} naj bi imel vrednost {}, izmerjeno {}" . format(current_seq, custom_data['pin_order'][current_led], led_request, gpio_response)})
+                    gui_web.send({"command": "info", "nest": 0, "value": "Proženi releji: {}. Odziv je nepravilen.".format(sequence_output[current_seq])})
+                    #self.add_measurement(0, False, "sek_{}_{}" . format(current_seq, custom_data['pin_order'][current_led]), "FAIL", "")
+                    self.add_measurement(0, False, "Proženi releji: {}" . format(sequence_output[current_seq]), "FAIL", "")
 
             # Shut off all relays
             for current_relay in range(3):
