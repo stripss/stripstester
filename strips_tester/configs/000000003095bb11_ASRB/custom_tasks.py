@@ -133,7 +133,7 @@ class PrintSticker(Task):
             return
 
         # Lid is now opened.
-        if self.is_product_ready(0):
+        if strips_tester.data['exist'][0]:
             self.print_sticker(strips_tester.data['status'][0])
 
         return
@@ -144,11 +144,11 @@ class PrintSticker(Task):
         date_full = date.strftime("%y%m%d")  # Generate full date
 
         if test_status == True:  # Test OK
-            inverse = '^L\r'
-            darkness = '^H4\r'
+            inverse = '^L\n'
+            darkness = '^H4\n'
         elif test_status == False:  # Test FAIL
-            inverse = '^LI\r'
-            darkness = '^H15\r'
+            inverse = '^LI\n'
+            darkness = '^H15\n'
         else:
             return
 
@@ -159,7 +159,7 @@ class PrintSticker(Task):
 
         label = ('^Q13,3\n'
                 '^W38\n'
-                '^H4\n'
+                '{}'
                 '^P1\n'
                 '^S2\n'
                 '^AD\n'
@@ -171,7 +171,7 @@ class PrintSticker(Task):
                 '^E12\n'
                 '~R255\n'
                 '^XSET,ROTATION,0\n'
-                '^L\n'
+                '{}'
                 'Dy2-me-dd\n'
                 'Th:m:s\n'
                 'XRB25,16,4,0,32\n'
@@ -180,7 +180,7 @@ class PrintSticker(Task):
                 'AB,120,49,1,1,0,0E,{}\n'
                 'AB,120,74,1,1,0,0E,{}\n'
                 'AB,120,0,1,1,0,0E,RELAY CARD\n'
-                'E\n').format(datamatrix, date_week, serial)
+                'E\n').format(darkness,inverse,datamatrix, date_week, serial)
 
         self.godex.send_to_printer(label)
         time.sleep(1)
