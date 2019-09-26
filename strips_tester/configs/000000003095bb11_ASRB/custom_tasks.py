@@ -145,10 +145,10 @@ class PrintSticker(Task):
 
         if test_status == True:  # Test OK
             inverse = '^L\n'
-            darkness = '^H4\n'
+            darkness = '^H15\n'
         elif test_status == False:  # Test FAIL
             inverse = '^LI\n'
-            darkness = '^H15\n'
+            darkness = '^H4\n'
         else:
             return
 
