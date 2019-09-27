@@ -525,7 +525,7 @@ if __name__ == "__main__":
             strips_tester.data['good_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
             strips_tester.data['bad_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
             strips_tester.data['comment_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
-        except (TypeError, KeyError):  # Create custom counter skeleton in MongoDB
+        except(TypeError, KeyError):  # Create custom counter skeleton in MongoDB
             strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
 
         # Truncate local DB
