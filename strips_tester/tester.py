@@ -277,7 +277,7 @@ def update_database():
 
                         # Update Remote DB if available
                         if strips_tester.data['db_connection'] is not None:
-                            module_logger.warning("[StripsTesterDB] Saving to RemoteDB")
+                            module_logger.info("[StripsTesterDB] Saving to RemoteDB")
                             # Find test device ID in database for relationships
                             test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
 
@@ -296,7 +296,7 @@ def update_database():
 
                             strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
                         else:  # Saving to Local DB
-                            module_logger.warning("[StripsTesterDB] Saving to LocalDB")
+                            module_logger.info("[StripsTesterDB] Saving to LocalDB")
 
                             # Update Local DB test_info
                             strips_tester.data['db_local_cursor'].execute(
@@ -508,9 +508,11 @@ if __name__ == "__main__":
         strips_tester.data['worker_id'] = int(test_device['worker_id'])
         strips_tester.data['worker_type'] = int(test_device['worker_type'])
         strips_tester.data['worker_comment'] = test_device['worker_comment']
+
+        # Retrieve last test device serial
         strips_tester.data['serial'] = int(test_device['serial'])
 
-        try: # Load counters from DB
+        try:  # Load counters from DB
             strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
             strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
 
@@ -523,7 +525,7 @@ if __name__ == "__main__":
             strips_tester.data['good_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
             strips_tester.data['bad_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
             strips_tester.data['comment_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
-        except TypeError:  # Create custom counter skeleton in MongoDB
+        except (TypeError, KeyError):  # Create custom counter skeleton in MongoDB
             strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
 
         # Truncate local DB
