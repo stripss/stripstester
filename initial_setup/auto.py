@@ -26,11 +26,14 @@ while not wifi_found:
             print("StripsTester found")
             os.chdir("/strips_tester_project")
 
+            # Remove master remote refs (prevent git error if master file is corrupted)
+            os.system("sudo rm -rf /strips_tester_project/.git/refs/remotes/origin/master")
+
             os.system("sudo git reset --hard")
             #os.system("sudo git checkout master")
 
             # Uncheck if unlock refs error
-            os.system("sudo git remote prune origin")
+            #os.system("sudo git remote prune origin")
             os.system("sudo git remote remove origin")
             os.system("sudo git remote add origin https://stripss:stripstester123@github.com/stripss/stripstester.git")
 
@@ -39,8 +42,8 @@ while not wifi_found:
 
             os.system("sudo git clean -d -f")
             os.system("sudo git commit")
-            os.system("sudo git pull origin master")
 
+            os.system("sudo git pull origin master")
         else:
             print("StripsTester NOT found")
             os.system("sudo git clone https://stripss:stripstester123@github.com/stripss/stripstester.git /strips_tester_project")
