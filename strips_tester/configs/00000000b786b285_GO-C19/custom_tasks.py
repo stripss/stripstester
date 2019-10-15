@@ -140,7 +140,7 @@ class InitialTest(Task):
         self.calibration_thread.start()
 
         self.power_on()  # Power on board (external 5V)
-        time.sleep(1)
+        #time.sleep(1)
 
         self.flash_process = threading.Thread(target=self.flashMCU, args=(0,))
 
@@ -152,6 +152,7 @@ class InitialTest(Task):
         self.shifter.set("K14", False)  # Segger GND Left
         self.shifter.invertShiftOut()
 
+        time.sleep(0.5)
 
         voltage_left = self.measure_voltage1("M7", "M3")
 
@@ -204,6 +205,7 @@ class InitialTest(Task):
         self.shifter.set("K14", True)  # Segger GND Right
         self.shifter.invertShiftOut()
 
+        time.sleep(0.5)
         gui_web.send({"command": "status", "value": "Detekcija desnega kosa..."})
         voltage_right = self.measure_voltage1("L11", "L7")
 
@@ -280,6 +282,8 @@ class InitialTest(Task):
         GPIO.output(gpios['POWER'], GPIO.LOW)
 
     def calibration(self):
+        self.nanoboard_small.write("offset 20", 3)
+        self.nanoboard_small.write("endoffset 20", 3)
         self.nanoboard_small.write("calibrate", 10)
 
     def measure_voltage1(self, testpad1, testpad2):
@@ -288,8 +292,10 @@ class InitialTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        voltage = self.voltmeter.read()
-        # print("Voltage: {}V" . format(voltage))
+        for i in range(1):
+            voltage = self.voltmeter.read()
+            print("Voltage: {}V" . format(voltage))
+            time.sleep(0.1)
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
@@ -481,7 +487,7 @@ class ICT_ResistanceTest(Task):
         # Assuming servos are already in position as the trimmers
         # BUG -> if servo is over the 50, it wont turn
 
-        self.nanoboard_small.write("move 23", 10)
+        self.nanoboard_small.write("move 22", 10)
         self.nanoboard_small.write("servo 3 0", 10)  # Zero both servos
 
         # Platforma naj ostane gor
@@ -577,6 +583,16 @@ class ICT_VoltageVisualTest(Task):
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
         self.led_gpio = [40, 37, 38, 35, 36, 33]
+
+
+        '''
+            FUNCTIONAL TEST: power on (LN)
+            imidietaly check LEDs (timeout 2s)
+            check when led turn off (timeout 3s)
+            rotate servos on 100%
+            check leds if turn on (timeout 5s)
+        
+        '''
 
         GPIO.setmode(GPIO.BOARD)
         GPIO.setwarnings(False)
@@ -696,7 +712,7 @@ class ICT_VoltageVisualTest(Task):
         self.nanoboard_small.write("servo 3 100", 10)
         self.nanoboard_small.write("move 0", 10)
 
-        visual_on = self.check_mask([0, 0, 0], 5)
+        visual_on = self.check_mask([0, 0, 0], 6)
 
         for i in range(2):
             gui_web.send({"command": "progress", "nest": i, "value": "60"})
@@ -769,9 +785,9 @@ class ICT_VoltageVisualTest(Task):
                 #print("{} -> [{}] {}".format(current, mask[current], state_list[-1]))
 
 
-            #print(state_list, end='')
-            #print(" should be ", end='')
-            #print(mask)
+            print(state_list, end='')
+            print(" should be ", end='')
+            print(mask)
 
             time.sleep(0.05)
 
