@@ -224,7 +224,7 @@ class VoltageTest(Task):
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
-        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_5.hex")
+        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_6.hex")
 
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
@@ -342,6 +342,8 @@ class ButtonAndNTCTest(Task):
             return
         self.press_button(i, "000")
 
+        # Check https://stackoverflow.com/questions/22605164/pyserial-how-to-understand-that-the-timeout-occured-while-reading-from-serial-p
+        # You must send datacode with crc and you want to get the same answer, if not or timeout (set in serial obj) -> repeat 10x
         # Entering production mode with 10 retries
         if self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.1, retry=10):
             module_logger.info("UART OK: Successfully enter production mode")
