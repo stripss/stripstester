@@ -275,10 +275,10 @@ class FlashMCU(Task):
 
             if not num_of_tries:
                 gui_web.send({"command": "error", "nest": i, "value": "Programiranje ni uspelo!"})
-                self.add_measurement(i, False, "Programming", "FAIL", "")
+                self.add_measurement(i, False, "Programming", strips_tester.data['program'], "")
             else:
                 gui_web.send({"command": "info", "nest": i, "value": "Programiranje uspelo."})
-                self.add_measurement(i, True, "Programming", "OK", "")
+                self.add_measurement(i, True, "Programming", strips_tester.data['program'], "")
 
             self.relay.clear(0xEC7C)
 
