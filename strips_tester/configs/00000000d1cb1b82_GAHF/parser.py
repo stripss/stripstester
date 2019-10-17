@@ -1,7 +1,8 @@
 import strips_tester
 import gui_web
 import pymongo
-
+import glob
+import os
 
 ###
 
@@ -16,7 +17,27 @@ class Parser:
         pass
 
     def parse(self, client, message):
-        pass
+        if "set_program" in message['command']:
+            #print("Program of GAHF set to {}".format(message['value']))
+
+            strips_tester.data['program'] = message['value']
+
+            gui_web.send(message)  # Broadcast new program
+
+        # Enumerate all hex files accessible
+        if "get_program_list" in message['command']:
+            files = glob.glob(strips_tester.settings.test_dir + "/bin/*.hex")
+
+            # Show only filenames without path
+            for file in range(len(files)):
+                files[file] = os.path.basename(files[file])
+                files[file] = os.path.splitext(files[file])[0]
+            gui_web.sendTo(client, {"command": "program_list", "value": files})
+
+            try:
+                gui_web.sendTo(client, {"command": "set_program", "value": strips_tester.data['program']})
+            except KeyError:
+                pass
 
     def welcome(self, client):
         gui_web.sendTo(client, {"command": "title", "value": "GA HF"})
