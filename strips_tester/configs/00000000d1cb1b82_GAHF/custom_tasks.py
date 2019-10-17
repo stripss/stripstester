@@ -224,7 +224,7 @@ class VoltageTest(Task):
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
-        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_5.hex")
+        self.flasher.set_binary(strips_tester.settings.test_dir + "/bin/gahf_test_6.hex")
 
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
