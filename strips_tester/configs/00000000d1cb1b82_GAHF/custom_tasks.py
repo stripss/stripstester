@@ -236,7 +236,7 @@ class FlashMCU(Task):
         self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
 
     def run(self):
-        gui_web.send({"command": "status", "value": "Programiranje..."})
+        gui_web.send({"command": "status", "value": "Programiranje {sw}..." . format(sw=strips_tester.data['program'])})
 
         for i in range(2):
             # Check if product exists
@@ -250,7 +250,7 @@ class FlashMCU(Task):
 
             time.sleep(0.2)
 
-            gui_web.send({"command": "info", "nest": i, "value": "Programiranje..."})
+            gui_web.send({"command": "info", "nest": i, "value": "Programiranje {sw}..." . format(sw=strips_tester.data['program'])})
             gui_web.send({"command": "progress", "value": "25", "nest": i})
 
             num_of_tries = 3
