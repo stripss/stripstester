@@ -11,6 +11,8 @@ from binascii import unhexlify
 import base64
 import cv2
 import numpy as np
+import glob
+import os
 
 import usb.core
 
@@ -24,11 +26,31 @@ class StartProcedureTask(Task):
 
     def run(self) -> (bool, str):
 
-        # Set default program if not set otherwise
-        try:
-            strips_tester.data['program']
-        except KeyError:
-            strips_tester.data['program'] = 'gahf_test_5'
+        # Wait for selection of program
+        while True:
+            try:
+                strips_tester.data['program']
+
+                try:
+                    strips_tester.data['first_program_set']
+                except KeyError:  # First program was set
+                    for nest in range(2):
+                        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Disable blink
+                    strips_tester.data['first_program_set'] = True
+                    module_logger.info("First program was set")
+                break
+            except KeyError:
+                # Set on blinking lights
+                GPIO.output(gpios['left_red_led'], GPIO.HIGH)
+                GPIO.output(gpios['left_green_led'], GPIO.HIGH)
+                GPIO.output(gpios['right_red_led'], GPIO.HIGH)
+                GPIO.output(gpios['right_green_led'], GPIO.HIGH)
+                time.sleep(0.5)
+                GPIO.output(gpios['left_red_led'], GPIO.LOW)
+                GPIO.output(gpios['left_green_led'], GPIO.LOW)
+                GPIO.output(gpios['right_red_led'], GPIO.LOW)
+                GPIO.output(gpios['right_green_led'], GPIO.LOW)
+                time.sleep(0.5)
 
         gui_web.send({"command": "status", "value": "Za začetek testiranja zapri pokrov."})
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
