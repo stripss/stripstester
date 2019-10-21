@@ -40,7 +40,7 @@ class Parser:
             except KeyError:  # Program is not defined yet
                 gui_web.sendTo(client, {"command": "status", "value": "Za začetek testiranja nastavi programsko opremo."})
                 for nest in range(2):
-                    gui_web.sendTo(client, {"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 1, 0)})
+                    gui_web.sendTo(client, {"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 1, 0)})
 
 
     def welcome(self, client):
