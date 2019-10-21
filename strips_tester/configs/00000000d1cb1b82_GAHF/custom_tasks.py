@@ -35,7 +35,7 @@ class StartProcedureTask(Task):
                     strips_tester.data['first_program_set']
                 except KeyError:  # First program was set
                     for nest in range(2):
-                        gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Disable blink
+                        gui_web.send({"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Disable blink
                     strips_tester.data['first_program_set'] = True
                     module_logger.info("First program was set")
                 break
