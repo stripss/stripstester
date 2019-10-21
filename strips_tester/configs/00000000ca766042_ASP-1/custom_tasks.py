@@ -51,7 +51,7 @@ class StartProcedureTask(Task):
 
 class ReadSerial(Task):
     def set_up(self):
-        self.scanner = devices.Honeywell1400(path="/dev/hidraw2")
+        self.scanner = devices.Honeywell_1900HID(vid=0x0c2e, pid=0x0901)
 
     def run(self):
         self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
@@ -62,7 +62,8 @@ class ReadSerial(Task):
             return
 
         gui_web.send({"command": "status", "nest": 0, "value": "Skeniraj QR kodo"})
-        qr_code = self.scanner.wait_for_read()
+
+        qr_code = self.scanner.read()
 
         self.add_measurement(0, True, "Serial", qr_code, "")
         gui_web.send({"command": "info", "nest": 0, "value": "Modul skeniran: {}".format(qr_code)})
@@ -71,6 +72,7 @@ class ReadSerial(Task):
 
     def tear_down(self):
         # Close the device?
+        self.scanner.close()
         pass
 
 

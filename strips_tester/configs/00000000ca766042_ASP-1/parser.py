@@ -21,6 +21,7 @@ class Parser:
             #print("Program of ASP set to {}".format(message['value']))
 
             strips_tester.data['program'] = message['value']
+            gui_web.save_variable_to_db("program", message['value'])
 
             gui_web.send(message)  # Broadcast new program
             gui_web.send({"command": "title", "value": "ASP ({})".format(strips_tester.data['program'][0])})  # Broadcast new title
