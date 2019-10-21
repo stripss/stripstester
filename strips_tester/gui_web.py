@@ -49,6 +49,12 @@ class SimpleChat(WebSocket):
                 strips_tester.data['worker_type'] = data['worker_type']
                 strips_tester.data['worker_comment'] = data['worker_comment']
 
+                # Save worker data to LocalDB
+                strips_tester.lock_local_db()  # Locks DB to this operation
+                strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET worker_id = ?, worker_type = ?, worker_comment = ? WHERE name = ?''', (strips_tester.data['worker_id'],strips_tester.data['worker_type'],strips_tester.data['worker_comment'],strips_tester.settings.test_device_name))
+                strips_tester.data['db_local_connection'].commit()
+                strips_tester.release_local_db()  # Releases DB
+
                 if strips_tester.data['db_connection'] is not None:
                     test_device_col = strips_tester.data['db_database']["test_device"]
                     test_worker_col = strips_tester.data['db_database']["test_worker"]
@@ -64,6 +70,20 @@ class SimpleChat(WebSocket):
                         strips_tester.data['good_custom'] = 0
                         strips_tester.data['bad_custom'] = 0
                         strips_tester.data['comment_custom'] = ""
+                else:
+                    strips_tester.lock_local_db()  # Locks DB to this operation
+                    result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_worker WHERE id = ?''', (strips_tester.data['worker_id'],)).fetchone()
+
+                    if result:
+                        strips_tester.data['good_custom'] = result['good']
+                        strips_tester.data['bad_custom'] = result['bad']
+                        strips_tester.data['comment_custom'] = result['comment']
+                    else:
+                        strips_tester.data['good_custom'] = 0
+                        strips_tester.data['bad_custom'] = 0
+                        strips_tester.data['comment_custom'] = ""
+
+                    strips_tester.release_local_db()  # Releases DB
 
                 # Update other GUIs with current worker info (broadcast)
                 send({"command": "set_worker_data", "worker_id": data['worker_id'], "worker_type": data['worker_type'], "worker_comment": data['worker_comment']})
@@ -81,6 +101,21 @@ class SimpleChat(WebSocket):
 
                     # Set worker custom counter data (if not exist -> insert new column)
                     test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": strips_tester.data['good_custom'], "bad": strips_tester.data['bad_custom'], "comment": strips_tester.data['comment_custom']}}, True)
+
+                strips_tester.lock_local_db()  # Locks DB to this operation
+                result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_worker WHERE id = ?''', (strips_tester.data['worker_id'],)).fetchone()
+
+                # Update custom counter for worker
+                if result:
+                    print("worker with id {id} is updated" . format(id=strips_tester.data['worker_id']))
+                    strips_tester.data['db_local_cursor'].execute('''UPDATE test_worker SET good = ?, bad = ?, comment = ? WHERE id = ?''', (strips_tester.data['good_custom'],strips_tester.data['bad_custom'],strips_tester.data['comment_custom'],strips_tester.data['worker_id'],))
+                    strips_tester.data['db_local_connection'].commit()
+                else:
+                    print("worker with id {id} is not found yet so we create it" . format(id=strips_tester.data['worker_id']))
+                    strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_worker(id, good, bad, comment) VALUES(?,?,?,?)''', (strips_tester.data['worker_id'],strips_tester.data['good_custom'],strips_tester.data['bad_custom'],strips_tester.data['comment_custom'],))
+                    strips_tester.data['db_local_connection'].commit()
+                strips_tester.release_local_db()  # Releases DB
+
 
                 # Broadcast new custom counter data
                 send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
@@ -151,6 +186,25 @@ def send_ping():
 
     threading.Timer(5, send_ping).start()
 
+# Apply variable to memory so the next time test device turn on, this memory will be applied
+def save_variable_to_db(name, value):
+    if strips_tester.data['db_connection'] is not None:
+        strips_tester.data['db_database']['test_device'].update_one({'name': strips_tester.settings.test_device_name}, {"$set": {'memory.{}' . format(name): value}}, True)
+
+    strips_tester.lock_local_db()  # Locks DB to this operation
+    result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
+
+    # Update global variable with last remote counters
+    if result:
+        memory = json.loads(result['memory'])
+        memory[name] = value
+
+        strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET memory = ?''',(str(json.dumps(memory)),))
+        strips_tester.data['db_local_connection'].commit()
+
+    strips_tester.release_local_db()  # Releases DB
+
+    return
 
 def get_ip_address():
     return subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]

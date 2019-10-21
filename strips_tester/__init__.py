@@ -14,6 +14,7 @@ import pymongo.errors
 import sqlite3
 import webbrowser
 import subprocess
+import queue
 
 # Imported for catching SegmentationFault like errors
 import faulthandler
@@ -28,7 +29,7 @@ DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
 # RemoteDB address
-remoteDB = "172.30.129.19:27017"
+remoteDB = "172.30.129.19:2701"
 
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
@@ -60,6 +61,21 @@ def initialize_logging(level: int = logging.INFO):
 def dict_from_row(row):
     return dict(zip(row.keys(), row))
 
+
+def lock_local_db():
+    # Wait until local is released
+    while data['db_local_lock']:
+        pass
+
+    data['db_local_lock'] = True
+
+    return
+
+def release_local_db():
+    data['db_local_lock'] = False
+
+    return
+
 # Data handles all custom data of current test device (acts like RAM)
 data = {}
 logger = initialize_logging(logging.DEBUG)
@@ -69,6 +85,7 @@ settings = config_loader.Settings()
 data['db_local_connection'] = sqlite3.connect("stripstester.db", check_same_thread=False)
 data['db_local_connection'].row_factory = sqlite3.Row
 data['db_local_cursor'] = data['db_local_connection'].cursor()
+data['db_local_lock'] = False  # Global lock for database concurrent writing
 
 # Predefined port
 websocket_port = 8000

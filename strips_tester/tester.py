@@ -130,7 +130,7 @@ class Task:
             serial_number = result['serial'] + 1
 
             strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
-            strips_tester.data['db_connection'].commit()
+            strips_tester.data['db_local_connection'].commit()
             # Update serial in Local DB
 
         return serial_number
@@ -170,6 +170,23 @@ class Task:
 
         return self.test_data  # to indicate further testing
 
+# Apply variable to memory so the next time test device turn on, this memory will be applied
+def save_variable_to_db(name, value):
+    if strips_tester.data['db_connection'] is not None:
+        strips_tester.data['db_database']['test_device'].update_one({'name': strips_tester.settings.test_device_name}, {"$push": {'memory.{}' . format(name): value}}, True)
+
+    else:  # Retrieve serial number from Local DB
+
+        # result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
+        # # Update global variable with last remote counters
+        #
+        # serial_number = result['serial'] + 1
+        #
+        # strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
+        # strips_tester.data['db_connection'].commit()
+        # # Update serial in Local DB
+        pass
+    return
 
 def start_test_device():
     while True:
@@ -338,6 +355,7 @@ def update_database():
                 "$set": {"good": strips_tester.data['good_count'], "bad": strips_tester.data['bad_count'], "good_today": strips_tester.data['good_count_today'],
                          "bad_today": strips_tester.data['bad_count_today'], "last_test": strips_tester.data['end_time'], "today_date": strips_tester.data['today_date']}}, True)
 
+            # TODO check if name is neccessary!
             # Update Local DB counters, so if connection is lost, count from this number onwards
             strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET good_count = ?, bad_count = ?, good_count_today = ?, bad_count_today = ? WHERE name = ?''', (
                 strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'], strips_tester.settings.test_device_name))
@@ -387,7 +405,8 @@ def synchronize_remote_db():
         result2 = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device;''').fetchone()
 
         strips_tester.test_devices_col.update_one({'_id': test_device_id}, {"$set": {'serial': result2['serial'],
-        'worker_id': result2['worker_id'], 'worker_type': result2['worker_type'], 'worker_comment': result2['worker_comment']}}, True)
+        'worker_id': result2['worker_id'], 'worker_type': result2['worker_type'], 'worker_comment': result2['worker_comment'],
+        'memory': json.loads(result2['memory'])}}, True)
 
         module_logger.info("[StripsTesterDB] Synchronizing {} measurements..." . format(len(result)))
 
@@ -442,6 +461,7 @@ if __name__ == "__main__":
     strips_tester.data['worker_type'] = 0
     strips_tester.data['worker_comment'] = ""
     strips_tester.data['serial'] = 0
+    strips_tester.data['memory'] = {}
 
     strips_tester.data['good_custom'] = 0
     strips_tester.data['bad_custom'] = 0
@@ -449,11 +469,14 @@ if __name__ == "__main__":
 
     # Create skeletons for local DB and load data if available. Count, stored in test_device are from remote DB. Extra counts are counted by rows in local DB.
     strips_tester.data['db_local_cursor'].execute(
-        '''CREATE TABLE IF NOT EXISTS test_device(name TEXT, good_count INT, bad_count INT, good_count_today INT, bad_count_today INT, worker_id INT, worker_type INT, worker_comment TEXT, serial INT)''')
+        '''CREATE TABLE IF NOT EXISTS test_device(name TEXT, good_count INT, bad_count INT, good_count_today INT, bad_count_today INT, worker_id INT, worker_type INT, worker_comment TEXT, serial INT, memory TEXT)''')
     strips_tester.data['db_local_connection'].commit()
 
     strips_tester.data['db_local_cursor'].execute(
         '''CREATE TABLE IF NOT EXISTS test_info(id INTEGER PRIMARY KEY, worker INT, type INT, nest INT, result INT, measurements TEXT, comment TEXT, start_test TEXT, datetime TEXT)''')
+    strips_tester.data['db_local_connection'].commit()
+
+    strips_tester.data['db_local_cursor'].execute('''CREATE TABLE IF NOT EXISTS test_worker(id INTEGER PRIMARY KEY, good INT, bad INT, comment TEXT)''')
     strips_tester.data['db_local_connection'].commit()
 
     date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
@@ -475,12 +498,13 @@ if __name__ == "__main__":
                     'description': 'Unknown',
                     'author': 'Itself',
                     'date_of_creation': datetime.datetime.utcnow(),
-                    'worker_id': 1,
-                    'worker_type': 0,
-                    'worker_comment': "",
+                    'worker_id': strips_tester.data['worker_id'],
+                    'worker_type': strips_tester.data['worker_type'],
+                    'worker_comment': strips_tester.data['worker_comment'],
                     'status': datetime.datetime.utcnow(),
                     'client': 'strips.gif',
-                    'serial': 0}
+                    'serial': strips_tester.data['serial'],
+                    'memory': strips_tester.data['memory']}
 
             result = strips_tester.data['db_database']['test_device'].insert_one(data)
             test_device_id = result.inserted_id  # Get inserted ID as test device ID
@@ -512,6 +536,9 @@ if __name__ == "__main__":
         # Retrieve last test device serial
         strips_tester.data['serial'] = int(test_device['serial'])
 
+        # Get all memory data from DB and apply them to global variable
+        strips_tester.data['memory'] = test_device['memory']
+
         try:  # Load counters from DB
             strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
             strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
@@ -528,14 +555,23 @@ if __name__ == "__main__":
         except(TypeError, KeyError):  # Create custom counter skeleton in MongoDB
             strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
 
-        # Truncate local DB
+        # Truncate local DB test_device
         strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_device''')
         strips_tester.data['db_local_connection'].commit()
 
+        # Truncate local DB test_worker
+        strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_worker''')
+        strips_tester.data['db_local_connection'].commit()
+
         # Update local DB counters
-        strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial) VALUES(?,?,?,?,?,?,?,?,?)''', (
+        strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial, memory) VALUES(?,?,?,?,?,?,?,?,?,?)''', (
             strips_tester.settings.test_device_name, strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
-            strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial']))
+            strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial'], str(json.dumps(strips_tester.data['memory']))))
+        strips_tester.data['db_local_connection'].commit()
+
+        # Update local DB custom counters
+        strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_worker(id, good, bad, comment) VALUES(?, ?,?,?)''', (
+            strips_tester.data['worker_id'],strips_tester.data['good_custom'], strips_tester.data['bad_custom'],strips_tester.data['comment_custom']))
         strips_tester.data['db_local_connection'].commit()
 
     else:  # Remote DB is not accessible
@@ -543,9 +579,14 @@ if __name__ == "__main__":
 
         # Get existing data from local DB
         result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
-
+        result = strips_tester.dict_from_row(result)
         # Update global variable with last counters
         if result:
+            if result['memory']:
+                result['memory'] = json.loads(result['memory'])  # Convert string to valid JSON
+                print("Memory: {mem}" . format(mem=result['memory']))
+
+            # Update global variable with DB variables
             strips_tester.data.update(result)
 
         # Add Local DB counters to last remote counters
@@ -555,6 +596,19 @@ if __name__ == "__main__":
         strips_tester.data['good_count_today'] += len(strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info WHERE result = 1 AND datetime(?) < datetime;''',(str(date_at_midnight),)).fetchall())
         strips_tester.data['bad_count_today'] += len(strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info WHERE result = 0 AND datetime(?) < datetime;''',(str(date_at_midnight),)).fetchall())
 
+        result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_worker WHERE id = ?''', (strips_tester.data['worker_id'],)).fetchone()
+
+        if result:
+            strips_tester.data['good_custom'] = result['good']
+            strips_tester.data['bad_custom'] = result['bad']
+            strips_tester.data['comment_custom'] = result['comment']
+
+    if strips_tester.data['memory']:
+        print(strips_tester.data['memory'])
+        strips_tester.data.update(strips_tester.data['memory'])  # Append memory to global variable
+        strips_tester.data.pop("memory", None)  # Pop memory from global variable
+
+    # Start servers
     strips_tester.websocket.start()
     strips_tester.httpserver.start()
 

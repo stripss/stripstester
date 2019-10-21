@@ -36,17 +36,24 @@ module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
 
 class Honeywell1400gHID(AbstractBarCodeScanner):
+    hid_lookup = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
+                  17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y', 29: 'z',
+                  30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ', 45: '-', 46: '=',
+                  47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/', 81: '\n'}
+
     def __init__(self, vid, pid):
         super().__init__(type(self).__name__)
         if vid == None or pid == None:
             raise 'Not anough init parameters for {}'.format(type(self).__name__)
         self.vid = vid
         self.pid = pid
+        self.found = False
         self.open_scanner()
 
     def open_scanner(self):
         self.device = hid.device()
         self.device.open(self.vid, self.pid)  # VendorID/ProductID
+        self.found = True
 
     def read_raw(self):
         # read HID report descriptor to decode and receive data
@@ -72,17 +79,27 @@ class Honeywell1400gHID(AbstractBarCodeScanner):
         '''
         byte = 5
         str_data = ''
+        i = 0
         while True:
-            raw_data = self.device.read(128)
+            i += 1
+            raw_data = self.device.read(8)  # Read buffer from scanner
+
             if raw_data:
+                print(i, end="")
+
+                print(raw_data)
+
+
+                '''
                 while raw_data[byte] != 0x00:
-                    # print(chr(raw_data[byte]))
+                    print(chr(raw_data[byte]))
                     str_data += (chr(raw_data[byte]))
                     byte += 1
                 break
+                '''
         return str_data
 
-    def close_scanner(self):
+    def close(self):
         self.device.close()
 
 
@@ -101,18 +118,9 @@ class Honeywell1400:
         self.pid = pid
         self.path = path
         self.max_code_length = max_code_length
-        self.logger = logging.getLogger(__name__)
 
-        for retry in range(10):
-            try:
-                os.open(self.path, os.O_RDWR)
-                self.found = True
-                break
-            except Exception:
-                pass
-
-        if not self.found:
-            module_logger.error("Honeywell device not found")
+        self.device = hid.device()
+        self.device.open(self.vid, self.pid)  # VendorID/ProductID
 
     def flush_input(self, file_descriptor) -> bytearray():
         discarded = bytearray()
@@ -156,6 +164,69 @@ class Honeywell1400:
             #         line = device.read(64)
             #         chars.append(line[2])
             #     return "".join((hid_lookup.get(c) if 3 < c < 57 else "?" for c in chars))
+
+
+
+class Honeywell_1900HID:
+    '''
+        Honeywell scanner driver, configured as HID. Made by Marcel Jancar 7.10.2019
+        May add flush_input in the future and timeout function if needed.
+    '''
+
+    hid = {4: 'a', 5: 'b', 6: 'c', 7: 'd', 8: 'e', 9: 'f', 10: 'g', 11: 'h', 12: 'i', 13: 'j', 14: 'k', 15: 'l', 16: 'm',
+           17: 'n', 18: 'o', 19: 'p', 20: 'q', 21: 'r', 22: 's', 23: 't', 24: 'u', 25: 'v', 26: 'w', 27: 'x', 28: 'y',
+           29: 'z', 30: '1', 31: '2', 32: '3', 33: '4', 34: '5', 35: '6', 36: '7', 37: '8', 38: '9', 39: '0', 44: ' ',
+           45: '-', 46: '=', 47: '[', 48: ']', 49: '\\', 51: ';', 52: '\'', 53: '~', 54: ',', 55: '.', 56: '/'}
+
+    hid2 = {4: 'A', 5: 'B', 6: 'C', 7: 'D', 8: 'E', 9: 'F', 10: 'G', 11: 'H', 12: 'I', 13: 'J', 14: 'K', 15: 'L', 16: 'M',
+            17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y',
+            29: 'Z', 30: '!', 31: '@', 32: '#', 33: '$', 34: '%', 35: '^', 36: '&', 37: '*', 38: '(', 39: ')', 44: ' ',
+            45: '_', 46: '+', 47: '{', 48: '}', 49: '|', 51: ':', 52: '"', 53: '~', 54: '<', 55: '>', 56: '?'}
+
+    def __init__(self, vid=None, pid=None):
+        self.vid = vid
+        self.pid = pid
+        self.found = False
+
+        # Create new instande of HID device
+        self.device = hid.device()
+
+        # Try to connect to device using VID and PID
+        try:
+            self.device.open(self.vid, self.pid)  # VendorID/ProductID
+            self.found = True
+        except Exception:
+            pass
+
+        if not self.found:
+            module_logger.error("Honeywell device not found")
+
+    # Read barcode data until carriage return is found
+    def read(self):
+        print("Waiting code to be scanned...")
+
+        result = ""
+
+        while True:
+            ## Get the character from the HID
+            buffer = self.device.read(8)
+
+            if buffer[2] > 0:
+                ##  40 is carriage return which signifies
+                ##  we are done looking for characters
+                if int(buffer[2]) == 40:
+                    break
+
+                if int(buffer[0]) == 2:
+                    result += self.hid2[int(buffer[2])]
+                else:
+                    result += self.hid[int(buffer[2])]
+
+        return result
+
+    # Close scanner device
+    def close(self):
+        self.device.close()
 
 
 class DigitalMultiMeter:
@@ -1259,7 +1330,7 @@ class ArduinoSerial:
             else:
                 response = str(response)
 
-            #print("Arduino: {}".format(response))
+            print("Arduino: {}".format(response))
 
             if return_resp:
                 return response
