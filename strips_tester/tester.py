@@ -355,7 +355,6 @@ def update_database():
                 "$set": {"good": strips_tester.data['good_count'], "bad": strips_tester.data['bad_count'], "good_today": strips_tester.data['good_count_today'],
                          "bad_today": strips_tester.data['bad_count_today'], "last_test": strips_tester.data['end_time'], "today_date": strips_tester.data['today_date']}}, True)
 
-            # TODO check if name is neccessary!
             # Update Local DB counters, so if connection is lost, count from this number onwards
             strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET good_count = ?, bad_count = ?, good_count_today = ?, bad_count_today = ? WHERE name = ?''', (
                 strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'], strips_tester.settings.test_device_name))
@@ -563,11 +562,15 @@ if __name__ == "__main__":
         strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_worker''')
         strips_tester.data['db_local_connection'].commit()
 
-        # Update local DB counters
-        strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial, memory) VALUES(?,?,?,?,?,?,?,?,?,?)''', (
-            strips_tester.settings.test_device_name, strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
-            strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial'], str(json.dumps(strips_tester.data['memory']))))
-        strips_tester.data['db_local_connection'].commit()
+
+        try:
+            # Update local DB counters
+            strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_device(name, good_count, bad_count, good_count_today, bad_count_today, worker_id, worker_type, worker_comment, serial, memory) VALUES(?,?,?,?,?,?,?,?,?,?)''', (
+                strips_tester.settings.test_device_name, strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
+                strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial'], str(json.dumps(strips_tester.data['memory']))))
+            strips_tester.data['db_local_connection'].commit()
+        except Exception:
+            pass
 
         # Update local DB custom counters
         strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_worker(id, good, bad, comment) VALUES(?, ?,?,?)''', (
