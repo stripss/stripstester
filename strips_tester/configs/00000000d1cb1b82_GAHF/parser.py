@@ -25,6 +25,9 @@ class Parser:
 
             gui_web.send(message)  # Broadcast new program
 
+            params = [s for s in strips_tester.data['program'].split("_")]
+            gui_web.send({"command": "title", "value": "GAHF UI ({})".format(params[0])})  # Broadcast new title
+
         # Enumerate all hex files accessible
         if "get_program_list" in message['command']:
             files = glob.glob(strips_tester.settings.test_dir + "/bin/*.hex")
@@ -44,4 +47,10 @@ class Parser:
 
 
     def welcome(self, client):
-        gui_web.sendTo(client, {"command": "title", "value": "GA HF"})
+
+        try:
+            params = [s for s in strips_tester.data['program'].split("_")]
+            gui_web.sendTo(client, {"command": "title", "value": "GAHF UI ({})".format(params[0])})  # Broadcast new title
+
+        except KeyError:  # Program is not defined yet
+            gui_web.sendTo(client, {"command": "title", "value": "GAHF UI"})
