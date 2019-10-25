@@ -52,5 +52,5 @@ class Parser:
             params = [s for s in strips_tester.data['program'].split("_")]
             gui_web.sendTo(client, {"command": "title", "value": "GAHF UI ({})".format(params[0])})  # Broadcast new title
 
-        except KeyError:  # Program is not defined yet
+        except Exception:  # Program is not defined yet
             gui_web.sendTo(client, {"command": "title", "value": "GAHF UI"})
