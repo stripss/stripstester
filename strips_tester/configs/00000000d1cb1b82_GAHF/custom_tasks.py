@@ -374,7 +374,7 @@ class ButtonAndNTCTest(Task):
         # Check https://stackoverflow.com/questions/22605164/pyserial-how-to-understand-that-the-timeout-occured-while-reading-from-serial-p
         # You must send datacode with crc and you want to get the same answer, if not or timeout (set in serial obj) -> repeat 10x
         # Entering production mode with 10 retries
-        if self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.1, retry=10):
+        if self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.3, wait=0.3, retry=10):
             module_logger.info("UART OK: Successfully enter production mode")
             gui_web.send({"command": "info", "nest": i, "value": "Vstop v TEST način"})
             self.add_measurement(i, True, "UART", "Test mode OK", "")
@@ -963,3 +963,75 @@ class VisualTest(Task):
         # Close FTDI adapters
         for i in range(2):
             self.ftdi[i].close()
+
+
+class PrintSticker(Task):
+    def set_up(self):
+        self.godex = devices.Godex(interface=2)
+
+    def run(self):
+        if not self.godex.found:
+            for current_nest in range(2):
+                if strips_tester.data['exist'][current_nest]:
+                    gui_web.send({"command": "error", "nest": current_nest, "value": "Tiskalnika ni mogoče najti!"})
+            return
+
+        for current_nest in range(2):
+            # Lid is now opened.
+            if strips_tester.data['exist'][current_nest]:
+                if strips_tester.data['status'][current_nest] != -1:  # if product was tested
+                    self.print_sticker(current_nest)
+
+        return
+
+    def print_sticker(self, current_nest):
+        date = datetime.datetime.now()
+        date_full = date.strftime("%y%m%d")  # Generate full date
+
+        if strips_tester.data['status'][current_nest] == True:  # Test OK
+            inverse = '^L\n'
+            darkness = '^H15\n'
+        elif strips_tester.data['status'][current_nest] == False:  # Test FAIL
+            inverse = '^LI\n'
+            darkness = '^H4\n'
+        else:
+            return
+
+        datamatrix = '{}{:07d}' . format(date_full,self.get_new_serial())
+        self.add_measurement(current_nest, True, "serial", datamatrix, "")
+
+        params = [s for s in strips_tester.data['program'].split("_")]
+
+        firmware = params[0]  # GADF or GAHF
+        saop = params[3]  # Saop number
+        fw_version = params[2]  # Firmware version
+
+        label = ('^Q10,3\n'
+                '^W21\n'
+                '{darkness}'
+                '^P1\n'
+                '^S2\n'
+                '^AD\n'
+                '^C1\n'
+                '^R0\n'
+                '~Q+0\n'
+                '^O0\n'
+                '^D0\n'
+                '^E12\n'
+                '~R255\n'
+                '{inverse}'
+                'Dy2-me-dd\n'
+                'Th:m:s\n'
+                'AA,10,12,1,1,0,0E,{firmware} int {saop}\n'
+                'AA,10,31,1,1,0,0E,f.w.: {version}\n'
+                'AA,10,50,1,1,0,0E,41948, QC: {qc}\n'
+                'XRB115,35,2,0,13\n'
+                '{datamatrix}\n'
+                'E\n').format(darkness = darkness,inverse = inverse,firmware = firmware, saop=saop, version = fw_version,qc=strips_tester.data['worker_id'], datamatrix=datamatrix)
+
+        self.godex.send_to_printer(label)
+        time.sleep(1)
+
+    def tear_down(self):
+        self.godex.close()
+

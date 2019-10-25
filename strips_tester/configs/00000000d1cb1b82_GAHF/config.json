@@ -9,7 +9,8 @@
     "FlashMCU": 1,
     "ButtonAndNTCTest": 1,
     "VisualTest": 1,
-    "FinishProcedureTask": 1
+    "FinishProcedureTask": 1,
+    "PrintSticker": 1
   },
 
   "critical_event_tasks": {

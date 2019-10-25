@@ -107,7 +107,7 @@
         // Recieved command for setting new program
         if (data.command == "set_program") {
             // Set current
-            $("#set_program option[value=" + data.value + "]").prop("selected", "selected");
+            $("#set_program option[value='" + data.value + "']").prop("selected", "selected");
 
             $('#accordion3 #current_hex').fadeOut("fast", function () {
                 $('#accordion3 #current_hex').html("Trenutni: " + data.value);
