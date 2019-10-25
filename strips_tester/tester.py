@@ -129,9 +129,9 @@ class Task:
 
             serial_number = result['serial'] + 1
 
-            strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
-            strips_tester.data['db_local_connection'].commit()
-            # Update serial in Local DB
+        strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
+        strips_tester.data['db_local_connection'].commit()
+        # Update serial in Local DB
 
         return serial_number
 
