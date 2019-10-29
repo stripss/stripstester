@@ -22,6 +22,7 @@ clients = []
 settings = Settings()
 
 custom_parser = False
+
 try:
     parser = importlib.import_module("configs." + settings.get_setting_file_name() + ".parser")
     custom_parser = True
@@ -151,6 +152,14 @@ class SimpleChat(WebSocket):
         # Custom counter info
         sendTo(self, {"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
 
+        try:
+            strips_tester.data['first_user']
+        except KeyError:
+            strips_tester.data['first_user'] = True
+
+            # Raise worker data modal
+            sendTo(self, {"command": "confirm_worker_data"})
+
         if custom_parser:
             Parser = getattr(parser, "Parser")
             parser_in = Parser()
@@ -159,11 +168,9 @@ class SimpleChat(WebSocket):
     def handleClose(self):
         clients.remove(self)
 
-
 def send(message):
     for client in clients:
         client.sendMessage(json.dumps(message))
-
 
 def sendTo(client, message):
     client.sendMessage(json.dumps(message))
