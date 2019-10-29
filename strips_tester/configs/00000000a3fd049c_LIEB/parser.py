@@ -41,6 +41,7 @@ class Parser:
 
     def welcome(self, client):
         gui_web.sendTo(client, {"command": "new"})
+        gui_web.sendTo(client, {"command": "tilt", "value": True})
 
         try:
             gui_web.sendTo(client, {"command": "title", "value": "LIEB ({})".format(strips_tester.data['program'][0])})

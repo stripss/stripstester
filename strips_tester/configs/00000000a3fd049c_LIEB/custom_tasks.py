@@ -112,7 +112,7 @@ class PowerTest(Task):
 
     def measure_voltage(self):
         # Measure voltage
-        num_of_tries = 15
+        num_of_tries = 10
 
         voltage = self.voltmeter.read()
         gui_web.send({"command": "measurements", "voltmeter": voltage})
@@ -137,7 +137,7 @@ class PowerTest(Task):
 
     def measure_current(self):
         # Measure current
-        num_of_tries = 15
+        num_of_tries = 10
 
         currents = [int(s) for s in strips_tester.data['program'][3].split() if s.isdigit()]
         min_current = currents[0]
