@@ -32,7 +32,8 @@
             <nav class="navbar navbar-expand-md navbar-light bg-light" style="display: block;">
                 <a href="../index_local.html" style="display: inline; width: 100%; text-align: left;"><img class="navbar-brand larger" src="/img/stripstester.gif" class="img-thumbnail"></a>
 
-                <button style="display: inline; margin: 15px;" id="tn_shutdown" type="button" class="btn btn-danger float-right" data-toggle="modal" data-target="#exampleModalCenter"><i class="fas fa-power-off"></i>Izklopi testno
+                <button style="display: inline; margin: 15px;" id="tn_shutdown" type="button" class="btn btn-danger float-right" data-toggle="modal" data-target="#exampleModalCenter"><i
+                        class="fas fa-power-off"></i>Izklopi testno
                     napravo
                 </button>
             </nav>
@@ -60,6 +61,54 @@
         </div>
     </div>
 
+
+    <!-- Modal -->
+    <div class="modal fade" id="confirm_worker_data_modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-cog"></i>Nastavitve delavca</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">ID</span>
+                        </div>
+                        <input type="text" id="confirm_worker_id" class="form-control" placeholder="Identifikacija" value="Neznan">
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <label class="input-group-text" for="inputGroupSelect01">Tip testiranja</label>
+                        </div>
+                        <select class="custom-select" id="confirm_worker_type">
+                            <option value="0" selected>Redna proizvodnja</option>
+                            <option value="1">Kosi iz popravila</option>
+                            <option value="2">Analiza reklamacije</option>
+                            <option value="3">Ostalo</option>
+                        </select>
+                    </div>
+
+                    <div id="confirm_comment-input">
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Komentar</span>
+                            </div>
+
+                            <input type="text" id="confirm_worker_comment" class="form-control" placeholder="Komentar testa" value="">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" id="confirm_worker_data"><i class="far fa-save"></i>Shrani</button>
+                    <button type="button" class="btn btn-secondary float-right" data-dismiss="modal">Preskoči</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="modal fade" id="custom_counter" data-backdrop="false">
         <div class="modal-dialog" role="document">
@@ -379,7 +428,7 @@
             return size;
         };
 
-        wsOpen("Lokalno","127.0.0.1:8000");
+        wsOpen("Lokalno", "127.0.0.1:8000");
 
         // Make stopwatches for nests
         var stopwatch = [];
@@ -469,8 +518,7 @@
             try {
                 onCustomMessage(data);
                 // Custom functions found in custom parser of TN!
-            }
-            catch (error) {
+            } catch (error) {
                 // Silence. Custom functions not found.
             }
 
@@ -790,8 +838,7 @@
                     });
 
                     $('#semafor' + nest_id + " #info").fadeIn(100);
-                }
-                else {
+                } else {
                     $('#semafor' + nest_id + " #info").fadeOut(100, function (event) {
                         $('#semafor' + nest_id + " #info").html("");
                     });
@@ -809,23 +856,26 @@
                 }
             }
 
+            if (data.command == "confirm_worker_data") {  // Determine if nests are threaded
+                $("#confirm_worker_data_modal").modal('show');
+            }
 
-            if (data.command == "set_worker_data") {  // Change custom HTML  DB depending on test device
+            if (data.command == "set_worker_data") {  // Update worker data
                 // Retrieve worker data from test device
                 var worker_id = data.worker_id;
                 var worker_type = data.worker_type;
                 var worker_comment = data.worker_comment;
 
                 // Set current worker and type on GUI
-                $('#worker_id').val(worker_id);
-                $('#worker_type').val(worker_type);
+                $('#worker_id, #confirm_worker_id').val(worker_id);
+                $('#worker_type, #confirm_worker_type').val(worker_type);
 
                 if (worker_type == 3) {
-                    $('#worker_comment').val(worker_comment);
-                    $('#comment-input').fadeIn('fast');
+                    $('#worker_comment, #confirm_worker_comment').val(worker_comment);
+                    $('#comment-input, #confirm_comment-input').fadeIn('fast');
                 } else {
-                    $('#comment-input').fadeOut('fast', function () {
-                        $('#worker_comment').val("");
+                    $('#comment-input, #confirm_comment-input').fadeOut('fast', function () {
+                        $('#worker_comment, #confirm_worker_comment').val("");
                     });
                 }
 
@@ -866,10 +916,17 @@
             sendJSON({"command": "reboot"});
         });
 
-        $("#save_worker_data").click(function () {
-            var worker_id = parseInt($("#worker_id").val());
-            var worker_type = parseInt($("#worker_type").find("option:selected").val());
-            var worker_comment = $("#worker_comment").val();
+
+        $("#save_worker_data, #confirm_worker_data").click(function () {
+            if(this.id == "save_worker_data") {
+                var worker_id = parseInt($("#worker_id").val());
+                var worker_type = parseInt($("#worker_type").find("option:selected").val());
+                var worker_comment = $("#worker_comment").val();
+            } else {
+                var worker_id = parseInt($("#confirm_worker_id").val());
+                var worker_type = parseInt($("#confirm_worker_type").find("option:selected").val());
+                var worker_comment = $("#confirm_worker_comment").val();
+            }
 
             if (worker_id < -1 || worker_id > 99 || isNaN(worker_id)) worker_id = -1;
 
@@ -886,8 +943,7 @@
                 if (!threaded) {
                     if (nest > 0) return;
                     else id = 0;
-                }
-                else {
+                } else {
                     id = nest + 1;
                 }
 
@@ -915,8 +971,7 @@
                 if (!threaded) {
                     if (nest > 0) return;
                     else id = 0;
-                }
-                else {
+                } else {
                     id = nest + 1;
                 }
 
@@ -942,8 +997,7 @@
                 if (!threaded) {
                     if (nest > 0) return;
                     else id = 0;
-                }
-                else {
+                } else {
                     id = nest + 1;
                 }
 
