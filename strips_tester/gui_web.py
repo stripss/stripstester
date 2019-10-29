@@ -155,7 +155,11 @@ class SimpleChat(WebSocket):
         try:
             strips_tester.data['first_user']
         except KeyError:
-            strips_tester.data['first_user'] = True
+            strips_tester.data['first_user'] = 0
+
+        # First user is always local user, second user is on web GUI, so show once there too
+        if strips_tester.data['first_user'] < 2:
+            strips_tester.data['first_user'] += 1
 
             # Raise worker data modal
             sendTo(self, {"command": "confirm_worker_data"})
