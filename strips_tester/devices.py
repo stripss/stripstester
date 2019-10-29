@@ -31,6 +31,7 @@ import io
 from binascii import unhexlify
 import base64
 import colorsys
+from strips_tester import stm32loader
 
 module_logger = logging.getLogger(".".join(("strips_tester", "devices")))
 
@@ -1029,44 +1030,35 @@ class YoctoVoltageMeter(AbstractSensor):
         errmsg = None
         if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
             module_logger.error("Can't load yocto API : %s", errmsg)
-            raise "Can't load yocto API"
-
-        # find voltage sensor with name: "VOLTAGE1-A08C8.voltage2"
-        # self.sensor = YVoltage.FirstVoltage()
+            self.found = False
+            return
 
         try:
             # Initialize sensor (more common than YVoltage)
             self.sensor = YSensor.FindSensor(device_name)
-            self.sensor.set_resolution(0.001)
-            self.sensor.set_logFrequency("25/s")
-            self.sensor.get_module().saveToFlash()
+            self.sensor.set_resolution(0.01)
         except YAPI.YAPI_Exception:
             self.found = False
             return
 
-        if (self.sensor == None):
-            raise ("No YoctoVolt is connected")
-        self.m = self.sensor.get_module()
-        target = self.m.get_serialNumber()
-
         # module_logger.debug("Module %s found with serial number %s", m, target);
         if not (self.sensor.isOnline()):
             raise ('yocto volt is not on')
+
+    def get_name(self):
+        self.m = self.sensor.get_module()
+        target = self.m.get_serialNumber()
+        #print(target)
+        return target
 
         # if not (self.sensor2.isOnline()):
         # raise ('yocto volt2 is not on')
         # module_logger.debug("Yocto-volt init done")
 
     def get_value(self):
-        # self.sensor.set_resolution(0.001)
-        # self.sensor.set_logFrequency("OFF")
-
         return self.sensor.get_currentValue()
 
     def get_highest_value(self):
-        # self.sensor.set_resolution(0.001)
-        # self.sensor.set_logFrequency("OFF")
-
         return self.sensor.get_highestValue()
 
     def close(self):
@@ -1713,10 +1705,53 @@ class Visual:
 
 
 
+class STM32Loader:
+    def __init__(self, reset_pin, boot_pin, baud = 115200, port = "/dev/ttyAMA0"):
+        self.config = None
+        self.config.reset_pin = reset_pin
+        self.config.boot_pin = boot_pin
+        self.baud = baud
+        self.port = port
+        self.binary = None
+        self.cmd = stm32loader.CommandInterface(self.config)
+
+    def set_binary(self, binary):
+        # Check if binary exists
+        if os.path.isfile(binary):
+            self.binary = binary
+            module_logger.info("Successfully set '{}' binary.".format(self.binary))
+        else:
+            module_logger.error("Binary '{}' does not exist.".format(binary))
+            return False
+
+        return True
+
+    def flash(self):
+        if self.binary is None:
+            module_logger.error("Binary is not defined!")
+            return False
+
+        self.cmd.open(self.port, self.baud)
+
+        try:
+            self.cmd.initChip()
+            module_logger.debug("Init done")
+        except Exception as ex:
+            module_logger.debug("Can't init. Ensure that BOOT0 is enabled and reset device, exception: %s", ex)
+            return False
+
+        data = open(self.binary, 'rb').read()
+
+        self.cmd.cmdEraseMemory()
+        self.cmd.writeMemory(0x08000000, data)
+
+        self.cmd.unreset()
+        return True
+
+
 # STLink programmer - usable only ST Discovery for now!
 # http://startingelectronics.org/tutorials/STM32-microcontrollers/programming-STM32-flash-in-Linux/
 # https://github.com/pavelrevak/pystlink
-
 
 class STLink:
     def __init__(self):
@@ -1729,14 +1764,19 @@ class STLink:
             return False
 
         #self.process = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', '-v', '-c', 'STM32F030x8', 'flash:erase:verify:0x08000000:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if self.is_hex():
+            self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        else:
+            self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'binary', 'write', self.binary, '0x08000000'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
         out, err = self.process.communicate()
 
         if "jolly" in out.decode() or "Writing FLASH: [========================================] done in " in out.decode():
+            #print(out)
             module_logger.info("Successfully flashed '{}' binary." . format(self.binary))
             return True
         else:
-            #print(out);
+            #print(out)
             module_logger.error("Flashing '{}' binary failed." . format(self.binary))
             return False
         # Check if flashing is succeeded!
@@ -1751,6 +1791,14 @@ class STLink:
             return False
 
         return True
+
+    def is_hex(self):
+        extension = os.path.splitext(self.binary)[1]
+
+        if extension == 'hex':
+            return True
+        else:
+            return False
 
     def close(self):
         pass
