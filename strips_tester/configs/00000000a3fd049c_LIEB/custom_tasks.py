@@ -13,7 +13,6 @@ gpios = strips_tester.settings.gpios
 relays = strips_tester.settings.relays
 custom_data = strips_tester.settings.custom_data
 
-
 class StartProcedureTask(Task):
     def set_up(self):
         pass
@@ -57,6 +56,11 @@ class StartProcedureTask(Task):
         while not self.lid_closed():
             time.sleep(0.001)
 
+        if "US" in strips_tester.data['program'][1]:
+            GPIO.output(gpios['13V_DC'], GPIO.HIGH)
+        else:  # Assume it is 24V (not US product)
+            GPIO.output(gpios['24V_DC'], GPIO.HIGH)
+
         # Assume that product exists, because the start switch is made this way
         strips_tester.data['exist'][0] = True
         self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
@@ -76,45 +80,48 @@ class StartProcedureTask(Task):
 
 class PowerTest(Task):
     def set_up(self):
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B5AF.voltage1", 0.16)
-        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-110B4A.current1", 0.16)
+        #self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B5AF.voltage1", 0.16)
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B59C.voltage1", 0.1)
+        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-110B4A.current1", 0.1)
+
         self.selected_voltage = 24
 
     def run(self):
         gui_web.send({"command": "status", "nest": 0, "value": "Merjenje moči"})
 
-        voltage_thread = threading.Thread(target=self.measure_voltage)
-        voltage_thread.daemon = True
-        voltage_thread.start()
-
-        current_thread = threading.Thread(target=self.measure_current)
-        current_thread.daemon = True
-        current_thread.start()
-
         if "US" in strips_tester.data['program'][1]:
             self.selected_voltage = 13.1
-            GPIO.output(gpios['13V_DC'], GPIO.HIGH)
-            #GPIO.output(gpios['13V_AC'], GPIO.HIGH)
-        else:  # Assume it is 48V
-            GPIO.output(gpios['24V_DC'], GPIO.HIGH)
-            #GPIO.output(gpios['24V_AC'], GPIO.HIGH)
 
-        voltage_thread.join()
-        current_thread.join()
+        self.voltage_thread = threading.Thread(target=self.measure_voltage)
+        self.voltage_thread.daemon = True
+        self.voltage_thread.start()
+
+        self.current_thread = threading.Thread(target=self.measure_current)
+        self.current_thread.daemon = True
+        self.current_thread.start()
+
+        self.voltage_thread.join()
+        self.current_thread.join()
+
+        if "US" in strips_tester.data['program'][1]:
+            GPIO.output(gpios['13V_DC'], GPIO.LOW)
+        else:  # Assume it is 24V (not US product)
+            GPIO.output(gpios['24V_DC'], GPIO.LOW)
 
         return
 
     def measure_voltage(self):
         # Measure voltage
-        num_of_tries = 10
+        num_of_tries = 15
 
         voltage = self.voltmeter.read()
-        gui_web.send({"command": "measurements", "voltmeter": round(voltage, 3)})
+        gui_web.send({"command": "measurements", "voltmeter": voltage})
+
         while not self.in_range(voltage, self.selected_voltage, 0.1, False):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
-            gui_web.send({"command": "measurements", "voltmeter": round(voltage, 3)})
+            gui_web.send({"command": "measurements", "voltmeter": voltage})
 
             if not num_of_tries:
                 break
@@ -130,7 +137,7 @@ class PowerTest(Task):
 
     def measure_current(self):
         # Measure current
-        num_of_tries = 10
+        num_of_tries = 15
 
         currents = [int(s) for s in strips_tester.data['program'][3].split() if s.isdigit()]
         min_current = currents[0]
