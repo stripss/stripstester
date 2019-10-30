@@ -46,9 +46,7 @@ class SimpleChat(WebSocket):
                 subprocess.Popen("/usr/bin/sudo /sbin/reboot".split(), stdout=subprocess.PIPE)
 
             if "save_worker_data" in data['command']:
-                strips_tester.data['worker_id'] = data['worker_id']
-                strips_tester.data['worker_type'] = data['worker_type']
-                strips_tester.data['worker_comment'] = data['worker_comment']
+                strips_tester.data.update(data) # Updates worker information
 
                 # Save worker data to LocalDB
                 strips_tester.lock_local_db()  # Locks DB to this operation
@@ -108,15 +106,14 @@ class SimpleChat(WebSocket):
 
                 # Update custom counter for worker
                 if result:
-                    print("worker with id {id} is updated" . format(id=strips_tester.data['worker_id']))
+                    #print("worker with id {id} is updated" . format(id=strips_tester.data['worker_id']))
                     strips_tester.data['db_local_cursor'].execute('''UPDATE test_worker SET good = ?, bad = ?, comment = ? WHERE id = ?''', (strips_tester.data['good_custom'],strips_tester.data['bad_custom'],strips_tester.data['comment_custom'],strips_tester.data['worker_id'],))
                     strips_tester.data['db_local_connection'].commit()
                 else:
-                    print("worker with id {id} is not found yet so we create it" . format(id=strips_tester.data['worker_id']))
+                    #print("worker with id {id} is not found yet so we create it" . format(id=strips_tester.data['worker_id']))
                     strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_worker(id, good, bad, comment) VALUES(?,?,?,?)''', (strips_tester.data['worker_id'],strips_tester.data['good_custom'],strips_tester.data['bad_custom'],strips_tester.data['comment_custom'],))
                     strips_tester.data['db_local_connection'].commit()
                 strips_tester.release_local_db()  # Releases DB
-
 
                 # Broadcast new custom counter data
                 send({"command": "count_custom", "good_custom": strips_tester.data['good_custom'], "bad_custom": strips_tester.data['bad_custom'], "comment_custom": strips_tester.data['comment_custom']})
