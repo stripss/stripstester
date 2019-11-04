@@ -10,8 +10,10 @@ import filecmp
 
 wifi_found = False
 
-def get_ip_address():
-    return subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
+def get_ip_address():  # Return first IP in IP list
+    ip = subprocess.check_output(['hostname', '-I']).decode()
+    ip = ip.split(" ")
+    return ip[0]
 
 while not wifi_found:
     try:
