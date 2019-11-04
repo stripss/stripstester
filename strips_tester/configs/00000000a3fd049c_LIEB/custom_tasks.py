@@ -100,8 +100,13 @@ class PowerTest(Task):
         self.current_thread.daemon = True
         self.current_thread.start()
 
+        # Wait for switch to be released
+        while self.lid_closed():
+            time.sleep(0.001)
+
         self.voltage_thread.join()
         self.current_thread.join()
+
 
         if "US" in strips_tester.data['program'][1]:
             GPIO.output(gpios['13V_DC'], GPIO.LOW)
@@ -134,6 +139,7 @@ class PowerTest(Task):
             module_logger.info("Voltage in bounds: meas: %sV", voltage)
             gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti: {}V".format(voltage)})
             self.add_measurement(0, True, "Voltage", voltage, "V")
+
 
     def measure_current(self):
         # Measure current
@@ -197,11 +203,12 @@ class PrintSticker(Task):
         if not self.godex.found:
             gui_web.send({"command": "error", "nest": 0, "value": "Tiskalnika ni mogoče najti!"})
         else:
-            self.print_sticker(strips_tester.data['status'][0])
+            if strips_tester.data['status'][0] == True:
+                self.print_sticker()
 
         return
 
-    def print_sticker(self, test_status):
+    def print_sticker(self):
         date = datetime.datetime.now()
         date_week = date.strftime("%y%V")  # Generate calendar week
 
@@ -261,11 +268,11 @@ class PrintSticker(Task):
                 'Dy2-me-dd\n'
                 'Th:m:s\n'
                 'XRB11,8,4,0,26\n'
-                'LED U12 57 {liebcode} {date}\n'
-                'AB,97,6,1,1,0,0E,LED_U12_57\n'
+                '{ledcodeformat} {liebcode} {date}\n'
+                'AB,97,6,1,1,0,0E,{ledcode}\n'
                 'AB,97,32,1,1,0,0E,{liebcode}\n'
                 'AB,97,58,1,1,0,0E,{date}/{serial}\n'
-                'E\n').format(date=date_week,liebcode=strips_tester.data['program'][2],serial=serial)
+                'E\n').format(date=date_week,ledcodeformat=strips_tester.data['program'][4].replace("_"," "),ledcode=strips_tester.data['program'][4],liebcode=strips_tester.data['program'][2],serial=serial)
 
             self.godex.send_to_printer(label_pcb)
         else:  # LIEB LED Modul - stickers 25x7mm
@@ -287,11 +294,11 @@ class PrintSticker(Task):
                 'Dy2-me-dd\n'
                 'Th:m:s\n'
                 'XRB33,12,2,0,26\n'
-                'LED U24 88 {liebcode} {date}\n'
-                'AA,82,0,1,1,0,0E,LED_U24_88\n'
+                '{ledcodeformat} {liebcode} {date}\n'
+                'AA,82,0,1,1,0,0E,{ledcode}\n'
                 'AA,82,19,1,1,0,0E,{liebcode}\n'
                 'AA,82,38,1,1,0,0E,{date}/{serial}\n'
-                'E\n').format(date=date_week,liebcode=strips_tester.data['program'][2],serial=serial)
+                'E\n').format(date=date_week,ledcodeformat=strips_tester.data['program'][4].replace("_"," "),ledcode=strips_tester.data['program'][4],liebcode=strips_tester.data['program'][5],serial=serial)
 
             self.godex.send_to_printer(label_pcb)
             time.sleep(1)
@@ -362,8 +369,8 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['BUZZER'], GPIO.LOW)
 
         # Wait for lid to open
-        while self.lid_closed():
-            time.sleep(0.01)
+        #while self.lid_closed():
+        #    time.sleep(0.01)
 
         return
 
