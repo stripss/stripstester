@@ -214,8 +214,10 @@ def save_variable_to_db(name, value):
 
     return
 
-def get_ip_address():
-    return subprocess.check_output(['hostname', '--all-ip-addresses']).decode()[:-2]
+def get_ip_address():  # Return first IP in IP list
+    ip = subprocess.check_output(['hostname', '-I']).decode()
+    ip = ip.split(" ")
+    return ip[0]
 
 def update_address_info(server):
     port = server.serversocket.getsockname()[1]
