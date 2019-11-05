@@ -14,7 +14,7 @@ custom_data = strips_tester.settings.custom_data
 
 class StartProcedureTask(Task):
     def set_up(self):
-        pass
+        self.scanner = devices.Honeywell_1900HID(vid=0x0c2e, pid=0x0901)
 
     def run(self) -> (bool, str):
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
@@ -40,6 +40,19 @@ class StartProcedureTask(Task):
                 GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
                 time.sleep(0.5)
 
+        self.add_measurement(0, True, "SAOP", strips_tester.data['program'][0], "")
+
+        if not self.scanner.found:
+            # Send warning but keep testing
+            gui_web.send({"command": "error", "value": "Skenerja ni mogoče najti!"})
+        else:
+            gui_web.send({"command": "status", "nest": 0, "value": "Skeniraj QR kodo"})
+
+            qr_code = self.scanner.read()
+
+            self.add_measurement(0, True, "Serial", qr_code, "")
+            gui_web.send({"command": "info", "nest": 0, "value": "Modul skeniran: {}".format(qr_code)})
+
         module_logger.info("Waiting for detection switch")
         gui_web.send({"command": "status", "nest": 0, "value": "Za začetek testa priklopi modul"})
 
@@ -60,7 +73,7 @@ class StartProcedureTask(Task):
         return
 
     def tear_down(self):
-        pass
+        self.scanner.close()
 
 class ReadSerial(Task):
     def set_up(self):
@@ -193,7 +206,8 @@ class PowerTest(Task):
             self.add_measurement(0, True, "Current", current, "mA")
 
     def tear_down(self):
-        pass
+        self.voltmeter.close()
+        self.ammeter.close()
 
 class ProductConfigTask(Task):
     def set_up(self):
