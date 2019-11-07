@@ -292,10 +292,10 @@ class InitialTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        for i in range(1):
+        for i in range(3):
             voltage = self.voltmeter.read()
             print("Voltage: {}V" . format(voltage))
-            time.sleep(0.1)
+
 
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
