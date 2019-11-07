@@ -247,14 +247,6 @@ class FinishProcedureTask(Task):
 
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
 
-        # Set relays to NO
-        GPIO.output(gpios['12V_AC'], GPIO.LOW)
-        GPIO.output(gpios['12V_DC'], GPIO.LOW)
-        GPIO.output(gpios['24V_AC'], GPIO.LOW)
-        GPIO.output(gpios['24V_DC'], GPIO.LOW)
-        GPIO.output(gpios['48V_AC'], GPIO.LOW)
-        GPIO.output(gpios['48V_DC'], GPIO.LOW)
-
         time.sleep(0.75)
 
         GPIO.output(gpios['BUZZER'], GPIO.LOW)
@@ -262,6 +254,14 @@ class FinishProcedureTask(Task):
         # Wait for lid to open
         while not self.lid_closed():
             time.sleep(0.001)
+
+        # Set relays to NO
+        GPIO.output(gpios['12V_AC'], GPIO.LOW)
+        GPIO.output(gpios['12V_DC'], GPIO.LOW)
+        GPIO.output(gpios['24V_AC'], GPIO.LOW)
+        GPIO.output(gpios['24V_DC'], GPIO.LOW)
+        GPIO.output(gpios['48V_AC'], GPIO.LOW)
+        GPIO.output(gpios['48V_DC'], GPIO.LOW)
 
         return
 
