@@ -14,7 +14,7 @@ custom_data = strips_tester.settings.custom_data
 
 class StartProcedureTask(Task):
     def set_up(self):
-        self.scanner = devices.Honeywell_1900HID(vid=0x0c2e, pid=0x0901)
+        self.scanner = devices.Honeywell_1900HID(vid=0x05f9, pid=0x2216)
 
     def run(self) -> (bool, str):
         gui_web.send({"command": "progress", "nest": 0, "value": "0"})
