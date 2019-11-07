@@ -296,7 +296,6 @@ class InitialTest(Task):
             voltage = self.voltmeter.read()
             print("Voltage: {}V" . format(voltage))
 
-
         self.shifter.set(testpad1, False)
         self.shifter.set(testpad2, False)
         self.shifter.invertShiftOut()
@@ -313,7 +312,7 @@ class InitialTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 20
+        num_of_tries = 10
         time.sleep(0.2)
 
         voltage = self.voltmeter.read()
@@ -332,11 +331,11 @@ class InitialTest(Task):
 
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sV", name, voltage)
-            gui_web.send({"command": "error", "nest": nest, "value": "Meritev napetosti {} je izven območja: {}V" . format(name,voltage)})
+            gui_web.send({"command": "error", "nest": nest, "value": "Meritev napetosti {} je izven območja: {}V" . format(name, voltage)})
             self.add_measurement(nest, False, name, voltage, "V")
         else:
             module_logger.info("%s in bounds: meas:%sV", name, voltage)
-            gui_web.send({"command": "info", "nest": nest, "value": "Meritev napetosti {}: {}V" . format(name,voltage)})
+            gui_web.send({"command": "info", "nest": nest, "value": "Meritev napetosti {}: {}V" . format(name, voltage)})
             self.add_measurement(nest, True, name, voltage, "V")
 
         self.shifter.set(testpad1, False)
