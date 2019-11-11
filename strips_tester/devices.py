@@ -19,6 +19,9 @@ sys.path += [os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ]
 from strips_tester import *
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_voltage import *
+from yoctopuce.yocto_weighscale import *
+from yoctopuce.yocto_genericsensor import *
+
 from strips_tester.abstract_devices import AbstractVoltMeter, AbstractFlasher, AbstractSensor, AbstractBarCodeScanner
 from collections import OrderedDict
 import collections
@@ -593,11 +596,14 @@ class GoDEXG300:
 
 
 class Godex:
-
     '''
         Driver for Godex thermal printers. Performs like writing to file. Every line must be terminated with \n.
         Does not need USB to RS232 converter. Made by Marcel Jancar 08.05.2019
     '''
+
+    INTERFACE_AUTOSELECT = 0
+    INTERFACE_SERIAL = 1
+    INTERFACE_USB = 2
 
     # Initialisation of printer port
     def __init__(self, port_usb='/dev/usb/lp0', port_serial='/dev/ttyUSB0', timeout=3.0, interface=0):
@@ -965,7 +971,7 @@ class HEF4094BT:
 
             if bit > 44:
                 state = GPIO.input(self.checkpin)
-                print(state, end="")
+                #print(state, end="")
                 self.checkstate.append(state)
 
             self.clock_shift()
@@ -1021,6 +1027,46 @@ class HEF4094BT:
 
         GPIO.output(gpios['LATCH'], 1)
 
+
+# Yocto Library - must execute for each sensor available. Made by Marcel Jancar 4.11.2019
+class Yocto:
+    def __init__(self, device_name, delay = 0.16):
+        self.sensor = None
+        self.found = True
+        self.delay = delay
+
+        errmsg = None
+        if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
+            module_logger.error("Cannot load Yocto API! %s", errmsg)
+            self.found = False
+            return
+
+        try:
+            # Initialize sensor (more common than YVoltage)
+            self.sensor = YSensor.FindSensor(device_name)
+            self.sensor.set_resolution(0.01)
+
+        except YAPI.YAPI_Exception:
+            self.found = False
+            return
+
+    def get_name(self):
+        module = self.sensor.get_module()
+        target = module.get_serialNumber()
+        return target
+
+    def read(self):
+        time.sleep(self.delay)  # Sleep before taking measurement
+        return self.sensor.get_currentValue()
+
+    def get_highest_value(self):
+        time.sleep(self.delay)  # Sleep before taking measurement
+        return self.sensor.get_highestValue()
+
+    def close(self):
+        YAPI.FreeAPI()
+
+
 class YoctoVoltageMeter(AbstractSensor):
     def __init__(self, device_name, delay: int = 1):
         super().__init__(delay, "Voltage", "V")
@@ -1056,14 +1102,96 @@ class YoctoVoltageMeter(AbstractSensor):
         # module_logger.debug("Yocto-volt init done")
 
     def get_value(self):
+        while not (self.sensor.isOnline()):
+            time.sleep(0.1)
+            print("YoctoVolt not found... Retrying...")
+
         return self.sensor.get_currentValue()
+
+    def close(self):
+        YAPI.FreeAPI()
+
+class YoctoBridge:
+    def __init__(self, device_name, delay=1):
+        self.sensor = None
+        self.found = True
+        self.delay = delay
+
+        errmsg = None
+        if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
+            print("YoctoBridge did not load correctly.")
+            self.found = False
+            return
+
+        try:
+            # Initialize sensor (more common than YVoltage)
+            self.sensor1 = YWeighScale.FindWeighScale(device_name)
+            self.sensor1.set_zeroTracking(0)
+            self.sensor1.set_excitation(YWeighScale.EXCITATION_AC)
+
+            self.sensor = YSensor.FindSensor(device_name)
+            module = self.sensor.module()
+            serial = module.get_serialNumber()
+            self.sensor = YGenericSensor.FindGenericSensor(serial+".genericSensor1")
+
+            self.sensor.set_signalSampling(1)  # Sample as HIGH RATE FILTERED
+        except YAPI.YAPI_Exception as err:
+            self.found = False
+            print("YAPI Error: {}" . format(err))
+            return
+
+
+        # module_logger.debug("Module %s found with serial number %s", m, target);
+        if not (self.sensor.isOnline()):
+            raise ('yocto bridge is not on')
+
+    def set_excitation(self, mode):
+        self.sensor1.set_excitation(mode)
+        print("Excitation set - {}" . format(mode))
+
+    def get_name(self):
+        self.m = self.sensor.get_module()
+        target = self.m.get_serialNumber()
+        #print(target)
+        return target
+
+        # if not (self.sensor2.isOnline()):
+        # raise ('yocto volt2 is not on')
+        # module_logger.debug("Yocto-volt init done")
+
+    def get_value(self):
+        time.sleep(self.delay)
+        return self.sensor.get_currentValue()
+
+    def get_signal_value(self):
+        time.sleep(self.delay)
+        while not (self.sensor.isOnline()):
+            time.sleep(0.1)
+            print("YoctoBridge not found... Retrying...")
+        return self.sensor.get_signalValue()
+
+    def set_signal_range(self, rangeFrom, rangeTo):
+        self.sensor.set_signalRange('{f}...{t}' . format(f=rangeFrom,t=rangeTo))
+        print("range set to {}". format(self.sensor.get_signalRange()))
+
+    def get_resistance(self):
+        sig = self.get_signal_value()
+
+        maxsig = 1000000
+        ref = 1000000
+
+        if sig < 0.99 * maxsig:
+            res = round((ref * 2000.0 * sig / (1000000 - sig)) / 1000)
+        else:
+            res = -1
+        #print(res)
+        return res
 
     def get_highest_value(self):
         return self.sensor.get_highestValue()
 
     def close(self):
         YAPI.FreeAPI()
-
 
 class CameraDevice:
     def __init__(self, Xres: int, Yres: int):
@@ -1322,7 +1450,7 @@ class ArduinoSerial:
             else:
                 response = str(response)
 
-            print("Arduino: {}".format(response))
+            #print("Arduino: {}".format(response))
 
             if return_resp:
                 return response
@@ -1793,11 +1921,15 @@ class STLink:
         return True
 
     def is_hex(self):
-        extension = os.path.splitext(self.binary)[1]
+        try:
+            extension = os.path.splitext(self.binary)[1]
 
-        if extension == 'hex':
-            return True
-        else:
+            if extension == 'hex':
+                return True
+            else:
+                return False
+        except Exception:  # File has no extension
+            module_logger.error("Binary '{}' has no extension." . format(self.binary))
             return False
 
     def close(self):
