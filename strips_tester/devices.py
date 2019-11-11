@@ -1178,7 +1178,7 @@ class YoctoBridge:
         sig = self.get_signal_value()
 
         maxsig = 1000000
-        ref = 1000000
+        ref = 218000
 
         if sig < 0.99 * maxsig:
             res = round((ref * 2000.0 * sig / (1000000 - sig)) / 1000)

@@ -74,8 +74,8 @@ class StartProcedureTask(Task):
             GPIO.output(gpios['GREEN_RIGHT'], True)
             GPIO.output(gpios['RED_RIGHT'], True)
 
-            start_buzzer_thread = threading.Thread(target=self.start_buzzer)
-            start_buzzer_thread.start()
+            self.start_buzzer_thread = threading.Thread(target=self.start_buzzer)
+            self.start_buzzer_thread.start()
 
             GPIO.output(gpios['LN_RELAY'], GPIO.HIGH)  # Disable L and N
         else:
@@ -424,7 +424,7 @@ class ICT_ResistanceTest(Task):
         for i in range(10):
             try:
                 #self.ohmmeter = devices.DigitalMultiMeter("/dev/ohmmeter")
-                self.ohmmeter = devices.YoctoBridge('YWBRIDG1-114706.weighScale1', 0.5)
+                self.ohmmeter = devices.YoctoBridge('YWBRIDG1-114706.weighScale1', 0.6)
 
                 break
             except Exception:
@@ -577,12 +577,12 @@ class ICT_ResistanceTest(Task):
         time.sleep(0.01)
 
     def make_short_on(self, vccpad, gndpad):
-        self.shifter.set(vccpad, True)
+        #self.shifter.set(vccpad, True)
         self.shifter.set(gndpad, True)
         self.shifter.invertShiftOut()
 
     def make_short_off(self, vccpad, gndpad):
-        self.shifter.set(vccpad, False)
+        #self.shifter.set(vccpad, False)
         self.shifter.set(gndpad, False)
         self.shifter.invertShiftOut()
 
@@ -955,9 +955,8 @@ class FinishProcedureTask(Task):
                 GPIO.output(gpios['RED_RIGHT'], True)
                 gui_web.send({"command": "semafor", "nest": 1, "value": (1, 0, 0)})
 
-        time.sleep(1)
-
-        GPIO.output(gpios['BUZZER'], False)
+        self.start_buzzer_thread = threading.Thread(target=self.start_buzzer)
+        self.start_buzzer_thread.start()
 
         # wait for open lid
         if not strips_tester.data['exist'][0] and not strips_tester.data['exist'][1]:
@@ -971,6 +970,10 @@ class FinishProcedureTask(Task):
             time.sleep(0.01)
 
         return
+
+    def start_buzzer(self):
+        time.sleep(1)
+        GPIO.output(gpios['BUZZER'], False)
 
     def tear_down(self):
         self.shifter.reset()
