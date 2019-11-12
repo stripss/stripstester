@@ -446,7 +446,7 @@ class ICT_ResistanceTest(Task):
         self.shifter.set("K9", True)
         self.shifter.invertShiftOut()
 
-        self.ohmmeter.set_signal_range(0, 300000)
+        #self.ohmmeter.set_signal_range(0, 300000)
 
         # Initiate servo calibration
         self.servo_thread = threading.Thread(target=self.zero_trimmers)
