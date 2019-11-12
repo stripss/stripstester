@@ -142,6 +142,9 @@ class InitialTest(Task):
         self.calibration_thread = threading.Thread(target=self.calibration)
         self.calibration_thread.start()
 
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "5"})
+
         self.power_on()  # Power on board (external 5V)
 
         self.flash_process = threading.Thread(target=self.flashMCU, args=(0,))
@@ -260,6 +263,9 @@ class InitialTest(Task):
         self.power_off()
         self.calibration_thread.join()  # Wait for servo to calibrate
 
+        for i in range(2):
+            gui_web.send({"command": "progress", "nest": i, "value": "15"})
+
         if not stop:
             if flip_left and flip_right:
                 # Flip both servos
@@ -332,7 +338,7 @@ class InitialTest(Task):
         self.shifter.set(testpad2, True)
         self.shifter.invertShiftOut()
 
-        num_of_tries = 20
+        num_of_tries = 10
 
         voltage = self.voltmeter.read()
 
@@ -349,7 +355,7 @@ class InitialTest(Task):
         if not num_of_tries:
             module_logger.warning("%s out of bounds: meas:%sV", name, voltage)
             gui_web.send({"command": "error", "nest": nest, "value": "Meritev napetosti {} je izven območja: {}V".format(name, voltage)})
-            self.add_measurement(nest, False, name, voltage, "V")
+            self.add_measurement(nest, False, name, voltage, "V", end_task=True)  # Cannot determine servo position
         else:
             module_logger.info("%s in bounds: meas:%sV", name, voltage)
             gui_web.send({"command": "info", "nest": nest, "value": "Meritev napetosti {}: {}V".format(name, voltage)})
@@ -404,6 +410,8 @@ class InitialTest(Task):
 
         GPIO.output(gpios['SEGGER_RELAY'], GPIO.HIGH)
 
+        gui_web.send({"command": "progress", "nest": nest, "value": "10"})
+
         return status
 
     def tear_down(self):
@@ -421,7 +429,7 @@ class ICT_ResistanceTest(Task):
         self.shifter = devices.HEF4094BT(24, 31, 26, 29)
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
-        for i in range(10):
+        for i in range(5):
             try:
                 #self.ohmmeter = devices.DigitalMultiMeter("/dev/ohmmeter")
                 self.ohmmeter = devices.YoctoBridge('YWBRIDG1-114706.weighScale1', 0.6)
@@ -453,7 +461,7 @@ class ICT_ResistanceTest(Task):
         self.servo_thread.start()
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "10"})
+            gui_web.send({"command": "progress", "nest": i, "value": "20"})
 
         self.power_off()  # Just to make sure
 
@@ -471,7 +479,7 @@ class ICT_ResistanceTest(Task):
             self.measure_resistance(0, "R8", "M10", "M8", 220)
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "15"})
+            gui_web.send({"command": "progress", "nest": i, "value": "30"})
 
         if self.is_product_ready(1):
             self.shifter.set("K13", False)  # Segger VCC Right
@@ -489,7 +497,7 @@ class ICT_ResistanceTest(Task):
             self.measure_resistance(1, "R5", "L14", "K5", 220000, 10)
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "20"})
+            gui_web.send({"command": "progress", "nest": i, "value": "40"})
 
         if self.is_product_ready(0):
             self.ohmmeter.sensor1.set_excitation(2)
@@ -506,7 +514,7 @@ class ICT_ResistanceTest(Task):
         self.make_short_off("L9", "L7")  # We make sure capacitors are discharged
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "25"})
+            gui_web.send({"command": "progress", "nest": i, "value": "50"})
 
         self.servo_thread.join()  # Wait until trimmers are zeroed
 
@@ -672,7 +680,7 @@ class ICT_VoltageVisualTest(Task):
         self.ict_thread.start()
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "30"})
+            gui_web.send({"command": "progress", "nest": i, "value": "60"})
 
         visual_start = self.check_mask([0, 0, 1], 2)
 
@@ -699,7 +707,7 @@ class ICT_VoltageVisualTest(Task):
         # Wait until leds are off
         visual_off = self.check_mask([1, 1, 1], 4)
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "40"})
+            gui_web.send({"command": "progress", "nest": i, "value": "70"})
 
         if self.is_product_ready(0):
             if not visual_off[0]:
@@ -722,7 +730,7 @@ class ICT_VoltageVisualTest(Task):
         # Check for errors
         visual_err = self.check_mask([0, 1, 1], 1)
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "50"})
+            gui_web.send({"command": "progress", "nest": i, "value": "80"})
 
         if self.is_product_ready(0):
             if visual_err[0]:
@@ -748,7 +756,7 @@ class ICT_VoltageVisualTest(Task):
         visual_on = self.check_mask([0, 0, 0], 4)
 
         for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "60"})
+            gui_web.send({"command": "progress", "nest": i, "value": "90"})
 
         if self.is_product_ready(0):
             if not visual_on[0]:
@@ -772,9 +780,6 @@ class ICT_VoltageVisualTest(Task):
 
         self.ict_thread.join()  # Wait until ICT voltage test is finished
 
-        for i in range(2):
-            gui_web.send({"command": "progress", "nest": i, "value": "70"})
-
         # razkleni L, N
         # self.shifter.set("K16", False)  # L
         # self.shifter.set("K15", False)  # N
@@ -795,14 +800,12 @@ class ICT_VoltageVisualTest(Task):
 
         if self.is_product_ready(1):
             self.measure_voltage(1, "D1", "L8", "L11", 2.2, 0.5)
-            gui_web.send({"command": "progress", "nest": 1, "value": "80"})
 
         if self.is_product_ready(0):
             self.measure_voltage(0, "5V", "M3", "M7", 4.7, 0.5)
 
         if self.is_product_ready(1):
             self.measure_voltage(1, "5V", "L7", "L11", 4.7, 0.5)
-            gui_web.send({"command": "progress", "nest": 1, "value": "80"})
 
             #
             # if voltage_5v == -1 or voltage_d1 == -1 or voltage_z1 == -1:
@@ -985,8 +988,14 @@ class EndCalibration(Task):
         self.nanoboard_small = devices.ArduinoSerial('/dev/arduino', baudrate=115200)
 
     def run(self):
-        self.nanoboard_small.write("calibrate", 10)
+        self.calibration()
+        #self.calibration_thread = threading.Thread(target=self.calibration)
+        #self.calibration_thread.start()
+
         return
+
+    def calibration(self):
+        self.nanoboard_small.write("calibrate", 10)
 
     def tear_down(self):
         self.nanoboard_small.close()
@@ -994,7 +1003,7 @@ class EndCalibration(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        self.godex = devices.Godex(port_serial="/dev/godex")
+        self.godex = devices.Godex(port_serial="/dev/godex")  # If autoselect choose serial, port to godex (Arduino interference)
 
         # self.godex_found = False
         # for i in range(10):
