@@ -58,9 +58,9 @@ def initialize_logging(level: int = logging.INFO):
 
     return lgr
 
+# Dictionary factory for SQLite
 def dict_from_row(row):
     return dict(zip(row.keys(), row))
-
 
 def lock_local_db():
     # Wait until local is released
@@ -107,6 +107,7 @@ if data['db_connection'] is not None:
     test_devices_col = data['db_database']["test_device"]
     test_info_col = data['db_database']["test_info"]
     test_worker_col = data['db_database']["test_worker"]
+    test_calibration_col = data['db_database']["test_calibration"]
 
 # Websocket serves as pipeline between GUI and test device
 websocket = threading.Thread(target=gui_web.start_server, args=(websocket_port,))
@@ -117,4 +118,4 @@ httpserver = threading.Thread(target=gui_web.start_http_server, args=(http_port,
 httpserver.daemon = True
 
 # Open webbrowser on RPi
-subprocess.Popen(['chromium-browser','--no-sandbox','http://localhost/index_local.html','--start-fullscreen'])
+#subprocess.Popen(['chromium-browser','--no-sandbox','http://localhost/index_local.html','--start-fullscreen'])

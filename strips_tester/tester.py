@@ -172,20 +172,23 @@ class Task:
 
 # Apply variable to memory so the next time test device turn on, this memory will be applied
 def save_variable_to_db(name, value):
-    if strips_tester.data['db_connection'] is not None:
-        strips_tester.data['db_database']['test_device'].update_one({'name': strips_tester.settings.test_device_name}, {"$push": {'memory.{}' . format(name): value}}, True)
+    try:
+        if strips_tester.data['db_connection'] is not None:
+            strips_tester.data['db_database']['test_device'].update_one({'name': strips_tester.settings.test_device_name}, {"$push": {'memory.{}' . format(name): value}}, True)
 
-    else:  # Retrieve serial number from Local DB
+        else:  # Retrieve serial number from Local DB
 
-        # result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
-        # # Update global variable with last remote counters
-        #
-        # serial_number = result['serial'] + 1
-        #
-        # strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
-        # strips_tester.data['db_connection'].commit()
-        # # Update serial in Local DB
-        pass
+            # result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
+            # # Update global variable with last remote counters
+            #
+            # serial_number = result['serial'] + 1
+            #
+            # strips_tester.data['db_local_cursor'].execute('''UPDATE test_device SET serial = ?''',(serial_number,))
+            # strips_tester.data['db_connection'].commit()
+            # # Update serial in Local DB
+            pass
+    except Exception as e:
+        print(e)
     return
 
 def start_test_device():
@@ -553,6 +556,12 @@ if __name__ == "__main__":
             strips_tester.data['comment_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['comment']
         except(TypeError, KeyError):  # Create custom counter skeleton in MongoDB
             strips_tester.test_worker_col.update_one({"id": strips_tester.data['worker_id']}, {"$set": {"good": 0, "bad": 0, "comment": ""}}, True)
+
+
+        try:
+            strips_tester.data['last_calibration'] = strips_tester.test_calibration_col.find({"test_device": test_device['_id']}).sort('date', -1).limit(1)[0]['date']
+        except(TypeError, KeyError, IndexError) as e:
+            strips_tester.data['last_calibration'] = None
 
         # Truncate local DB test_device
         strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_device''')

@@ -140,8 +140,8 @@ class SimpleChat(WebSocket):
         sendTo(self, {"command": "threaded", "value": strips_tester.settings.thread_nests})  # Tell GUI if tester is threaded
         sendTo(self, {"command": "nests", "value": strips_tester.settings.test_device_nests})
 
-        sendTo(self, ({"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
-                       "bad_count_today": strips_tester.data['bad_count_today']}))
+        sendTo(self, {"command": "count", "good_count": strips_tester.data['good_count'], "bad_count": strips_tester.data['bad_count'], "good_count_today": strips_tester.data['good_count_today'],
+                       "bad_count_today": strips_tester.data['bad_count_today']})
 
         # Update worker info
         sendTo(self, {"command": "set_worker_data", "worker_id": strips_tester.data['worker_id'], "worker_type": strips_tester.data['worker_type'], "worker_comment": strips_tester.data['worker_comment']})
@@ -160,6 +160,8 @@ class SimpleChat(WebSocket):
 
             # Raise worker data modal
             sendTo(self, {"command": "confirm_worker_data"})
+
+        sendTo(self, {"command": "alert", "value": "calibration", "last": strips_tester.data['last_calibration']})
 
         if custom_parser:
             Parser = getattr(parser, "Parser")
