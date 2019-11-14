@@ -1,0 +1,49 @@
+{
+  "thread_nests": 0,
+  "test_device_name": "GARO MEL",
+  "test_device_nests": 1,
+
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "VoltageTest": 1,
+    "FlashMCU": 1,
+    "InternalTest": 0,
+    "FinishProcedureTask": 1
+  },
+
+  "critical_event_tasks": {
+    "FinishProcedureTask": 1
+  },
+
+  "gpio_settings": {
+
+    "red_led": {
+      "function": 0,
+      "pin": 32,
+      "initial": 0
+    },
+    "green_led": {
+      "function": 0,
+      "pin": 24,
+      "initial": 0
+    },
+    "blue_led": {
+      "function": 0,
+      "pin": 26,
+      "initial": 0
+    },
+
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 12,
+      "pull": 22
+    }
+
+  },
+  "relay_settings": {
+
+  },
+  "data": {
+
+  }
+}

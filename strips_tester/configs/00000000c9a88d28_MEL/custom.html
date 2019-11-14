@@ -1,0 +1,118 @@
+<hr>
+
+<div id="accordion2" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h5 class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseOne">
+                    <i class="fas fa-angle-double-down"></i> Prenos
+                </button>
+            </h5>
+        </div>
+
+        <div id="collapseTwo" class="collapse" aria-labelledby="headingOne" data-parent="#accordion2">
+            <div class="card-body">
+
+                <button type="button" class="btn btn-primary" id="download_button"><i class="far fa-save"></i>Prenesi slike kamere (.zip)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="accordion3" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingThree">
+            <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#collapseThree">
+                    <i class="fas fa-angle-double-down"></i> Programska oprema
+                </button>
+            </h5>
+
+            <span id="current_hex">Ni nastavljeno</span>
+        </div>
+
+        <div id="collapseThree" class="collapse" data-parent="#accordion3">
+            <div class="card-body">
+
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="inputGroupSelect03">Programska oprema</label>
+                    </div>
+                    <select class="custom-select" id="set_program"></select>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="set_program_button"><i class="fas fa-cog"></i>Nastavi program</button>
+            </div>
+        </div>
+    </div>
+</div>
+<hr>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.2.2/jszip.min.js"></script>
+<script src="http://cdn.jsdelivr.net/g/filesaver.js"></script>
+
+<script>
+    $(document).ready(function () {
+        function sendJSON(txt) {
+            // Inherit socket variable from main page
+            socket.send(JSON.stringify(txt));
+        }
+
+        // Get program list
+        sendJSON({"command": "get_program_list"});
+
+        $("#set_program_button").click(function () {
+            sendJSON({"command": "set_program", "value": $("#set_program").find("option:selected").data("data")});
+        });
+
+        function getBase64Image(img) {
+            var canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            var dataURL = canvas.toDataURL("image/png");
+            return dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
+        }
+
+        $("#download_button").click(function () {
+            if(!$("img.downloadable").length) return;  // Do nothing if there is no images available
+
+            var zip = new JSZip();
+            var images = zip.folder("img");
+
+            $.each($("img.downloadable"), function (index, value) {
+                // Get parent to see nest
+
+                images.file("img" + index + ".jpg", getBase64Image(value), {base64: true});
+            });
+
+            zip.generateAsync({type: "blob"})
+                .then(function (content) {
+                    // see FileSaver.js
+                    saveAs(content, "images.zip");
+                });
+        });
+    });
+
+    function onCustomMessage(data) {
+        if (data.command == "program_list") {
+            // Append programs to option attribute
+            $.each(data.value, function (index, value) {
+                $('#set_program').append('<option value="' + value + '">' + value + '</option>');
+                $("#set_program").find("option:last-child").data("data", value);  // Set data as hidden attribute
+            });
+        }
+
+        // Recieved command for setting new program
+        if (data.command == "set_program") {
+            // Set current
+            $("#set_program option[value='" + data.value + "']").prop("selected", "selected");
+
+            $('#accordion3 #current_hex').fadeOut("fast", function () {
+                $('#accordion3 #current_hex').html("Trenutni: " + data.value);
+            });
+            $('#accordion3 #current_hex').fadeIn("fast");
+        }
+    }
+</script>
