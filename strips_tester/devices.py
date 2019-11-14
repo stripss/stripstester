@@ -1420,6 +1420,7 @@ class ArduinoSerial:
             elif self.mode == "hex":
                 self.ser.write(unhexlify(string))
 
+            print("written {}" . format(string))
             time.sleep(wait)  # serial wait for answer
 
             if response is not None:
@@ -1443,8 +1444,9 @@ class ArduinoSerial:
                 if end > start + datetime.timedelta(seconds=timeout):
                     return False
 
+            print("aa")
             response = self.ser.readline()
-
+            print("bb {}" . format(response))
             if self.mode == "hex":
                 response = response.hex()
             else:
@@ -1893,8 +1895,10 @@ class STLink:
 
         #self.process = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', '-v', '-c', 'STM32F030x8', 'flash:erase:verify:0x08000000:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if self.is_hex():
+            #print("is hex file")
             self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'ihex', 'write', self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
+            #print("not hex")
             self.process = subprocess.Popen(['/stlink/build/Release/st-flash', '--format', 'binary', 'write', self.binary, '0x08000000'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         out, err = self.process.communicate()
@@ -1924,7 +1928,7 @@ class STLink:
         try:
             extension = os.path.splitext(self.binary)[1]
 
-            if extension == 'hex':
+            if 'hex' in extension:
                 return True
             else:
                 return False
