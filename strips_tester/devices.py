@@ -666,6 +666,17 @@ class Godex:
         except Exception as ee:
             return False
 
+    def load_label(self, filename):
+        string = ''
+
+        if not os.path.isfile(filename):
+            return print("Label {} does not exist!" . format(filename))
+
+        with open(filename) as file:
+            for line in file:
+                string += line
+
+        return string
 
     # Command for actual printing.
     def send_to_printer(self, string):
