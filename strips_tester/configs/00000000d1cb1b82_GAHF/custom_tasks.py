@@ -1052,6 +1052,11 @@ class PrintSticker(Task):
         fw_version = params[2]  # Firmware version
         size = 2
 
+        if firmware == "GADF":
+            garo = "109561"
+        else:
+            garo = "41948"
+
         if size == 1:  # 25x10mm
             label = ('^Q10,3\n'
                     '^W21\n'
@@ -1071,10 +1076,10 @@ class PrintSticker(Task):
                     'Th:m:s\n'
                     'AA,10,12,1,1,0,0E,{firmware} int {saop}\n'
                     'AA,10,31,1,1,0,0E,f.w.: {version}\n'
-                    'AA,10,50,1,1,0,0E,41948, QC: {qc}\n'
+                    'AA,10,50,1,1,0,0E,{garo}, QC: {qc}\n'
                     'XRB115,35,2,0,13\n'
                     '{datamatrix}\n'
-                    'E\n').format(darkness = darkness,inverse = inverse,firmware = firmware, saop=saop, version = fw_version,qc=strips_tester.data['worker_id'], datamatrix=datamatrix)
+                    'E\n').format(darkness = darkness,inverse = inverse,firmware = firmware, saop=saop, version = fw_version,qc=strips_tester.data['worker_id'], datamatrix=datamatrix,garo=garo)
         else:  # 25x7mm
             label = ('^Q7,3\n'
                      '^W25\n'
@@ -1094,10 +1099,10 @@ class PrintSticker(Task):
                      'Th:m:s\n'
                      'AA,9,2,1,1,0,0E,{firmware} int {saop}\n'
                      'AA,9,21,1,1,0,0E,f.w.: {version}\n'
-                     'AA,9,40,1,1,0,0E,41948, QC: {qc}\n'
+                     'AA,9,40,1,1,0,0E,{garo}, QC: {qc}\n'
                      'XRB152,10,2,0,13\n'
                      '{datamatrix}\n'
-                     'E\n').format(darkness=darkness, inverse=inverse, firmware=firmware, saop=saop, version=fw_version, qc=strips_tester.data['worker_id'], datamatrix=datamatrix)
+                     'E\n').format(darkness=darkness, inverse=inverse, firmware=firmware, saop=saop, version=fw_version, qc=strips_tester.data['worker_id'], datamatrix=datamatrix,garo=garo)
 
         self.godex.send_to_printer(label)
         time.sleep(1)
