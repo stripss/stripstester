@@ -226,8 +226,10 @@ def update_address_info(server):
     ip_address = "{}:{}" . format(get_ip_address(), port)
 
     if strips_tester.data['db_connection'] is not None:
+        git_version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
+
         # Save current port to DB
-        strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address}})
+        strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address, "git": git_version}})
 
     module_logger.info("[StripsTester] WebSocket server started on {}" . format(ip_address))
 
