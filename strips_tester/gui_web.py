@@ -226,7 +226,13 @@ def update_address_info(server):
     ip_address = "{}:{}" . format(get_ip_address(), port)
 
     if strips_tester.data['db_connection'] is not None:
-        git_version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
+        git_version = 'unknown'
+
+        try:
+            with open('/strips_tester_project/.git/refs/heads/master', 'r') as git_file:
+                git_version = git_file.read().strip()
+        except Exception:
+            pass
 
         # Save current port to DB
         strips_tester.test_devices_col.update_one({"name": strips_tester.settings.test_device_name}, {"$set": {"address": ip_address, "git": git_version}})
