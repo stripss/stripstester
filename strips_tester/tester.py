@@ -469,6 +469,8 @@ if __name__ == "__main__":
     strips_tester.data['bad_custom'] = 0
     strips_tester.data['comment_custom'] = ""
 
+    strips_tester.data['last_calibration'] = None
+
     # Create skeletons for local DB and load data if available. Count, stored in test_device are from remote DB. Extra counts are counted by rows in local DB.
     strips_tester.data['db_local_cursor'].execute(
         '''CREATE TABLE IF NOT EXISTS test_device(name TEXT, good_count INT, bad_count INT, good_count_today INT, bad_count_today INT, worker_id INT, worker_type INT, worker_comment TEXT, serial INT, memory TEXT)''')
