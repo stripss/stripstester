@@ -1431,7 +1431,6 @@ class ArduinoSerial:
             elif self.mode == "hex":
                 self.ser.write(unhexlify(string))
 
-            print("written {}" . format(string))
             time.sleep(wait)  # serial wait for answer
 
             if response is not None:
