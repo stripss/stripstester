@@ -1010,6 +1010,108 @@ class VisualTest(Task):
             self.ftdi[i].close()
 
 
+
+class VisualTestCalibration(Task):
+    # UART production mode
+    # Draw image with mask dots with 50% opacity
+    # Turn all segments ON
+    # Keep camera opened
+
+    def set_up(self):
+        try:
+            if not strips_tester.data['camera_calibration']:
+                return
+        except Exception:
+            return
+
+        self.ftdi = []
+        self.visual = []
+
+        for i in range(2):
+            self.ftdi.append(devices.ArduinoSerial('/dev/ftdi{}'.format(i + 1), baudrate=57600, mode="hex"))
+            self.visual.append(devices.Visual())
+            self.visual[i].load_mask(strips_tester.settings.test_dir + "/mask/mask{}.json" . format(i))
+
+        self.camera = devices.RPICamera()
+        self.relay = RelayBoard([16,14,12,10,9,11,13,15,8,6,4,2,1,3,5,7], True)
+
+    def run(self):
+        try:
+            if not strips_tester.data['camera_calibration']:
+                return
+        except Exception:
+            return
+
+        gui_web.send({"command": "status", "value": "Kalibracija displaya"})
+
+        #Power on
+        self.relay.set(0x1)
+        time.sleep(0.1)
+
+        # Do not count as valid test
+        for i in range(2):
+            strips_tester.data['exist'][i] = False
+
+        # Turn on all segments
+        for i in range(2):
+            self.ftdi[i].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.1, wait=0.5, retry=10)
+
+            self.set_digit(i, "{}".format(hex(0b1111111)[2:].zfill(2)), "{}".format(hex(0b1111111)[2:].zfill(2)))
+            self.set_display(i, "{}".format(hex(0b11111111)[2:].zfill(2)), "{}".format(hex(0b1111)[2:].zfill(2)))
+
+        gui_web.send({"command": "camera_calibration"})
+
+        while strips_tester.data['camera_calibration']:
+            time.sleep(0.01)
+            self.camera.get_image()
+            self.camera.crop_image(90, 174, 465, 66)
+
+            for nest in range(2):
+                for a in range(len(self.visual[nest].mask)):
+                    for b in self.visual[nest].mask[a]:
+                        cv2.circle(self.camera.last_image, (b['x'] + self.visual[nest].mask_offset_x, b['y'] + self.visual[nest].mask_offset_y), 1, (30, 30, 255), -1)
+
+            retval, buffer = cv2.imencode('.jpg', self.camera.last_image)
+            jpg_as_text = base64.b64encode(buffer)
+            gui_web.send({"command": "info", "nest": 0, "value": jpg_as_text.decode(), "type": "video"})
+
+        #Power off
+        self.relay.clear(0x1)
+
+        self.end_test()
+        return
+
+    def set_digit(self, nest, digit1, digit2):
+        self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 08 {} {} 55 AA" . format(digit1,digit2))))  # Write data to UART
+
+        return
+
+    def set_display(self, nest, display1, display2):
+        print(display1, display2)
+        self.ftdi[nest].ser.write(unhexlify(self.with_crc("AA 55 09 {} {} 55 AA" . format(display1,display2))))  # Write data to UART
+
+        return
+
+    def with_crc(self, a):
+        a = a.replace(" ", "").upper()  # Remove spaces
+
+        b = [a[i:i + 2] for i in range(0, len(a), 2)]
+        c = [int(i, 16) for i in b]
+        d = (255 - sum(c) % 256) + 1
+
+        e = hex(d)[2:].zfill(2)
+
+        result = "{}{}".format(a, e)
+        return result.upper()
+
+    def tear_down(self):
+        self.camera.close()
+
+        # Close FTDI adapters
+        for i in range(2):
+            self.ftdi[i].close()
+
+
 class PrintSticker(Task):
     def set_up(self):
         self.godex = devices.Godex(interface=2)

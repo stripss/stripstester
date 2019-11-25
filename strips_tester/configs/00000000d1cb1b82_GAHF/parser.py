@@ -45,6 +45,19 @@ class Parser:
                 for nest in range(2):
                     gui_web.sendTo(client, {"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 1, 0)})
 
+        # Enable camera calibration mode
+        if "camera_calibration" in message['command']:
+
+            strips_tester.data['camera_calibration'] = message['value']
+
+            for nest in range(2):
+                if strips_tester.data['camera_calibration']:
+                    gui_web.sendTo(client, {"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 1, 0)})
+                else:
+                    gui_web.sendTo(client, {"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 0, 0)})
+
+
+
 
     def welcome(self, client):
 

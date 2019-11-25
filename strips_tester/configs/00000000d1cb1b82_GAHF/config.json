@@ -5,6 +5,7 @@
 
   "task_execution_order": {
     "StartProcedureTask": 1,
+    "VisualTestCalibration": 1,
     "VoltageTest": 1,
     "FlashMCU": 1,
     "ButtonAndNTCTest": 1,

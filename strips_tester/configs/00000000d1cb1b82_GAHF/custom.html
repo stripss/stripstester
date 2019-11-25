@@ -1,11 +1,33 @@
 <hr>
 
+<!-- Modal -->
+<div class="modal fade" id="gahf_calibration" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-camera"></i>Kalibracija kamere</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Nastavite kamero na položaj, kjer bodo vse rdeče pike nalegale na sredino segmentov. Ko kliknete gumb Zapri, se kalibracija zaključi.
+
+                <img style="margin-top: 10px;" class="video" src="" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary float-right" data-dismiss="modal">Zapri</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="accordion2" style="margin-top: 10px; margin-bottom: 10px;">
     <div class="card">
         <div class="card-header" id="headingOne">
             <h5 class="mb-0">
                 <button class="btn btn-light" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseOne">
-                    <i class="fas fa-angle-double-down"></i> Prenos
+                    <i class="fas fa-angle-double-down"></i> Dodatna orodja
                 </button>
             </h5>
         </div>
@@ -13,7 +35,8 @@
         <div id="collapseTwo" class="collapse" aria-labelledby="headingOne" data-parent="#accordion2">
             <div class="card-body">
 
-                <button type="button" class="btn btn-primary" id="download_button"><i class="far fa-save"></i>Prenesi slike kamere (.zip)</button>
+                <button type="button" class="btn btn-primary" id="download_button"><i class="far fa-save"></i>Prenesi slike kamere (.zip)</button><br><br>
+                <button type="button" class="btn btn-primary" id="calibration_button"><i class="fas fa-camera"></i>Izvedi kalibracijo</button>
             </div>
         </div>
     </div>
@@ -75,8 +98,18 @@
             return dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
         }
 
+        // Trigger calibration mode
+        $("#calibration_button").click(function () {
+            sendJSON({"command": "camera_calibration", "value": true});
+        });
+
+        // Exit calibration mode
+        $('#gahf_calibration').on('hidden.bs.modal', function () {
+            sendJSON({"command": "camera_calibration", "value": false});
+        });
+
         $("#download_button").click(function () {
-            if(!$("img.downloadable").length) return;  // Do nothing if there is no images available
+            if (!$("img.downloadable").length) return;  // Do nothing if there is no images available
 
             var zip = new JSZip();
             var images = zip.folder("img");
@@ -113,6 +146,10 @@
                 $('#accordion3 #current_hex').html("Trenutni: " + data.value);
             });
             $('#accordion3 #current_hex').fadeIn("fast");
+        }
+
+        if (data.command == "camera_calibration") {
+            $("#gahf_calibration").modal("show");
         }
     }
 </script>
