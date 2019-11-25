@@ -487,7 +487,7 @@ class ICT_ResistanceTest(Task):
             self.shifter.set("K12", False)  # Segger RESET Left
             self.shifter.invertShiftOut()
 
-            self.ohmmeter.sensor1.set_excitation(2)
+            #self.ohmmeter.sensor1.set_excitation(2)
             self.measure_resistance(1, "R3", "K6", "L16", 47, 30)
             self.measure_resistance(1, "R9", "L13", "K4", 180)
             self.measure_resistance(1, "R8", "K3", "L12", 220)
@@ -500,7 +500,7 @@ class ICT_ResistanceTest(Task):
             gui_web.send({"command": "progress", "nest": i, "value": "40"})
 
         if self.is_product_ready(0):
-            self.ohmmeter.sensor1.set_excitation(2)
+            #self.ohmmeter.sensor1.set_excitation(2)
             self.shifter.set("K13", True)  # Segger VCC Right
             self.shifter.set("K14", True)  # Segger GND Right
             self.shifter.set("K12", True)  # Segger RESET Left
