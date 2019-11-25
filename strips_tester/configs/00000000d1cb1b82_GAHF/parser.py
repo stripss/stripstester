@@ -50,6 +50,8 @@ class Parser:
 
             strips_tester.data['camera_calibration'] = message['value']
 
+            gui_web.sendTo(client, {"command": "status", "value": "Zapri pokrov za zagon kalibracije."})
+
             for nest in range(2):
                 if strips_tester.data['camera_calibration']:
                     gui_web.sendTo(client, {"command": "semafor", "nest": nest, "value": (0, 0, 0), "blink": (0, 1, 0)})
