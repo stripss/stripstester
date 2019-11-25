@@ -1455,9 +1455,7 @@ class ArduinoSerial:
                 if end > start + datetime.timedelta(seconds=timeout):
                     return False
 
-            print("aa")
             response = self.ser.readline()
-            print("bb {}" . format(response))
             if self.mode == "hex":
                 response = response.hex()
             else:
