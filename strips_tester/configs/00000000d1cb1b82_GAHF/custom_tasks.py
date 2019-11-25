@@ -1105,12 +1105,14 @@ class VisualTestCalibration(Task):
         return result.upper()
 
     def tear_down(self):
-        self.camera.close()
+        try:
+            self.camera.close()
 
-        # Close FTDI adapters
-        for i in range(2):
-            self.ftdi[i].close()
-
+            # Close FTDI adapters
+            for i in range(2):
+                self.ftdi[i].close()
+        except Exception:
+            pass
 
 class PrintSticker(Task):
     def set_up(self):
