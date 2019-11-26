@@ -524,7 +524,7 @@ class ICT_ResistanceTest(Task):
         # Assuming servos are already in position as the trimmers
         # BUG -> if servo is over the 50, it wont turn
 
-        self.nanoboard_small.write("move 20", 10)
+        self.nanoboard_small.write("move 18", 10)
         self.nanoboard_small.write("servo 3 0", 10)  # Zero both servos
 
         # Platforma naj ostane gor
