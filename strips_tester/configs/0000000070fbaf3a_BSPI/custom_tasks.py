@@ -180,8 +180,9 @@ class Calibration(Task):
         pass
 
     def run(self):
-        module_logger.info("Calibration of stepper motor")
         offset = custom_data['motor_retraction_' + str(self.nest_id + 1)]
+        module_logger.info("Calibration of stepper motor - offset: {}" . format(offset))
+
         GPIO.output(gpios['DIR_' + str(self.nest_id + 1)], GPIO.HIGH)  # Reverse stepper direction
 
         GPIO.output(gpios['ENABLE_' + str(self.nest_id + 1)], GPIO.LOW)

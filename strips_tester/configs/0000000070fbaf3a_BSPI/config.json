@@ -162,6 +162,6 @@
     "led_red_3": "0x01",
     "motor_retraction_1": 400,
     "motor_retraction_2": 400,
-    "motor_retraction_3": 400
+    "motor_retraction_3": 600
   }
 }
