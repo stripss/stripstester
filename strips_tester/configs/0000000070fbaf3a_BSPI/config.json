@@ -159,6 +159,9 @@
     "led_green_3": "0x08",
     "led_red_1": "0x04",
     "led_red_2": "0x02",
-    "led_red_3": "0x01"
+    "led_red_3": "0x01",
+    "motor_retraction_1": 400,
+    "motor_retraction_2": 400,
+    "motor_retraction_3": 400
   }
 }
