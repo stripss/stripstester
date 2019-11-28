@@ -48,5 +48,5 @@ os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_str
 #I2C module
 #os.system("sudo cp /strips_tester_project/initial_setup/modules /etc/modules")
 # check if survived :)
-time.sleep(20)
-os.system("sudo reboot")
+#time.sleep(20)
+#os.system("sudo reboot")
