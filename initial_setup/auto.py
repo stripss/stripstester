@@ -10,10 +10,10 @@ import filecmp
 
 wifi_found = False
 
-def get_ip_address():  # Return first IP in IP list
+def get_ip_address():
     ip = subprocess.check_output(['hostname', '-I']).decode()
     ip = ip.split(" ")
-    return ip[0]
+    return ip[0] # Return first IP in IP list
 
 while not wifi_found:
     try:
@@ -46,7 +46,7 @@ while not wifi_found:
             os.system("sudo git commit")
 
             os.system("sudo git pull origin master")
-        else:
+        else:  # StripsTester was not found - clone it from GitHub repository
             print("StripsTester NOT found")
             os.system("sudo git clone https://stripss:stripstester123@github.com/stripss/stripstester.git /strips_tester_project")
 
