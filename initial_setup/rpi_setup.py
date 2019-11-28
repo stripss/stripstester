@@ -32,10 +32,10 @@ os.system("sudo chown -R pi /venv_strips_tester/")
 #os.system("sudo apt-get install -y i2c-tools")
 
 # # python
-#os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
-#os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
-#os.system("/venv_strips_tester/bin/python -m pip install -r /strips_tester_project/initial_setup/requirements.txt")
-#os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_strips_tester/bin/")
+os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
+os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
+os.system("/venv_strips_tester/bin/python -m pip install -r /strips_tester_project/initial_setup/requirements.txt")
+os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_strips_tester/bin/")
 
 # rpi files config
 #os.system("sudo systemctl stop serial-getty@ttyS0.service")
