@@ -1,0 +1,47 @@
+{
+  "test_device_name": "HULE",
+  "test_device_nests": 1,
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "CurrentTest": 1,
+    "LightTest": 0,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1,
+    "PrintSticker": 0
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 7,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 13,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 11,
+      "initial": 0
+    },
+    "BUZZER": {
+      "function": 0,
+      "pin": 12,
+      "initial": 0
+    }
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+
+  }
+}
