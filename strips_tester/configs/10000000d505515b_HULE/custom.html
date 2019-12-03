@@ -1,23 +1,63 @@
 <style>
-    .digital {
-        font-size: 100px;
+    .led {
+        margin: 2px;
+        font-size: 22px;
+        font-weight: bold;
+        display: inline-block;
+        width: 40px;
+        border-radius: 40%;
+        border: 3px solid black;
+        text-align: center;
     }
 
-    #voltmeter, #ammeter {
-        display: inline;
+    .hule {
+        background-color: #505050;
+        margin: 2px;
+        display: inline-block;
+        border: 3px solid black;
+    }
+
+    .hule-left {
+        border-top-left-radius: 9px;
+        border-top-right-radius: 26px;
+        border-bottom-left-radius: 100px;
+        border-bottom-right-radius: 40px;
+    }
+
+    .hule-right {
+        border-top-left-radius: 26px;
+        border-top-right-radius: 9px;
+        border-bottom-left-radius: 40px;
+        border-bottom-right-radius: 100px;
+    }
+
+    .hule-lights {
+        margin: auto;
     }
 
     @media (max-width: 768px) {
-        .digital {
-            font-size: 50px;
+        .led {
+            font-size: 13px;
+            width: 21px;
+            border: 1px solid black;
+            margin: 2px;
+        }
+
+        .hule {
+            margin: 0px;
+            display: inline-block;
+            border: 1px solid black;
         }
     }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
-<div class="row text-center digital">
-    <div id="voltmeter" class="col float-left"></div>
-    <div id="ammeter" class="col float-right"></div>
+<div class="row text-center">
+    <div class="hule-lights">
+        <div id="hule1" style="display: none;" class="col-auto float-left hule hule-left"></div>
+        <div id="hule2" style="display: none;" class="col-auto float-right hule hule-right"></div>
+    </div>
 </div>
+
 <hr>
 
 <div id="accordion2" style="margin-top: 10px; margin-bottom: 10px;">
@@ -87,8 +127,34 @@
         }
 
         if (data.command == "measurements") {
-            if (data.voltmeter != null) $("#voltmeter").html(data.voltmeter + "V");
-            if (data.ammeter != null) $("#ammeter").html(data.ammeter + "mA");
+            if (data.led != null) {
+                //let led = $("<div class='led'>" + data.led.position + "<div class='t'>" + data.led.hsi['I'] + "</div></div>");
+                let led = $("<div class='led'>" + data.led.position + "</div>");
+
+                let i = (data.led.hsi['I'] * 1.0 / 10000.0) * 100.0;
+                if (i > 100.0) i = 100.0;
+
+                let r = (data.led.rgb['R'] * 1.0 / 255.0) * i;
+                let g = (data.led.rgb['G'] * 1.0 / 255.0) * i;
+                let b = (data.led.rgb['B'] * 1.0 / 255.0) * i;
+
+                led.css("background-color", 'rgb(' + r + ',' + g + ',' + b + ')');
+                console.log(data.led.hsi['H']);
+                console.log(data.led.hsi['S']);
+
+                led.css("background-color", 'hsl(' + data.led.hsi['H'] + ',' + data.led.hsi['S'] + '%,' + i + '%)');
+
+                if (data.led.position <= 8) {
+                    $("#hule1").append(led);
+                } else {
+                    $("#hule2").append(led);
+                }
+
+                $("#hule1, #hule2").show();
+            } else {
+                $("#hule1, #hule2").empty();
+                $("#hule1, #hule2").hide();
+            }
         }
     }
 </script>

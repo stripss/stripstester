@@ -13,6 +13,23 @@ gpios = strips_tester.settings.gpios
 relays = strips_tester.settings.relays
 custom_data = strips_tester.settings.custom_data
 
+class DeviceManager:
+    def __init__(self):
+        try:
+            strips_tester.data['devices']
+        except KeyError:
+            strips_tester.data['devices'] = []
+
+    def open(self, device):
+        if device.found:
+            print("Device loaded successfully")
+            strips_tester.data['devices'].append(device)
+
+    def close(self, device):
+        device.close()
+        return
+
+
 class StartProcedureTask(Task):
     def set_up(self):
         pass
@@ -50,10 +67,13 @@ class StartProcedureTask(Task):
 
         # Assume that product exists, because the start switch is made this way
         strips_tester.data['exist'][0] = True
+        self.add_measurement(0, True, "Type", strips_tester.data['program'][1], "")
 
         # Set on working lights
         GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
+
+        gui_web.send({"command": "measurements", "led": None})
 
         # Start counting, clear GUI
         self.start_test(0)
@@ -66,7 +86,13 @@ class StartProcedureTask(Task):
 
 class CurrentTest(Task):
     def set_up(self):
-        self.ammeter = devices.YoctoVoltageMeter("YAMPMK01-110B3D.current1", 0.1)
+        try:
+            strips_tester.data['device_yocto']
+        except KeyError:
+            strips_tester.data['device_yocto'] = devices.YoctoVoltageMeter("YAMPMK01-110B3D.current1", 0.1)
+
+        self.ammeter = strips_tester.data['device_yocto']
+        return
 
     def run(self):
         gui_web.send({"command": "status", "nest": 0, "value": "Merjenje toka"})
@@ -82,12 +108,10 @@ class CurrentTest(Task):
         tolerance = abs(min_current - max_current) / 2
 
         current = self.ammeter.read()
-        gui_web.send({"command": "measurements", "ammeter": round(current, 2)})
         while not self.in_range(current, expected, tolerance, False):
             num_of_tries = num_of_tries - 1
 
             current = self.ammeter.read()
-            gui_web.send({"command": "measurements", "ammeter": round(current, 2)})
 
             if not num_of_tries:
                 break
@@ -101,15 +125,79 @@ class CurrentTest(Task):
             gui_web.send({"command": "info", "nest": 0, "value": "Meritev toka: {}mA".format(current)})
             self.add_measurement(0, True, "Current", current, "mA")
 
+        return
+
+    def tear_down(self):
+        pass
+
+
+class LightTest(Task):
+    def set_up(self):
+        try:
+            strips_tester.data['device_feasa1']
+        except KeyError:
+            strips_tester.data['device_feasa1'] = devices.Feasa("/dev/feasaN218")
+
+        try:
+            strips_tester.data['device_feasa2']
+        except KeyError:
+            strips_tester.data['device_feasa2'] = devices.Feasa("/dev/feasaM335")
+
+        self.feasa1 = strips_tester.data['device_feasa1']
+        self.feasa2 = strips_tester.data['device_feasa2']
+
+        return
+
+    def run(self):
+        gui_web.send({"command": "status", "nest": 0, "value": "Merjenje svetilnosti"})
+
+        # Capture all measurements from Feasa
+        if not self.feasa1.capture(5) or not self.feasa2.capture(5):
+            print("ERROR Capturing from Feasa device")
+
+        # Retrieve CCT values for all LEDs
+        cct = self.feasa1.get_CCT()
+        rgb = self.feasa1.get_RGB()
+        hsi = self.feasa1.get_HSI()
+
+        # Retrieve values from second Feasa module
+        cct.extend(self.feasa2.get_CCT())
+        rgb.extend(self.feasa2.get_RGB())
+        hsi.extend(self.feasa2.get_HSI())
+
+        for current_led in range(len(cct)):  # Loop through all LEDs
+            if strips_tester.data['program'][1] == 'P2Z':
+                # Check colour
+                pass
+            else:
+                if not self.in_range(cct[current_led], 4300, 1000, False):
+                    module_logger.warning("CCT of LED{} is out of bounds: meas: {}K" . format(current_led + 1, cct[current_led]))
+                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev barve na LED #{} je izven območja: {}K".format(current_led + 1, cct[current_led])})
+                    self.add_measurement(0, False, "LED{}_CCT" . format(current_led + 1), cct[current_led], "K")
+                else:
+                    module_logger.info("CCT of LED{} in bounds: meas: {}K" . format(current_led + 1, cct[current_led]))
+                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev barve LED#{}: {}K".format(current_led + 1, cct[current_led])})
+                    self.add_measurement(0, True, "LED{}_CCT" . format(current_led + 1), cct[current_led], "K")
+
+                if not self.in_range(hsi[current_led]['I'], 15000, 5000, False):
+                    module_logger.warning("Intensity of LED{} is out of bounds: meas: {}" . format(current_led + 1, hsi[current_led]['I']))
+                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev svetilnosti na LED #{} je izven območja: {}i".format(current_led + 1, hsi[current_led]['I'])})
+                    self.add_measurement(0, False, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
+                else:
+                    module_logger.info("Intensity of LED{} in bounds: meas: {}i" . format(current_led + 1, hsi[current_led]['I']))
+                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev svetilnosti LED#{}: {}i".format(current_led + 1, hsi[current_led]['I'])})
+                    self.add_measurement(0, True, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
+
+            gui_web.send({"command": "measurements", "led": {'position': current_led + 1, 'cct': cct[current_led], 'rgb': rgb[current_led], 'hsi': hsi[current_led]}})
+
         # Wait for switch to be released
         while self.lid_closed():
             time.sleep(0.001)
 
-
         return
 
     def tear_down(self):
-        self.ammeter.close()
+        pass
 
 
 class ProductConfigTask(Task):

@@ -1,0 +1,5 @@
+rules.d -> 99-usb-serial.rules
+
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="M335", SYMLINK+="feasaM335"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="N218", SYMLINK+="feasaN218"

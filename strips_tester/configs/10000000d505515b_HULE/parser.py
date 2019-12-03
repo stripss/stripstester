@@ -22,7 +22,7 @@ class Parser:
             gui_web.save_variable_to_db("program", message['value'])
 
             gui_web.send(message)  # Broadcast new program
-            gui_web.send({"command": "title", "value": "HULE ({})".format(strips_tester.data['program'][0])})  # Broadcast new title
+            gui_web.send({"command": "title", "value": "HULE ({})".format(strips_tester.data['program'][1])})  # Broadcast new title
 
         if "get_program_list" in message['command']:
             with open(strips_tester.settings.test_dir + "/bin/meje.csv") as file:
@@ -42,6 +42,6 @@ class Parser:
         gui_web.sendTo(client, {"command": "tilt", "value": True})
 
         try:
-            gui_web.sendTo(client, {"command": "title", "value": "HULE ({})".format(strips_tester.data['program'][0])})
+            gui_web.sendTo(client, {"command": "title", "value": "HULE ({})".format(strips_tester.data['program'][1])})
         except KeyError:  # Program is not defined yet
             gui_web.sendTo(client, {"command": "title", "value": "HULE"})
