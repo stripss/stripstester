@@ -957,11 +957,8 @@ class HEF4094BT:
         return
 
     def invertShiftOut(self):  # Data is 48-bit number
-
-
         GPIO.output(self.latchpin, GPIO.HIGH)
         time.sleep(self.delay)
-
 
         # output 101
         GPIO.output(self.datapin, GPIO.LOW)
@@ -1895,6 +1892,8 @@ class STLink:
     def __init__(self):
         self.binary = None
         self.process = None
+        self.mcu = None
+        self.flash = 0x008000
 
     def flash(self):
         if self.binary is None:
@@ -1921,6 +1920,31 @@ class STLink:
             return False
         # Check if flashing is succeeded!
 
+    def flash_stm8(self):
+        if self.binary is None:
+            module_logger.error("Binary is not defined!")
+            return False
+
+        if self.mcu is None:
+            module_logger.error("Processor is not defined!")
+            return False
+
+        #self.process = subprocess.Popen(['/venv_strips_tester/bin/python', '/strips_tester_project/strips_tester/drivers/pystlink/pystlink.py', '-v', '-c', 'STM32F030x8', 'flash:erase:verify:0x08000000:{}' . format(self.binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if self.is_hex():
+            #print("is hex file")
+            self.process = subprocess.Popen(['/strips_tester_project/strips_tester/drivers/stm8flash/stm8flash', '-c', 'stlinkv2', '-p', self.mcu, '-w', self.binary,], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        out, err = self.process.communicate()
+
+        if "OK" in out.decode():
+            module_logger.info("Successfully flashed '{}' binary." . format(self.binary))
+            return True
+        else:
+            print(out)
+            module_logger.error("Flashing '{}' binary failed." . format(self.binary))
+            return False
+        # Check if flashing is succeeded!
+
     def set_binary(self, binary):
         # Check if binary exists
         if os.path.isfile(binary):
@@ -1929,6 +1953,13 @@ class STLink:
         else:
             module_logger.error("Binary '{}' does not exist." . format(binary))
             return False
+
+        return True
+
+    def set_mcu(self, mcu):
+        # Check if binary exists
+        self.mcu = mcu
+        module_logger.info("Successfully set '{}' processor." . format(self.mcu))
 
         return True
 
@@ -1946,3 +1977,168 @@ class STLink:
 
     def close(self):
         pass
+
+# Feasa module for LED analitics. Working via USB as serial port emulator
+class Feasa:
+    def __init__(self, port='/dev/ttyUSB0'):
+        # Class variables
+        self.found = False
+        self.ser = None
+        self.port = port
+        self.terminator = b'\x04'  # EOL termination (Feasa command 'enableeot' must be send before!)
+
+        # Establish serial connection
+        for retries in range(5):
+            try:
+                self.ser = serial.Serial(port,
+                                         timeout=5,
+                                         baudrate=57600,
+                                         bytesize=serial.EIGHTBITS,
+                                         stopbits=serial.STOPBITS_ONE,
+                                         parity=serial.PARITY_NONE)
+
+                # Flush serial buffer
+                self.ser.flushInput()
+                self.ser.flushOutput()
+
+                self.found = True
+                break
+
+            #Device not found, retry
+            except Exception:
+                pass
+
+    # Closes serial connection.
+    def close(self):
+        if self.found:
+            self.ser.close()
+
+        return
+
+    # Sends formatted command to Feasa
+    def send(self, command):
+        command += "\n"
+        self.ser.write(command.encode('ascii'))
+
+    # Recieve response from Freasa with EOT character
+    def recieve(self):
+        response = self.ser.read_until(self.terminator).decode().split("\r\n")
+        response.remove(self.terminator.decode())
+
+        return response
+
+    # Free communication bus
+    def free_bus(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return False
+
+        self.send("busfree")
+        response = self.recieve()
+
+        if "OK" in response:
+            return True
+
+        return False
+
+    # Capture new measurements. Return True if succeded
+    def capture(self, range=5):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return False
+
+        if not range:
+            self.send("c")
+        else:
+            self.send("c{}" . format(range))
+
+        response = self.recieve()
+
+        if "OK" in response:
+            return True
+
+        return False
+
+    # Get intensity values for all captured values from sensors
+    def get_intensity(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return
+
+        self.send("getintensityall")
+        response = self.recieve()
+
+        for current in range(len(response)):
+            response[current] = int(response[current][3:])
+
+        return response
+
+    # Get CCT values fro all captured values from sensor
+    def get_CCT(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return
+
+        self.send("getcctall")
+        response = self.recieve()
+
+        for current in range(len(response)):
+            response[current] = int(response[current][3:8])
+
+        return response
+
+    # Get RGB values fro all captured values from sensor
+    def get_RGB(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return
+
+        self.send("getRGBIall")
+        response = self.recieve()
+
+        result = []
+
+        for current in response:
+            result.append({})
+            result[-1]['R'] = int(current[3:6])
+            result[-1]['G'] = int(current[7:10])
+            result[-1]['B'] = int(current[11:14])
+
+        return result
+
+    # Get HSI values fro all captured values from sensor
+    def get_HSI(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return
+
+        self.send("getHSIall")
+        response = self.recieve()
+
+        result = []
+
+        for current in response:
+            result.append({})
+            result[-1]['H'] = float(current[3:9])
+            result[-1]['S'] = int(current[10:13])
+            result[-1]['I'] = int(current[14:19])
+
+        return result
+
+    # Get uv values fro all captured values from sensor
+    def get_uv(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return
+
+        self.send("getuvall")
+        response = self.recieve()
+
+        result = []
+
+        for current in response:
+            result.append({})
+            result[-1]['u'] = float(current[3:9])
+            result[-1]['v'] = float(current[10:16])
+
+        return result
