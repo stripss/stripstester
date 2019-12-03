@@ -1,0 +1,119 @@
+{
+  "thread_nests": 0,
+  "test_device_name": "GADF",
+  "test_device_nests": 1,
+
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "VoltageTest": 1,
+    "FlashMCU": 1,
+    "LoadTest": 1,
+    "FinishProcedureTask": 1,
+    "PrintSticker": 0
+  },
+
+  "critical_event_tasks": {
+    "FinishProcedureTask": 1
+  },
+
+  "gpio_settings": {
+
+    "1PH_red_led": {
+      "function": 0,
+      "pin": 10,
+      "initial": 0
+    },
+    "1PH_green_led": {
+      "function": 0,
+      "pin": 8,
+      "initial": 0
+    },
+    "3PH_red_led": {
+      "function": 0,
+      "pin": 12,
+      "initial": 0
+    },
+    "3PH_green_led": {
+      "function": 0,
+      "pin": 16,
+      "initial": 0
+    },
+    "DF_red_led": {
+      "function": 0,
+      "pin": 18,
+      "initial": 0
+    },
+    "DF_green_led": {
+      "function": 0,
+      "pin": 22,
+      "initial": 0
+    },
+
+
+
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 37
+    },
+
+
+    "DUT_1PH_DETECT": {
+      "function": 1,
+      "pin": 7,
+      "pull": 20
+    },
+    "DUT_3PH_DETECT": {
+      "function": 1,
+      "pin": 5,
+      "pull": 20
+    },
+    "DUT_DF_DETECT": {
+      "function": 1,
+      "pin": 3,
+      "pull": 20
+    },
+
+
+
+
+
+
+    "UI_POWER": {
+      "function": 0,
+      "initial": 0,
+      "pin": 40
+    },
+
+
+
+    "LATCH": {
+      "function": 0,
+      "initial": 1,
+      "pin": 36
+    },
+    "CLOCK": {
+      "function": 0,
+      "initial": 1,
+      "pin": 38
+    },
+    "OE": {
+      "function": 0,
+      "initial": 0,
+      "pin": 32
+    },
+    "DATA": {
+      "function": 0,
+      "initial": 1,
+      "pin": 24
+    }
+  },
+  "relay_settings": {
+
+  },
+  "data": {
+    "RELAY_STLINK": "0x7",
+    "RELAY_UI": "0xF8",
+    "RELAY_5V": "A000",
+    "RELAY_3V3": "6000"
+  }
+}

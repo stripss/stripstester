@@ -1,0 +1,3 @@
+rules.d -> 99-usb-serial.rules
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="ftdi"

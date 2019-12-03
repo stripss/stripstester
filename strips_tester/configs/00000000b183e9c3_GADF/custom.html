@@ -1,0 +1,67 @@
+<hr>
+
+<div id="accordion3" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingThree">
+            <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#collapseThree">
+                    <i class="fas fa-angle-double-down"></i> Programska oprema
+                </button>
+            </h5>
+
+            <span id="current_hex">Ni nastavljeno</span>
+        </div>
+
+        <div id="collapseThree" class="collapse" data-parent="#accordion3">
+            <div class="card-body">
+
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="inputGroupSelect03">Programska oprema</label>
+                    </div>
+                    <select class="custom-select" id="set_program"></select>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="set_program_button"><i class="fas fa-cog"></i>Nastavi program</button>
+            </div>
+        </div>
+    </div>
+</div>
+<hr>
+
+<script>
+    $(document).ready(function () {
+        function sendJSON(txt) {
+            // Inherit socket variable from main page
+            socket.send(JSON.stringify(txt));
+        }
+
+        // Get program list
+        sendJSON({"command": "get_program_list"});
+
+        $("#set_program_button").click(function () {
+            sendJSON({"command": "set_program", "value": $("#set_program").find("option:selected").data("data")});
+        });
+    });
+
+    function onCustomMessage(data) {
+        if (data.command == "program_list") {
+            // Append programs to option attribute
+            $.each(data.value, function (index, value) {
+                $('#set_program').append('<option value="' + value + '">' + value + '</option>');
+                $("#set_program").find("option:last-child").data("data", value);  // Set data as hidden attribute
+            });
+        }
+
+        // Recieved command for setting new program
+        if (data.command == "set_program") {
+            // Set current
+            $("#set_program option[value='" + data.value + "']").prop("selected", "selected");
+
+            $('#accordion3 #current_hex').fadeOut("fast", function () {
+                $('#accordion3 #current_hex').html("Trenutni: " + data.value);
+            });
+            $('#accordion3 #current_hex').fadeIn("fast");
+        }
+    }
+</script>
