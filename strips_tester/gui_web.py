@@ -15,6 +15,7 @@ import http.server
 import socketserver
 import os
 import socket
+from strips_tester import *
 
 module_logger = logging.getLogger(".".join(("strips_tester", "gui_web")))
 
@@ -193,6 +194,19 @@ def send_ping():
 
             # Send notification that TN is working OFFLINE!
             send({"command": "offline"})
+
+    else:
+        strips_tester.data['db_connection'] = strips_tester.connect_to_remote_db()  # Link RemoteDB to variable
+
+        if strips_tester.data['db_connection'] is not None:
+            strips_tester.data['db_database'] = strips_tester.data['db_connection']["stripstester"]
+
+            strips_tester.test_devices_col = strips_tester.data['db_database']["test_device"]
+            strips_tester.test_info_col = strips_tester.data['db_database']["test_info"]
+            strips_tester.test_worker_col = strips_tester.data['db_database']["test_worker"]
+            strips_tester.test_calibration_col = strips_tester.data['db_database']["test_calibration"]
+
+            module_logger.info("RemoteDB connection succesfully re-established!")
 
     threading.Timer(5, send_ping).start()
 

@@ -28,8 +28,19 @@ INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
-# RemoteDB address
-remoteDB = "172.30.129.19:27017"
+def connect_to_remote_db():
+    # Initiate Remote DB
+    try:
+        #logger.info("Connecting to RemoteDB: {}...".format(data['db_remote_address']))
+        database_instance = pymongo.MongoClient("mongodb://" + data['db_remote_address'], serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
+        database_instance.server_info()
+        return database_instance
+
+    except pymongo.errors.ServerSelectionTimeoutError:
+        #logger.warning("Connect to RemoteDB failed.")
+        pass
+
+    return None
 
 def initialize_logging(level: int = logging.INFO):
     lgr = logging.getLogger(name=__name__)
@@ -81,6 +92,12 @@ data = {}
 logger = initialize_logging(logging.DEBUG)
 settings = config_loader.Settings()
 
+# RemoteDB address
+data['db_remote_address'] = "172.30.129.19:27017"
+
+# TestDB
+#data['db_remote_address'] = "192.168.88.205:82"
+
 # LocalDB initialisation
 data['db_local_connection'] = sqlite3.connect("stripstester.db", check_same_thread=False)
 data['db_local_connection'].row_factory = sqlite3.Row
@@ -92,14 +109,7 @@ websocket_port = 8000
 http_port = 80
 
 # Initiate Remote DB
-try:
-    data['db_connection'] = pymongo.MongoClient("mongodb://" + remoteDB + "/", serverSelectionTimeoutMS=1000, connectTimeoutMS=2000)
-    data['db_connection'].server_info()
-except pymongo.errors.ServerSelectionTimeoutError:
-    data['db_connection'] = None
-
-    # Set websocket port to 8000 so it will be always the same when accesing trought localhost
-    websocket_port = 8000
+data['db_connection'] = connect_to_remote_db()
 
 if data['db_connection'] is not None:
     data['db_database'] = data['db_connection']["stripstester"]
@@ -108,6 +118,10 @@ if data['db_connection'] is not None:
     test_info_col = data['db_database']["test_info"]
     test_worker_col = data['db_database']["test_worker"]
     test_calibration_col = data['db_database']["test_calibration"]
+
+else:
+    # Set websocket port to 8000 so it will be always the same when accesing trought localhost
+    websocket_port = 8000
 
 # Websocket serves as pipeline between GUI and test device
 websocket = threading.Thread(target=gui_web.start_server, args=(websocket_port,))

@@ -29,6 +29,7 @@ class Task:
     def __init__(self):
         self.test_data = {}
         self.test_data['end'] = False
+        self.test_data['error'] = False
 
     # Prepare and initialize devices, used for this task
     def set_up(self):
@@ -162,7 +163,7 @@ class Task:
 
             self.run()
         except Exception as e:
-            self.test_data['end'] = True  # End current task, execute critical tasks
+            self.test_data['error'] = True  # End current task, execute critical tasks
             module_logger.error("[StripsTester] %s - Error in program: (%s)", type(self).__name__, traceback.format_exc())
 
         # Tear down must be executed after fail to close all devices
@@ -229,7 +230,12 @@ def run_custom_tasks():
                 custom_task = CustomTask()
                 test_data = custom_task._execute()
 
-                if test_data['end']:
+                if test_data['end'] or test_data['error']:
+                    # Prevent DUT to be tested if internal error happen
+                    for nest in range(settings.test_device_nests):
+                        if test_data['error']:
+                            strips_tester.data['exist'][nest] = False
+
                     module_logger.error("Executing critical tasks")
                     for task_name in settings.critical_event_tasks:
                         if settings.critical_event_tasks[task_name]:
@@ -271,6 +277,9 @@ def reset_data():
 
 
 def update_database():
+    if strips_tester.data['db_connection'] is not None:
+        synchronize_remote_db()
+
     try:
         try:
             # Insert new test info because new test has been made
@@ -338,18 +347,18 @@ def update_database():
             test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
 
             # Lets print good tested today
-            strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1}).count()
-            strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0}).count()
+            strips_tester.data['good_count'] = strips_tester.test_info_col.find({"test_device": test_device_id, "result": 1}).count()
+            strips_tester.data['bad_count'] = strips_tester.test_info_col.find({"test_device": test_device_id, "result": 0}).count()
 
-            strips_tester.data['good_count_today'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
-            strips_tester.data['bad_count_today'] = strips_tester.test_info_col.find({"test_device": test_device['_id'], "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
+            strips_tester.data['good_count_today'] = strips_tester.test_info_col.find({"test_device": test_device_id, "result": 1, "datetime": {"$gt": date_at_midnight}}).count()
+            strips_tester.data['bad_count_today'] = strips_tester.test_info_col.find({"test_device": test_device_id, "result": 0, "datetime": {"$gt": date_at_midnight}}).count()
 
             strips_tester.data['good_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['good']
             strips_tester.data['bad_custom'] = strips_tester.test_worker_col.find_one({"id": strips_tester.data['worker_id']})['bad']
 
             try:
                 # Get date at midnight of last test (might not be this test because no products can be tested)
-                strips_tester.data['today_date'] = datetime.datetime.combine(strips_tester.test_info_col.find({"test_device": test_device['_id']}).sort('_id', -1).limit(1)[0]['datetime'], datetime.time(0))
+                strips_tester.data['today_date'] = datetime.datetime.combine(strips_tester.test_info_col.find({"test_device": test_device_id}).sort('_id', -1).limit(1)[0]['datetime'], datetime.time(0))
             except IndexError:
                 strips_tester.data['today_date'] = date_at_midnight
 
@@ -397,47 +406,56 @@ def update_database():
 
 # This function is used to synchronize Local DB to Remote DB when Remote DB is available.
 def synchronize_remote_db():
-    test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
+    try:
+        test_device_id = strips_tester.test_devices_col.find_one({"name": strips_tester.settings.test_device_name})['_id']
 
-    result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info;''').fetchall()
+        result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_info;''').fetchall()
 
-    if result:  # If results found, that means that LocalDB is newer than RemoteDB. Update RemoteDB worker to local and serial
-        module_logger.info("[StripsTesterDB] Updating RemoteDB (older) values from LocalDB (newer)...")
+        if result:  # If results found, that means that LocalDB is newer than RemoteDB. Update RemoteDB worker to local and serial
+            module_logger.info("[StripsTesterDB] Updating RemoteDB (older) values from LocalDB (newer)...")
 
-        result2 = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device;''').fetchone()
+            result2 = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device;''').fetchone()
 
-        strips_tester.test_devices_col.update_one({'_id': test_device_id}, {"$set": {'serial': result2['serial'],
-        'worker_id': result2['worker_id'], 'worker_type': result2['worker_type'], 'worker_comment': result2['worker_comment'],
-        'memory': json.loads(result2['memory'])}}, True)
+            strips_tester.test_devices_col.update_one({'_id': test_device_id}, {"$set": {'serial': result2['serial'],
+            'worker_id': result2['worker_id'], 'worker_type': result2['worker_type'], 'worker_comment': result2['worker_comment'],
+            'memory': json.loads(result2['memory'])}}, True)
 
-        module_logger.info("[StripsTesterDB] Synchronizing {} measurements..." . format(len(result)))
+            module_logger.info("[StripsTesterDB] Synchronizing {} measurements..." . format(len(result)))
 
-        for record in result:
-            # Each nest test counts as one test individually
-            test_info_data = {"datetime": datetime.datetime.strptime(record['datetime'], "%Y-%m-%d %H:%M:%S.%f"),
-                              "start_test": datetime.datetime.strptime(record['start_test'], "%Y-%m-%d %H:%M:%S.%f"),
-                              "test_device": test_device_id,
-                              "worker": record['worker'],
-                              "comment": record['comment'],
-                              "type": record['type'],
-                              "result": record['result'],
-                              "nest": record['nest'],
-                              "measurements": json.loads(record['measurements'])}
+            for record in result:
+                # Each nest test counts as one test individually
+                test_info_data = {"datetime": datetime.datetime.strptime(record['datetime'], "%Y-%m-%d %H:%M:%S.%f"),
+                                  "start_test": datetime.datetime.strptime(record['start_test'], "%Y-%m-%d %H:%M:%S.%f"),
+                                  "test_device": test_device_id,
+                                  "worker": record['worker'],
+                                  "comment": record['comment'],
+                                  "type": record['type'],
+                                  "result": record['result'],
+                                  "nest": record['nest'],
+                                  "measurements": json.loads(record['measurements'])}
 
-            strips_tester.test_info_col.insert_one(test_info_data)
-            module_logger.info("[StripsTesterDB] Transferring measurement #{} into Remote DB..." .format(record['id']))
+                strips_tester.test_info_col.insert_one(test_info_data)
+                module_logger.info("[StripsTesterDB] Transferring measurement #{} into Remote DB..." .format(record['id']))
 
-            # Increase worker custom counter data (applied to LocalDB)
-            increase_good = record['result'] * 1
-            increase_bad = (not record['result']) * 1
+                # Increase worker custom counter data (applied to LocalDB)
+                increase_good = record['result'] * 1
+                increase_bad = (not record['result']) * 1
 
-            strips_tester.test_worker_col.update_one({"id": record['worker']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
+                strips_tester.test_worker_col.update_one({"id": record['worker']}, {"$inc": {"good": increase_good, "bad": increase_bad}}, True)
 
-            # Delete measurement from local DB, which was transferred to Remote DB
-            strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_info WHERE id = ?;''', (record['id'],))
-            strips_tester.data['db_local_connection'].commit()
-    else:
-        module_logger.info("[StripsTesterDB] Local DB is the same as Remote DB - No synchronization needed.")
+                # Delete measurement from local DB, which was transferred to Remote DB
+                strips_tester.data['db_local_cursor'].execute('''DELETE FROM test_info WHERE id = ?;''', (record['id'],))
+                strips_tester.data['db_local_connection'].commit()
+        else:
+            module_logger.info("[StripsTesterDB] Local DB is the same as Remote DB - No synchronization needed.")
+
+    except (pymongo.errors.NetworkTimeout, pymongo.errors.ServerSelectionTimeoutError):
+        module_logger.error("Lost connection to DB - synchronizing aborted")
+
+        # Send notification that TN is working OFFLINE!
+        gui_web.send({"command": "offline"})
+
+        strips_tester.data['db_connection'] = None
 
     return
 
