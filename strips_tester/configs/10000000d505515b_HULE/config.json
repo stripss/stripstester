@@ -17,7 +17,7 @@
   "gpio_settings": {
     "START_SWITCH": {
       "function": 1,
-      "pin": 7,
+      "pin": 31,
       "pull": 22
     },
     "LIGHT_GREEN": {
@@ -32,7 +32,7 @@
     },
     "BUZZER": {
       "function": 0,
-      "pin": 12,
+      "pin": 21,
       "initial": 0
     }
   },
