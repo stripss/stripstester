@@ -175,7 +175,8 @@ class PowerTest(Task):
             self.add_measurement(0, True, "Current", current, "mA")
 
     def tear_down(self):
-        pass
+        self.voltmeter.close()
+        self.ammeter.close()
 
 
 class ProductConfigTask(Task):
@@ -348,31 +349,45 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
         GPIO.output(gpios['BUZZER'], GPIO.HIGH)
 
+        mode = 0
+
         if strips_tester.data['exist'][0]:
             if strips_tester.data['status'][0]:
                 GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
                 gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 1)})
+                mode = 1
             else:
                 GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
                 gui_web.send({"command": "semafor", "nest": 0, "value": (1, 0, 0)})
 
+        self.start_buzzer_thread = threading.Thread(target=self.start_buzzer, args=(mode,))
+        self.start_buzzer_thread.start()
+
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
 
         # Set relays to NO
-        #GPIO.output(gpios['13V_AC'], GPIO.LOW)
         GPIO.output(gpios['13V_DC'], GPIO.LOW)
-        #GPIO.output(gpios['24V_AC'], GPIO.LOW)
         GPIO.output(gpios['24V_DC'], GPIO.LOW)
-
-        time.sleep(0.75)
-
-        GPIO.output(gpios['BUZZER'], GPIO.LOW)
 
         # Wait for lid to open
         #while self.lid_closed():
         #    time.sleep(0.01)
 
         return
+
+    def start_buzzer(self, mode):
+        if not mode:  # Mode for bad test (4 short buzz)
+            for i in range(4):
+                GPIO.output(gpios['BUZZER'], True)
+                time.sleep(0.25)
+                GPIO.output(gpios['BUZZER'], False)
+                time.sleep(0.25)
+        else:
+            for i in range(2):  # Mode for good test  (2 long buzz)
+                GPIO.output(gpios['BUZZER'], True)
+                time.sleep(0.5)
+                GPIO.output(gpios['BUZZER'], False)
+                time.sleep(0.5)
 
     def tear_down(self):
         pass
