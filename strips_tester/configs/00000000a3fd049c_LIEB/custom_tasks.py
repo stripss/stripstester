@@ -379,15 +379,15 @@ class FinishProcedureTask(Task):
         if not mode:  # Mode for bad test (4 short buzz)
             for i in range(4):
                 GPIO.output(gpios['BUZZER'], True)
-                time.sleep(0.25)
+                time.sleep(0.1)
                 GPIO.output(gpios['BUZZER'], False)
-                time.sleep(0.25)
+                time.sleep(0.1)
         else:
             for i in range(2):  # Mode for good test  (2 long buzz)
                 GPIO.output(gpios['BUZZER'], True)
-                time.sleep(0.5)
+                time.sleep(0.25)
                 GPIO.output(gpios['BUZZER'], False)
-                time.sleep(0.5)
+                time.sleep(0.25)
 
     def tear_down(self):
         pass
