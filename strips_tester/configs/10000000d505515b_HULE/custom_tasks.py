@@ -89,7 +89,7 @@ class CurrentTest(Task):
         try:
             strips_tester.data['device_yocto']
         except KeyError:
-            strips_tester.data['device_yocto'] = devices.YoctoVoltageMeter("YAMPMK01-110B3D.current1", 0.1)
+            strips_tester.data['device_yocto'] = devices.YoctoVoltageMeter("YAMPMK01-EC277.current1", 0.1)
 
         self.ammeter = strips_tester.data['device_yocto']
         return
