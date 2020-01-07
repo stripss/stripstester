@@ -678,13 +678,34 @@ class Godex:
 
         return string
 
-    # Command for actual printing.
-    def send_to_printer(self, string):
+
+    def set_datamatrix_size(self, string, length):
+        for occ in string.split():
+            if 'XRB' in occ:  # Found datamatrix
+                current_occ = occ.split(",")  # Get last element
+                current_occ[-1] = str(length)
+
+                string = string.replace(occ, ",".join(current_occ))
+
+        return string
+
+    # Command for actual printing (if inverse is used, label will be printed in inverse colors.
+    def send_to_printer(self, string, inverse=False):
+        if inverse:
+            string = string.replace("^L", "^LI")
+
+            for occ in string.split():  # Split string by carriage return
+                if '^H' in occ:  # Find occurence of darkness
+                    string = string.replace(occ, '^H4')  # Set darkness to 4
+                    break
+
         if self.interface == 2:
             with open(self.port_usb, 'w') as lpt:
                 lpt.write(string)
         elif self.interface == 1:
             self.ser.write(string.encode(encoding="ascii"))
+
+        return
 
     def close(self):
         if self.interface == 1 and self.found:

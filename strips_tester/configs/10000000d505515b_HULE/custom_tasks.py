@@ -135,13 +135,15 @@ class LightTest(Task):
     def set_up(self):
         try:
             strips_tester.data['device_feasa1']
+            module_logger.info("Device FeasaM335 initalized successfully.")
         except KeyError:
-            strips_tester.data['device_feasa1'] = devices.Feasa("/dev/feasaN218")
+            strips_tester.data['device_feasa1'] = devices.Feasa("/dev/feasaM335")
 
         try:
             strips_tester.data['device_feasa2']
+            module_logger.info("Device FeasaN218 initalized successfully.")
         except KeyError:
-            strips_tester.data['device_feasa2'] = devices.Feasa("/dev/feasaM335")
+            strips_tester.data['device_feasa2'] = devices.Feasa("/dev/feasaN218")
 
         self.feasa1 = strips_tester.data['device_feasa1']
         self.feasa2 = strips_tester.data['device_feasa2']
@@ -149,6 +151,13 @@ class LightTest(Task):
         return
 
     def run(self):
+        min_left = 9999
+        max_left = 0
+        min_right = 9999
+        max_right = 0
+        min = 9999
+        max = 0
+
         gui_web.send({"command": "status", "nest": 0, "value": "Merjenje svetilnosti"})
 
         # Capture all measurements from Feasa
@@ -166,6 +175,16 @@ class LightTest(Task):
         hsi.extend(self.feasa2.get_HSI())
 
         for current_led in range(len(cct)):  # Loop through all LEDs
+            if current_led <= 8:
+                if cct[current_led] < min_left: min_left = cct[current_led]
+                if cct[current_led] > max_left: max_left = cct[current_led]
+            else:
+                if cct[current_led] < min_right: min_right = cct[current_led]
+                if cct[current_led] > max_right: max_right = cct[current_led]
+
+            if cct[current_led] < min: min = cct[current_led]
+            if cct[current_led] > max: max = cct[current_led]
+
             if strips_tester.data['program'][1] == 'P2Z':
                 # Check colour
                 pass
@@ -179,7 +198,7 @@ class LightTest(Task):
                     gui_web.send({"command": "info", "nest": 0, "value": "Meritev barve LED#{}: {}K".format(current_led + 1, cct[current_led])})
                     self.add_measurement(0, True, "LED{}_CCT" . format(current_led + 1), cct[current_led], "K")
 
-                if not self.in_range(hsi[current_led]['I'], 15000, 5000, False):
+                if hsi[current_led]['I'] < 10000:
                     module_logger.warning("Intensity of LED{} is out of bounds: meas: {}" . format(current_led + 1, hsi[current_led]['I']))
                     gui_web.send({"command": "error", "nest": 0, "value": "Meritev svetilnosti na LED #{} je izven območja: {}i".format(current_led + 1, hsi[current_led]['I'])})
                     self.add_measurement(0, False, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
@@ -189,6 +208,12 @@ class LightTest(Task):
                     self.add_measurement(0, True, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
 
             gui_web.send({"command": "measurements", "led": {'position': current_led + 1, 'cct': cct[current_led], 'rgb': rgb[current_led], 'hsi': hsi[current_led]}})
+
+
+        # print(min_left, max_left, abs(min_left-max_left))
+        # print(min_right, max_right, abs(min_right-max_right))
+        # print(min, max, abs(min-max))
+
 
         # Wait for switch to be released
         while self.lid_closed():
@@ -217,11 +242,11 @@ class ProductConfigTask(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        self.godex = devices.Godex()
+        # Initalize Godex as USB
+        self.godex = devices.Godex(interface=2)
 
     def run(self):
-        # Lid is now opened.
-        #if self.is_product_ready(0):
+
         if not self.godex.found:
             gui_web.send({"command": "error", "nest": 0, "value": "Tiskalnika ni mogoče najti!"})
         else:
@@ -232,123 +257,21 @@ class PrintSticker(Task):
 
     def print_sticker(self):
         date = datetime.datetime.now()
-        date_week = date.strftime("%y%V")  # Generate calendar week
+        date_format = date.strftime("%Y-%V")  # Generate date format
 
-        serial = "{:07d}".format(self.get_new_serial())
+        serial = "HULE-{:07d}".format(self.get_new_serial())
         self.add_measurement(0, True, "serial", serial, "")
 
-        if "LINO" in strips_tester.data['program'][1]:  # LINO Product - stickers 38x13mm
-            params = [s for s in strips_tester.data['program'][1].split()]
-            color = params[3]  # split program[1] and pick the color
-            length = params[4]  # split program[1] and pick the length
+        hulecode = strips_tester.data['program'][3]
+        revision = strips_tester.data['program'][4]
 
-            label_pcb = (
-                '^Q13,3\n'
-                '^W38\n'
-                '^H15\n'
-                '^P1\n'
-                '^S2\n'
-                '^AD\n'
-                '^C1\n'
-                '^R0\n'
-                '~Q-8\n'
-                '^O0\n'
-                '^D0\n'
-                '^E12\n'
-                '~R255\n'
-                '^L\n'
-                'Dy2-me-dd\n'
-                'Th:m:s\n'
-                'AB,8,4,1,1,0,0E,LINO {color} {length}\n'
-                'Lo,6,30,158,31\n'
-                'AA,11,41,1,1,0,0E,Rated power: {power}\n'
-                'AA,11,60,1,1,0,0E,Input: 24Vdc\n'
-                'AA,11,79,1,1,0,0E,CCT: {cct}\n'
-                'AA,174,10,1,1,0,0E,Class 2 input only\n'
-                'AA,150,40,1,1,0,0E,Lieb. no.: {liebcode}\n'
-                'AB,157,68,1,1,0,0E,www.strips.eu\n'
-                'E\n').format(color=color, length=length, power=strips_tester.data['program'][4], cct=strips_tester.data['program'][5],liebcode=strips_tester.data['program'][2])
+        # Load label with macros
+        label = self.godex.load_label(strips_tester.settings.test_dir + "/label/HULE_Label.txt")
+        label = label.format(hulecode=hulecode, datetime=date_format, revision=revision, serial=serial)
+        label = self.godex.set_datamatrix_size(label, len(serial))
 
-            self.godex.send_to_printer(label_pcb)
-
-        elif "US" in strips_tester.data['program'][1]:  # LIEB US Modul - stickers 30x11mm
-            label_pcb = (
-                '^Q11,3\n'
-                '^W30\n'
-                '^H15\n'
-                '^P1\n'
-                '^S2\n'
-                '^AD\n'
-                '^C1\n'
-                '^R0\n'
-                '~Q-8\n'
-                '^O0\n'
-                '^D0\n'
-                '^E12\n'
-                '~R255\n'
-                '^L\n'
-                'Dy2-me-dd\n'
-                'Th:m:s\n'
-                'XRB11,8,4,0,26\n'
-                '{ledcodeformat} {liebcode} {date}\n'
-                'AB,97,6,1,1,0,0E,{ledcode}\n'
-                'AB,97,32,1,1,0,0E,{liebcode}\n'
-                'AB,97,58,1,1,0,0E,{date}/{serial}\n'
-                'E\n').format(date=date_week,ledcodeformat=strips_tester.data['program'][4].replace("_"," "),ledcode=strips_tester.data['program'][4],liebcode=strips_tester.data['program'][2],serial=serial)
-
-            self.godex.send_to_printer(label_pcb)
-        else:  # LIEB LED Modul - stickers 25x7mm
-            label_pcb = (
-                '^Q7,3\n'
-                '^W25\n'
-                '^H15\n'
-                '^P1\n'
-                '^S2\n'
-                '^AD\n'
-                '^C1\n'
-                '^R0\n'
-                '~Q-8\n'
-                '^O0\n'
-                '^D0\n'
-                '^E12\n'
-                '~R255\n'
-                '^L\n'
-                'Dy2-me-dd\n'
-                'Th:m:s\n'
-                'XRB33,12,2,0,26\n'
-                '{ledcodeformat} {liebcode} {date}\n'
-                'AA,82,0,1,1,0,0E,{ledcode}\n'
-                'AA,82,19,1,1,0,0E,{liebcode}\n'
-                'AA,82,38,1,1,0,0E,{date}/{serial}\n'
-                'E\n').format(date=date_week,ledcodeformat=strips_tester.data['program'][4].replace("_"," "),ledcode=strips_tester.data['program'][4],liebcode=strips_tester.data['program'][5],serial=serial)
-
-            self.godex.send_to_printer(label_pcb)
-            time.sleep(1)
-
-            label_profile = (
-                '^Q7,3\n'
-                '^W25\n'
-                '^H15\n'
-                '^P1\n'
-                '^S2\n'
-                '^AD\n'
-                '^C1\n'
-                '^R0\n'
-                '~Q-8\n'
-                '^O0\n'
-                '^D0\n'
-                '^E12\n'
-                '~R255\n'
-                '^L\n'
-                'Dy2-me-dd\n'
-                'Th:m:s\n'
-                'XRB29,4,3,0,15\n'
-                '{liebcode} {date}\n'
-                'AA,85,10,1,1,0,0E,{liebcode}\n'
-                'AA,85,29,1,1,0,0E,{date}/{serial}\n'
-                'E\n').format(date=date_week,liebcode=strips_tester.data['program'][2],serial=serial)
-
-            self.godex.send_to_printer(label_profile)
+        self.godex.send_to_printer(label)
+        time.sleep(1)
 
         return
 
@@ -370,23 +293,40 @@ class FinishProcedureTask(Task):
         GPIO.output(gpios['LIGHT_GREEN'], GPIO.LOW)
         GPIO.output(gpios['BUZZER'], GPIO.HIGH)
 
+        mode = 0
         if strips_tester.data['exist'][0]:
             if strips_tester.data['status'][0]:
                 GPIO.output(gpios['LIGHT_GREEN'], GPIO.HIGH)
                 gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 1)})
+                mode = 1
             else:
                 GPIO.output(gpios['LIGHT_RED'], GPIO.HIGH)
                 gui_web.send({"command": "semafor", "nest": 0, "value": (1, 0, 0)})
 
         gui_web.send({"command": "progress", "nest": 0, "value": "100"})
 
-        GPIO.output(gpios['BUZZER'], GPIO.LOW)
+        self.start_buzzer_thread = threading.Thread(target=self.start_buzzer, args=(mode,))
+        self.start_buzzer_thread.start()
 
         # Wait for lid to open
         #while self.lid_closed():
         #    time.sleep(0.01)
 
         return
+
+    def start_buzzer(self, mode):
+        if not mode:  # Mode for bad test (4 short buzz)
+            for i in range(4):
+                GPIO.output(gpios['BUZZER'], True)
+                time.sleep(0.1)
+                GPIO.output(gpios['BUZZER'], False)
+                time.sleep(0.1)
+        else:
+            for i in range(2):  # Mode for good test  (2 long buzz)
+                GPIO.output(gpios['BUZZER'], True)
+                time.sleep(0.25)
+                GPIO.output(gpios['BUZZER'], False)
+                time.sleep(0.25)
 
     def tear_down(self):
         pass

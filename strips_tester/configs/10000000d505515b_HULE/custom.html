@@ -145,9 +145,9 @@
                 led.css("background-color", 'hsl(' + data.led.hsi['H'] + ',' + data.led.hsi['S'] + '%,' + i + '%)');
 
                 if (data.led.position <= 8) {
-                    $("#hule1").append(led);
+                    $("#hule1").prepend(led);
                 } else {
-                    $("#hule2").append(led);
+                    $("#hule2").prepend(led);
                 }
 
                 $("#hule1, #hule2").show();

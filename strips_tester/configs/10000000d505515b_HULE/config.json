@@ -8,7 +8,7 @@
     "LightTest": 1,
     "ProductConfigTask": 1,
     "FinishProcedureTask": 1,
-    "PrintSticker": 0
+    "PrintSticker": 1
   },
   "critical_event_tasks": {
     "ProductConfigTask": 1,
