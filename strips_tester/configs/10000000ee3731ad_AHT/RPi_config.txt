@@ -1,0 +1,4 @@
+rules.d -> 99-usb-serial.rules
+
+SUBSYSTEM=="tty", KERNELS=="1-1.2", SYMLINK+="nano"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0c2e", ATTRS{idProduct}=="0901", SYMLINK+="honeywell"

@@ -1,0 +1,94 @@
+<style>
+    .digital {
+        font-size: 100px;
+    }
+
+    #voltmeter, #ammeter {
+        display: inline;
+    }
+
+    @media (max-width: 768px) {
+        .digital {
+            font-size: 50px;
+        }
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+<div class="row text-center digital">
+    <div id="voltmeter" class="col float-left"></div>
+    <div id="ammeter" class="col float-right"></div>
+</div>
+<hr>
+
+<div id="accordion2" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseOne">
+                    <i class="fas fa-angle-double-down"></i> Merjenec
+                </button>
+            </h5>
+
+            <span id="current">Ni definiran</span>
+        </div>
+
+        <div id="collapseTwo" class="collapse" aria-labelledby="headingOne" data-parent="#accordion2">
+            <div class="card-body">
+
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="inputGroupSelect01">Seznam modulov</label>
+                    </div>
+                    <select class="custom-select" id="set_program">
+                    </select>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="set_program_button"><i class="fas fa-cog"></i>Izberi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<script>
+    $(document).ready(function () {
+        function sendJSON(txt) {
+            // Inherit socket variable from main page
+            socket.send(JSON.stringify(txt));
+        }
+
+        // Get program list
+        sendJSON({"command": "get_program_list"});
+
+        $("#set_program_button").click(function () {
+            sendJSON({"command": "set_program", "value": $("#set_program").find("option:selected").data("data")});
+        });
+    });
+
+    function onCustomMessage(data) {
+        if (data.command == "program_list") {
+            $.each(data.value, function (index, value) {
+                $('#set_program').append('<option value="' + value[2] + '">' + value[2] + ' - ' + value[0] + '</option>');
+                $("#set_program").find("option:last-child").data("data", value);  // Set data as hidden attribute
+            });
+        }
+
+        // Recieved command for setting new program
+        if (data.command == "set_program") {
+            // Set current
+            $("#set_program option[value='" + data.value[2] + "']").prop("selected", "selected");
+
+
+            $('#accordion2 #current').fadeOut("fast", function () {
+                $('#accordion2 #current').html("Trenutni: " + data.value[0]);
+            });
+            $('#accordion2 #current').fadeIn("fast");
+        }
+
+        if (data.command == "measurements") {
+            if (data.voltmeter != null) $("#voltmeter").html(data.voltmeter + "V");
+            if (data.ammeter != null) $("#ammeter").html(data.ammeter + "mA");
+        }
+    }
+</script>
