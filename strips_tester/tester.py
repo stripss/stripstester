@@ -257,7 +257,9 @@ def run_custom_tasks():
 
     strips_tester.data['lock'].acquire()
     strips_tester.data['end_time'] = datetime.datetime.utcnow()
+
     update_database()
+
     strips_tester.data['lock'].release()
 
 
@@ -293,7 +295,8 @@ def update_database():
                 duration = (strips_tester.data['end_time'] - strips_tester.data['start_time'][current_nest]).total_seconds()  # Get start test date
                 gui_web.send({"command": "time", "mode": "duration", "nest": current_nest, "value": duration})
 
-                if strips_tester.data['exist'][current_nest]:  # Make test info only if product existed
+                # Make test info only if product existed and dummy is not tested
+                if strips_tester.data['exist'][current_nest] and strips_tester.data['worker_type'] != 4:
                     if strips_tester.data['status'][current_nest] != -1:
                         # print("Product {} exists with status {}." . format(current_nest,strips_tester.data['status'][current_nest]))
 
