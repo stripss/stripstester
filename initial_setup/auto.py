@@ -78,7 +78,7 @@ while not wifi_found:
 
         # Auto-start StripsTester if WiFi is detected
 
-        if "StripsTester" in wifi or "STRIPS-HOME" or "debug" in wifi:
+        if "StripsTester" in wifi or "STRIPS-HOME" in wifi or "debug" in wifi:
             p = subprocess.Popen(["/venv_strips_tester/bin/python-sudo.sh", "/strips_tester_project/strips_tester/tester.py"] + sys.argv[1:])
             # TN is running in production mode
             print("Production mode (Found StripsTester) - Auto-start initializing...")
