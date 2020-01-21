@@ -614,6 +614,7 @@ if __name__ == "__main__":
 
     else:  # Remote DB is not accessible
         module_logger.warning("[StripsTesterDB] RemoteDB is not available. Switching to LocalDB.")
+        module_logger.info("[StripsTesterDB] You can emulate network with AP. SSID: StripsTester, pass: marcel12")
 
         # Get existing data from local DB
         result = strips_tester.data['db_local_cursor'].execute('''SELECT * FROM test_device''').fetchone()
