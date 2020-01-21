@@ -24,57 +24,56 @@ while not wifi_found:
         # Git commands to update StripsTester to latest version
         os.chdir("/")  # Root cd
 
-        if os.path.isdir("/strips_tester_project"):  # StripsTester already exists
-            print("StripsTester found")
-            os.chdir("/strips_tester_project")
+        if "debug" not in wifi:  # Debug AP found, skip the install
+            if os.path.isdir("/strips_tester_project"):  # StripsTester already exists
+                print("StripsTester found")
+                os.chdir("/strips_tester_project")
 
-            # Remove master remote refs (prevent git error if master file is corrupted)
-            os.system("sudo rm -rf /strips_tester_project/.git/refs/remotes/origin/master")
+                # Remove master remote refs (prevent git error if master file is corrupted)
+                os.system("sudo rm -rf /strips_tester_project/.git/refs/remotes/origin/master")
 
-            os.system("sudo git reset --hard")
-            #os.system("sudo git checkout master")
+                os.system("sudo git reset --hard")
+                #os.system("sudo git checkout master")
 
-            # Uncheck if unlock refs error
-            #os.system("sudo git remote prune origin")
-            os.system("sudo git remote remove origin")
-            os.system("sudo git remote add origin https://stripss:stripstester123@github.com/stripss/stripstester.git")
+                # Uncheck if unlock refs error
+                #os.system("sudo git remote prune origin")
+                os.system("sudo git remote remove origin")
+                os.system("sudo git remote add origin https://stripss:stripstester123@github.com/stripss/stripstester.git")
 
-            os.system("sudo git config --global user.name 'StripsTester'")
-            os.system("sudo git config --global user.email '<>'")
+                os.system("sudo git config --global user.name 'StripsTester'")
+                os.system("sudo git config --global user.email '<>'")
 
-            os.system("sudo git clean -d -f")
-            os.system("sudo git commit")
+                os.system("sudo git clean -d -f")
+                os.system("sudo git commit")
 
-            os.system("sudo git pull origin master")
-        else:  # StripsTester was not found - clone it from GitHub repository
-            print("StripsTester NOT found")
-            os.system("sudo git clone https://stripss:stripstester123@github.com/stripss/stripstester.git /strips_tester_project")
+                os.system("sudo git pull origin master")
+            else:  # StripsTester was not found - clone it from GitHub repository
+                print("StripsTester NOT found")
+                os.system("sudo git clone https://stripss:stripstester123@github.com/stripss/stripstester.git /strips_tester_project")
 
-        # Add all privileges to strips_tester_project
-        os.system("sudo chmod 777 -R /strips_tester_project")
-        os.system("sudo chmod 777 /auto.py")
+            # Add all privileges to strips_tester_project
+            os.system("sudo chmod 777 -R /strips_tester_project")
+            os.system("sudo chmod 777 /auto.py")
 
-        # Move system files from initial setup to the right location
+            # Move system files from initial setup to the right location
 
-        # Check if auto scripts is the same
-        if not filecmp.cmp('/strips_tester_project/initial_setup/auto.py', '/auto.py'):
-            # Files are not the same - update WiFi networks
-            os.system("sudo rm -rf /auto.py")
-            os.system("sudo cp /strips_tester_project/initial_setup/auto.py /auto.py")
-            print("Auto script updated!")
-        else:
-            print("Auto script already updated.")
+            # Check if auto scripts is the same
+            if not filecmp.cmp('/strips_tester_project/initial_setup/auto.py', '/auto.py'):
+                # Files are not the same - update WiFi networks
+                os.system("sudo rm -rf /auto.py")
+                os.system("sudo cp /strips_tester_project/initial_setup/auto.py /auto.py")
+                print("Auto script updated!")
+            else:
+                print("Auto script already updated.")
 
-        # Check if wpa_supplicant is the same (WiFi hotspots)
-        if not filecmp.cmp('/strips_tester_project/initial_setup/wpa_supplicant.conf', '/etc/wpa_supplicant/wpa_supplicant.conf'):
-            # Files are not the same - update WiFi networks
-            os.system("sudo rm -rf /etc/wpa_supplicant/wpa_supplicant.conf")
-            os.system("sudo cp /strips_tester_project/initial_setup/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf")
-            print("WiFi networks updated!")
-        else:
-            print("WiFi networks already updated.")
-
-
+            # Check if wpa_supplicant is the same (WiFi hotspots)
+            if not filecmp.cmp('/strips_tester_project/initial_setup/wpa_supplicant.conf', '/etc/wpa_supplicant/wpa_supplicant.conf'):
+                # Files are not the same - update WiFi networks
+                os.system("sudo rm -rf /etc/wpa_supplicant/wpa_supplicant.conf")
+                os.system("sudo cp /strips_tester_project/initial_setup/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf")
+                print("WiFi networks updated!")
+            else:
+                print("WiFi networks already updated.")
 
         # Auto-start StripsTester if WiFi is detected
 
