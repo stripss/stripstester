@@ -157,7 +157,7 @@ class PrintSticker(Task):
         else:
             return
 
-        datamatrix = '10000002803301111{}93167542' . format(date_full)
+        datamatrix = '010000002803301111{}93167542' . format(date_full)
         serial = "{:08d}" . format(self.get_new_serial())
 
         self.add_measurement(0, True, "serial", serial, "")
@@ -179,7 +179,7 @@ class PrintSticker(Task):
                 '{}'
                 'Dy2-me-dd\n'
                 'Th:m:s\n'
-                'XRB25,16,4,0,32\n'
+                'XRB26,16,4,0,32\n'
                 '{}\n'
                 'AB,120,24,1,1,0,0E,Gorenje 803301\n'
                 'AB,120,49,1,1,0,0E,{}\n'
