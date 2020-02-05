@@ -30,8 +30,6 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "progress", "value": "0"})
 
         while not self.is_lid_closed():
-            print("start: {}". format(self.is_lid_closed()))
-            print("detect: {}". format(self.is_product_inside()))
             time.sleep(0.1)
 
         gui_web.send({"command": "error", "value": -1})  # Clear all error messages
@@ -161,9 +159,11 @@ class ReadSerial(Task):
 
     def run(self) -> (bool, str):
         self.vc = cv2.VideoCapture('/dev/logitech')
+        self.vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         while not self.vc.isOpened():  # try to get the first frame of camera
             self.vc = cv2.VideoCapture('/dev/logitech')
-            #module_logger.info("Odpiranje kamere...")
+            self.vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            module_logger.info("Odpiranje kamere...")
             time.sleep(1)
 
         GPIO.output(gpios["INTERIOR_LED"], False)
@@ -306,10 +306,10 @@ class I2C_Communication(Task):
         # Measure order: lednum,color_I_def,toleranca_I_def,
         self.measure_order = [
             (0, "blue left", 40.0, 20.0),
-            (1, "green left", 40.0, 20.0),
+            (1, "green left", 40.0, 30.0),
             (2, "red left", 40.0, 20.0),
             (3, "blue right", 40.0, 20.0),
-            (4, "green right", 40.0, 20.0),
+            (4, "green right", 40.0, 30.0),
             (5, "red right", 40.0, 20.0),
             (6, "white", 120.0, 20.0)
         ]
@@ -358,9 +358,10 @@ class I2C_Communication(Task):
                 self.add_measurement(0, True, "HeaterOFF", voltage, "V")
 
             self.i2c.turn_heater_on()
+            time.sleep(0.1)
             voltage = self.voltmeter.read()  # Read voltage on Heater pin
 
-            if not self.in_range(voltage, 0.0, 0.5, False):
+            if not self.in_range(voltage, 0.0, 1, False):
                 gui_web.send({"command": "error", "value": "Napetost vklopljenega grelca je izven območja. Izmerjeno {}V" . format(voltage)})
                 self.add_measurement(0, False, "HeaterON", voltage, "V")
             else:
@@ -588,10 +589,12 @@ class VisualTest(Task):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
         self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1", 0.16)
         self.camera = cv2.VideoCapture('/dev/microsoft')  # video capture source camera
+        #self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 
         gui_web.send({"command": "status", "value": "Vizualni pregled LED diod"})
         while not self.camera.isOpened():  # try to get the first frame of camera
             self.camera = cv2.VideoCapture('/dev/microsoft')
+            #self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             time.sleep(0.1)
 
         # First picture is corrupted, so we leave it here.

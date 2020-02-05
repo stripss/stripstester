@@ -248,14 +248,50 @@
       <string xsi:nil="true" />
       <string xsi:nil="true" />
       <string xsi:nil="true" />
+      <string xsi:nil="true" />
     </VariableFormat>
     <qlabel>
-      <GraphicShape xsi:type="DataMatrix" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="152" Y="10" Alignment="Center" AlignPointX="152" AlignPointY="10" FontScript="Default" CaptionWidth="150" bBuiltinFont="false" bSingleLine="false" bWrapBarCodeWidth="false" CaptionAlignment="None" Multiple="2" bGS1="false" IsRect="false">
+      <GraphicShape xsi:type="Text" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="114.366211" Y="86" Alignment="Left" AlignPointX="114.366211" AlignPointY="86" FontScript="Default" FontCmd="Microsoft Sans Serif,18&#xD;&#xA;" FontType="BuiltIn_Bitmap_Font" TextSpace="0" Encoding="Default" FontId="A" FontHeight="1" FontWidth="1" IsInverse="false" IsUTF8="true" IsCheckDigit="false">
         <qHitOnCircumferance>false</qHitOnCircumferance>
-        <Selected>true</Selected>
+        <Selected>false</Selected>
         <iBackground_color>4294967295</iBackground_color>
-        <Id>88</Id>
-        <ItemLabel>DataMatrix_88</ItemLabel>
+        <Id>4</Id>
+        <ItemLabel>Text_4</ItemLabel>
+        <Name>A</Name>
+        <FormatType>None</FormatType>
+        <P1 />
+        <P2 />
+        <P3 />
+        <P4 />
+        <DataField>None</DataField>
+        <Prompt>None</Prompt>
+        <BoundRectWidth>48.921875</BoundRectWidth>
+        <DispData>{serial}</DispData>
+        <bRemovePreZeroAndEmpty>false</bRemovePreZeroAndEmpty>
+        <Data>{serial}</Data>
+        <BoundRectHeight>17.875</BoundRectHeight>
+        <BoundRect>
+          <Location>
+            <X>114.366211</X>
+            <Y>86</Y>
+          </Location>
+          <Size>
+            <Width>48.921875</Width>
+            <Height>17.875</Height>
+          </Size>
+          <X>114.366211</X>
+          <Y>86</Y>
+          <Width>48.921875</Width>
+          <Height>17.875</Height>
+        </BoundRect>
+        <BTrueType>true</BTrueType>
+      </GraphicShape>
+      <GraphicShape xsi:type="DataMatrix" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="159.777771" Y="22.0000038" Alignment="Center" AlignPointX="159.777771" AlignPointY="22.0000038" FontScript="Default" CaptionWidth="150" bBuiltinFont="false" bSingleLine="false" bWrapBarCodeWidth="false" CaptionAlignment="None" Multiple="4" bGS1="false" IsRect="false">
+        <qHitOnCircumferance>false</qHitOnCircumferance>
+        <Selected>false</Selected>
+        <iBackground_color>4294967295</iBackground_color>
+        <Id>2</Id>
+        <ItemLabel>DataMatrix_2</ItemLabel>
         <Name>XRB</Name>
         <FormatType>None</FormatType>
         <P1 />
@@ -264,31 +300,31 @@
         <P4 />
         <DataField>None</DataField>
         <Prompt>None</Prompt>
-        <BoundRectWidth>36</BoundRectWidth>
-        <DispData>dateyearserial</DispData>
+        <BoundRectWidth>56</BoundRectWidth>
+        <DispData>{serial}</DispData>
         <bRemovePreZeroAndEmpty>false</bRemovePreZeroAndEmpty>
-        <Data>dateyearserial</Data>
-        <BoundRectHeight>36</BoundRectHeight>
+        <Data>{serial}</Data>
+        <BoundRectHeight>56</BoundRectHeight>
         <BoundRect>
           <Location>
-            <X>152</X>
-            <Y>10</Y>
+            <X>159.777771</X>
+            <Y>22.0000038</Y>
           </Location>
           <Size>
-            <Width>36</Width>
-            <Height>36</Height>
+            <Width>56</Width>
+            <Height>56</Height>
           </Size>
-          <X>152</X>
-          <Y>10</Y>
-          <Width>36</Width>
-          <Height>36</Height>
+          <X>159.777771</X>
+          <Y>22.0000038</Y>
+          <Width>56</Width>
+          <Height>56</Height>
         </BoundRect>
-        <MultiLineCaption Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="4" Y="4" Alignment="Left" AlignPointX="0" AlignPointY="0" FontScript="Default" FontCmd="Arial,12&#xD;&#xA;" LineSpacing="Single" LineHeight="0" Multiple="10" DotBeforePara="0" DotAfterPara="0" FontWidth="24" BTrueType="true">
+        <MultiLineCaption Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" Alignment="Left" AlignPointX="0" AlignPointY="0" FontScript="Default" FontCmd="Arial,12&#xD;&#xA;" LineSpacing="Single" LineHeight="0" Multiple="10" DotBeforePara="0" DotAfterPara="0" FontWidth="24" BTrueType="true">
           <qHitOnCircumferance>false</qHitOnCircumferance>
           <Selected>false</Selected>
           <iBackground_color>4294967295</iBackground_color>
-          <Id>89</Id>
-          <ItemLabel>W89</ItemLabel>
+          <Id>3</Id>
+          <ItemLabel>W3</ItemLabel>
           <Name>W</Name>
           <FormatType>None</FormatType>
           <P1 />
@@ -319,12 +355,12 @@
           <TextSpace>0</TextSpace>
         </MultiLineCaption>
       </GraphicShape>
-      <GraphicShape xsi:type="Text" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="9" Y="2" Alignment="Left" AlignPointX="9" AlignPointY="2" FontScript="Default" FontCmd="Microsoft Sans Serif,18&#xD;&#xA;" FontType="BuiltIn_Bitmap_Font" TextSpace="0" Encoding="Default" FontId="A" FontHeight="1" FontWidth="1" IsInverse="false" IsUTF8="true" IsCheckDigit="false">
+      <GraphicShape xsi:type="Text" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="9" Y="22.0532227" Alignment="Left" AlignPointX="9" AlignPointY="22.0532227" FontScript="Default" FontCmd="Microsoft Sans Serif,18&#xD;&#xA;" FontType="BuiltIn_Bitmap_Font" TextSpace="0" Encoding="Default" FontId="B" FontHeight="1" FontWidth="1" IsInverse="false" IsUTF8="true" IsCheckDigit="false">
         <qHitOnCircumferance>false</qHitOnCircumferance>
         <Selected>false</Selected>
         <iBackground_color>4294967295</iBackground_color>
-        <Id>85</Id>
-        <ItemLabel>Text_8539848</ItemLabel>
+        <Id>0</Id>
+        <ItemLabel>Text_0</ItemLabel>
         <Name>A</Name>
         <FormatType>None</FormatType>
         <P1 />
@@ -333,28 +369,28 @@
         <P4 />
         <DataField>None</DataField>
         <Prompt>None</Prompt>
-        <BoundRectWidth>131.335938</BoundRectWidth>
-        <DispData>GAHF int 1103825
-f.w.: v1.0
-41948, QC25</DispData>
+        <BoundRectWidth>103.995117</BoundRectWidth>
+        <DispData>{hulecode}
+{datetime}
+{revision}</DispData>
         <bRemovePreZeroAndEmpty>false</bRemovePreZeroAndEmpty>
-        <Data>GAHF int 1103825
-f.w.: v1.0
-41948, QC25</Data>
-        <BoundRectHeight>55.1953125</BoundRectHeight>
+        <Data>{hulecode}
+{datetime}
+{revision}</Data>
+        <BoundRectHeight>75.8935547</BoundRectHeight>
         <BoundRect>
           <Location>
             <X>9</X>
-            <Y>2</Y>
+            <Y>22.0532227</Y>
           </Location>
           <Size>
-            <Width>131.335938</Width>
-            <Height>55.1953125</Height>
+            <Width>103.995117</Width>
+            <Height>75.8935547</Height>
           </Size>
           <X>9</X>
-          <Y>2</Y>
-          <Width>131.335938</Width>
-          <Height>55.1953125</Height>
+          <Y>22.0532227</Y>
+          <Width>103.995117</Width>
+          <Height>75.8935547</Height>
         </BoundRect>
         <BTrueType>true</BTrueType>
       </GraphicShape>
@@ -371,7 +407,7 @@ f.w.: v1.0
     <IntegratedSecurity>false</IntegratedSecurity>
     <RowIndex>0</RowIndex>
   </Label>
-  <Setup LabelLength="7" LabelWidth="25" LeftMargin="0" TopMargin="0" LabelType="0" GapLength="3" FeedLength="0" ZSign="45" BlackMark="0" Position="0" Speed="3" Copy="1" bCopyDataBase="false" CopyField="None" Stripper="0" LabelsPerCut="0" Rotate180="255" Stop="12" Darkness="8" Number="1" bBatchCut="false" bNumberDataBase="false" NumberField="None" PageDirection="Portrait" PrintMode="1" PowerRFID="0" LengthRFID="-1" RetryRFID="1">
+  <Setup LabelLength="15" LabelWidth="32" LeftMargin="0" TopMargin="-8" LabelType="0" GapLength="3" FeedLength="0" ZSign="45" BlackMark="0" Position="0" Speed="2" Copy="1" bCopyDataBase="false" CopyField="None" Stripper="0" LabelsPerCut="0" Rotate180="255" Stop="12" Darkness="15" Number="1" bBatchCut="false" bNumberDataBase="false" NumberField="None" PageDirection="Portrait" PrintMode="1" PowerRFID="0" LengthRFID="-1" RetryRFID="1">
     <Layout Shape="0" AcrossType="Copied" PageDirection="Portrait" HorAcross="1" VerAcross="1" HorGap="0" VerGap="0" HorAcrossMode1="1" VerAcrossMode1="1" LabelMode="0" HorGapMode1="0" VerGapMode1="0" BottomMargin="0" RightMargin="0" />
     <Description>&#x0;
 Lang:(en-US) OS:Microsoft Windows NT 6.2.9200.0(Win32NT)</Description>
@@ -379,9 +415,9 @@ Lang:(en-US) OS:Microsoft Windows NT 6.2.9200.0(Win32NT)</Description>
     <Dpi>203</Dpi>
   </Setup>
   <DriverName />
-  <PrinterModel>G300</PrinterModel>
+  <PrinterModel>G500</PrinterModel>
   <PrinterLanguage>EZPL</PrinterLanguage>
-  <USBName>GODEX G300#14430855</USBName>
+  <USBName />
   <COMName />
   <CommunicationType>USB</CommunicationType>
   <NetworkIPAddress>0</NetworkIPAddress>

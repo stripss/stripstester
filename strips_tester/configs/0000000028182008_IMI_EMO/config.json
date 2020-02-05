@@ -1,0 +1,101 @@
+{
+  "test_device_name": "IMI EMO",
+  "test_device_nests": 1,
+  "thread_nests": 0,
+  "task_execution_order": {
+    "StartProcedureTask": 1,
+    "VoltageTest": 1,
+    "FlashMCU": 1,
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1,
+    "PrintSticker": 0
+  },
+  "critical_event_tasks": {
+    "ProductConfigTask": 1,
+    "FinishProcedureTask": 1
+  },
+  "gpio_settings": {
+    "START_SWITCH": {
+      "function": 1,
+      "pin": 38,
+      "pull": 22
+    },
+    "DUT_DETECT": {
+      "function": 1,
+      "pin": 37,
+      "pull": 22
+    },
+    "LIGHT_GREEN": {
+      "function": 0,
+      "pin": 21,
+      "initial": 0
+    },
+    "LIGHT_RED": {
+      "function": 0,
+      "pin": 19,
+      "initial": 0
+    },
+    "LIGHT_BLUE": {
+      "function": 0,
+      "pin": 23,
+      "initial": 0
+    },
+    "SHIFTER_OE": {
+      "function": 0,
+      "pin": 24,
+      "initial": 1
+    },
+    "SHIFTER_CLOCK": {
+      "function": 0,
+      "pin": 26,
+      "initial": 1
+    },
+    "SHIFTER_LATCH": {
+      "function": 0,
+      "pin": 31,
+      "initial": 1
+    },
+    "SHIFTER_DATA": {
+      "function": 0,
+      "pin": 29,
+      "initial": 1
+    },
+    "BUZZER": {
+      "function": 0,
+      "pin": 32,
+      "initial": 0
+    },
+    "SERVO": {
+      "function": 0,
+      "pin": 35,
+      "initial": 0
+    }
+  },
+
+  "relay_settings": {
+
+  },
+
+  "data": {
+    "RELAY_DUT_POWER": "3",
+    "RELAY_VCC-D": "100",
+    "RELAY_MCU_RESET": "4000",
+    "RELAY_HALL-P": "20",
+    "RELAY_HALL-A": "40",
+
+    "RELAY_UY1": "800",
+    "RELAY_UY1-P": "8",
+    "RELAY_UY1-A": "4",
+    "RELAY_UY2": "1000",
+    "RELAY_UY2-P": "80",
+    "RELAY_UY2-A": "10",
+
+
+    "RELAY_TRIAC-P": "400",
+    "RELAY_TRIAC-D": "200",
+    "RELAY_TRIAC": "2000",
+    "RELAY_TRIAC-PULLUP": "2000",
+
+    "RELAY_PROGARMMER_COMMON_GND": "8000"
+  }
+}

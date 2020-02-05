@@ -365,7 +365,7 @@ class InternalTest(Task):
 
     @staticmethod
     def crc(data):
-        def _update_crc( crc, byte_):
+        def _update_crc(crc, byte_):
             crc = (crc >> 8) | ((crc & 0xFF) << 8)
             crc ^= byte_ & 0xFF
             crc ^= (crc & 0xFF) >> 4

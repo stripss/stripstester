@@ -7,6 +7,8 @@ import cv2
 import os
 import keyboard
 import io
+import devices
+from yoctopuce.yocto_api import YAPI
 
 try:
     from picamera.array import PiRGBArray
@@ -16,9 +18,10 @@ try:
 except Exception:
     pass
 
+
 def insert_test_device(name, nests, address, description, author, image_link):
     date_of_creation = datetime.datetime.utcnow()
-    #myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    # myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
     myclient = pymongo.MongoClient("mongodb://192.168.88.243:27017/")
     mydb = myclient["stripstester"]
     mycol = mydb['test_device']
@@ -40,6 +43,34 @@ def insert_test_device(name, nests, address, description, author, image_link):
         mycol.insert_one(data)
     else:
         print("Test device {} is already in database.".format(name))
+
+
+def insert_test_help(test_device, link, title, description="", author="Unknown"):
+    myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    mydb = myclient["stripstester"]
+    test_devices_col = mydb['test_device']
+    test_help_col = mydb['test_help']
+
+    date_of_creation = datetime.datetime.utcnow()
+
+    if test_device != "-1":
+        try:
+            test_device_id = test_devices_col.find_one({"name": test_device})['_id']
+        except (TypeError, KeyError) as e:
+            print("Test device '{name}' does not exist. {error}".format(name=test_device,error=e))
+            return
+
+    data = {'test_device': test_device_id,
+            'link': link,
+            'description': description,
+            'author': author,
+            'date_of_creation': date_of_creation,
+            'title': title}
+
+    print("Test help '{}' created for '{}' test device.".format(title, test_device))
+
+    test_help_col.insert_one(data)
+
 
 def recreate_counters():
     myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
@@ -67,10 +98,13 @@ def recreate_counters():
         last_test = datetime.datetime.combine(last_test, datetime.time(0))
         today_date = datetime.datetime.combine(last_test, datetime.time(0))
 
-        test_count_col.update_one({'test_device': test_device['_id']},{'$set': {'good': good_count,'bad': bad_count,'good_today': good_count_today,'bad_today': bad_count_today, 'today_date': today_date, 'last_test': last_test}}, True)
+        test_count_col.update_one({'test_device': test_device['_id']},
+                                  {'$set': {'good': good_count, 'bad': bad_count, 'good_today': good_count_today, 'bad_today': bad_count_today, 'today_date': today_date, 'last_test': last_test}},
+                                  True)
 
     print("Counter database recreation FINISHED.")
     myclient.close()
+
 
 def rpi_camera_preview():
     # import the necessary packages
@@ -83,7 +117,7 @@ def rpi_camera_preview():
     camera = PiCamera()
     camera.resolution = (640, 480)
     camera.framerate = 32
-    #camera.rotation(180)
+    # camera.rotation(180)
     rawCapture = PiRGBArray(camera, size=(640, 480))
 
     # allow the camera to warmup
@@ -106,6 +140,7 @@ def rpi_camera_preview():
         if key == ord("q"):
             break
 
+
 def get_by_id(id):
     myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
     mydb = myclient["stripstester"]
@@ -114,11 +149,40 @@ def get_by_id(id):
     print(mycol.find_one({'_id': int(id)}))
     myclient.close()
 
+
 def main():
-    rpi =0
-    #recreate_counters()
-    #rpi_camera_preview()
-    insert_test_device("ASP-1", 1, 8000, "Aspoeck", "Marcel Jancar", "/img/logos/aspoeck.png")
+    # test = {}
+    #
+    # test["test1"] = "value1"
+    # test["test2"] = "value2"
+    # test["test3"] = "value3"
+    # test["test4"] = "4"
+    # test["test5"] = 5
+    #
+
+    #myclient = pymongo.MongoClient("mongodb://172.30.129.19:27017/")
+    #mydb = myclient["stripstester"]
+    #mycol = mydb['test_device']
+    #mycal = mydb['test_calibration']
+    #for tn in mycol.find({}):
+    #    mycal.update_one({'test_device': tn['_id']}, {"$set": {'description': 'nothing', 'date': tn['date_of_creation'], 'author': "strips", "file": "somelink.txt"}}, True)
+    GPIO.
+    # yocto = devices.YoctoBridge('YWBRIDG1-114706.weighScale1')
+    #
+    # while True:
+    #     print(yocto.get_resistance())
+    #     time.sleep(1)
+    #
+    # yocto.close()
+
+    #scanner = devices.HoneywellMarcel(vid=0x0c2e, pid=0x0901)
+    #print(scanner.read())
+    #scanner.close()
+
+    # recreate_counters()
+    # rpi_camera_preview()
+    # insert_test_device("ASP-1", 1, 8000, "Aspoeck", "Marcel Jancar", "/img/logos/aspoeck.png")
+    #insert_test_help("ASP-1", "/videos/strips_video.mp4", "Servisiranje", "Za servisiranje pokrova potrebujete izvijač in papir. Za ostale podrobnosti si oglejte video.", "MarcelJ")
     #
     #
     # visual = Visual()
@@ -151,6 +215,7 @@ def main():
     #     visual.load_image("C:/Users/marcelj/Desktop/masks/test.jpg")  # Load target image
     #     visual.define_mask("C:/Users/marcelj/Desktop/masks/mask8.json")
 
+
 class Visual:
     def __init__(self):
         self.mask = []
@@ -160,18 +225,17 @@ class Visual:
         self.selected = 0
         self.stream = None
         self.option_selected = 0
-        self.option_list = ['h1','s1','v1','h2','s2','v2']
+        self.option_list = ['h1', 's1', 'v1', 'h2', 's2', 'v2']
         self.option_command = 0
         self.mask_offset_x = 0
         self.mask_offset_y = 0
-
 
     def load_image(self, filename):
         if os.path.isfile(filename):
             self.image = cv2.imread(filename)
             self.camera = False
         else:
-            print("File '{}' does not exist" . format(filename))
+            print("File '{}' does not exist".format(filename))
 
     def set_image(self, image):
         self.image = image
@@ -194,8 +258,8 @@ class Visual:
         except FileNotFoundError:
             pass
 
-    def crop_image(self,x,y,width,height):
-        self.image = self.image[y:y+height,x:x+width]
+    def crop_image(self, x, y, width, height):
+        self.image = self.image[y:y + height, x:x + width]
 
     def get_camera_image(self):
         try:
@@ -247,28 +311,33 @@ class Visual:
 
             output = self.image.copy()
 
-            mask_min = np.array([self.mask[self.selected]['h1'],self.mask[self.selected]['s1'],self.mask[self.selected]['v1']], np.uint8)
-            mask_max = np.array([self.mask[self.selected]['h2'],self.mask[self.selected]['s2'],self.mask[self.selected]['v2']], np.uint8)
+            mask_min = np.array([self.mask[self.selected]['h1'], self.mask[self.selected]['s1'], self.mask[self.selected]['v1']], np.uint8)
+            mask_max = np.array([self.mask[self.selected]['h2'], self.mask[self.selected]['s2'], self.mask[self.selected]['v2']], np.uint8)
 
             hsv_img = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
             frame_thresh = cv2.bitwise_not(cv2.inRange(hsv_img, mask_min, mask_max))
 
-            cv2.putText(output, str("Selected: {} ({},{},{},{},{},{},{},{}), result: {}%, option: {}" . format(self.selected,
-            self.mask[self.selected]['x'],self.mask[self.selected]['y'],self.mask[self.selected]['h1'],self.mask[self.selected]['s1'],self.mask[self.selected]['v1'],
-            self.mask[self.selected]['h2'],self.mask[self.selected]['s2'],self.mask[self.selected]['v2'],
-            self.compare_mask(True), self.option_list[self.option_selected])), (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (20,200,20), 1, cv2.LINE_AA)
+            cv2.putText(output, str("Selected: {} ({},{},{},{},{},{},{},{}), result: {}%, option: {}".format(self.selected,
+                                                                                                             self.mask[self.selected]['x'], self.mask[self.selected]['y'],
+                                                                                                             self.mask[self.selected]['h1'], self.mask[self.selected]['s1'],
+                                                                                                             self.mask[self.selected]['v1'],
+                                                                                                             self.mask[self.selected]['h2'], self.mask[self.selected]['s2'],
+                                                                                                             self.mask[self.selected]['v2'],
+                                                                                                             self.compare_mask(True), self.option_list[self.option_selected])), (5, 15),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (20, 200, 20), 1, cv2.LINE_AA)
 
             index = 0
             for point in self.mask:
                 if self.detect_point_state(index):
-                    color = (0,255,0)
+                    color = (0, 255, 0)
                 else:
-                    color = (0,0,255)
+                    color = (0, 0, 255)
 
                 if self.selected == index:
                     cv2.circle(output, (point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y), 2, color, -1)
-                    cv2.circle(output, (point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y), 4, (255,0,0), 1)
-                    cv2.putText(output, str(self.detect_point_state(index)), (point['x'] + 10 + self.mask_offset_x, point['y'] + self.mask_offset_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1, cv2.LINE_AA)
+                    cv2.circle(output, (point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y), 4, (255, 0, 0), 1)
+                    cv2.putText(output, str(self.detect_point_state(index)), (point['x'] + 10 + self.mask_offset_x, point['y'] + self.mask_offset_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1,
+                                cv2.LINE_AA)
                 else:
                     cv2.circle(output, (point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y), 2, color, -1)
 
@@ -291,7 +360,7 @@ class Visual:
                 while keyboard.is_pressed('enter'):
                     time.sleep(0.1)
 
-                print("Mask saved to '{}' successfully!" . format(filename))
+                print("Mask saved to '{}' successfully!".format(filename))
 
             if keyboard.is_pressed('w'):  # if key 'q' is pressed
                 if self.option_command == 0:
@@ -339,7 +408,6 @@ class Visual:
                 while keyboard.is_pressed('k'):
                     time.sleep(0.1)
 
-
             if keyboard.is_pressed('c'):  # if key 'q' is pressed
                 self.option_selected += 1
 
@@ -348,8 +416,6 @@ class Visual:
 
                 while keyboard.is_pressed('c'):
                     time.sleep(0.1)
-
-
 
             if keyboard.is_pressed('h'):  # if key 'q' is pressed
                 self.mask[self.selected][self.option_list[self.option_selected]] += 1
@@ -362,9 +428,6 @@ class Visual:
 
                 if self.mask[self.selected][self.option_list[self.option_selected]] < 0:
                     self.mask[self.selected][self.option_list[self.option_selected]] = 0
-
-
-
 
             if keyboard.is_pressed('+'):  # if key 'q' is pressed
                 if self.selected < len(self.mask) - 1:
@@ -381,17 +444,18 @@ class Visual:
                     time.sleep(0.1)
 
             if keyboard.is_pressed('n'):  # if key 'q' is pressed
-                self.mask.append({'x': self.mask[self.selected]['x'], 'y': self.mask[self.selected]['y'], 'h1': self.mask[self.selected]['h1'], 's1': self.mask[self.selected]['s1'], 'v1': self.mask[self.selected]['v1'], 'h2': self.mask[self.selected]['h2'], 's2': self.mask[self.selected]['s2'], 'v2': self.mask[self.selected]['v2']})  # Append new
+                self.mask.append({'x': self.mask[self.selected]['x'], 'y': self.mask[self.selected]['y'], 'h1': self.mask[self.selected]['h1'], 's1': self.mask[self.selected]['s1'],
+                                  'v1': self.mask[self.selected]['v1'], 'h2': self.mask[self.selected]['h2'], 's2': self.mask[self.selected]['s2'], 'v2': self.mask[self.selected]['v2']})  # Append new
                 self.selected = len(self.mask) - 1  # Select last one
-                print("Point at index {} successfully created." . format(self.selected))
+                print("Point at index {} successfully created.".format(self.selected))
 
                 while keyboard.is_pressed('n'):
                     time.sleep(0.1)
 
             if keyboard.is_pressed('b'):  # if key 'q' is pressed
                 if len(self.mask) > 1:
-                    del(self.mask[self.selected])
-                    print("Point at index {} successfully deleted." . format(self.selected))
+                    del (self.mask[self.selected])
+                    print("Point at index {} successfully deleted.".format(self.selected))
                     self.selected = len(self.mask) - 1  # Select last one
 
                 while keyboard.is_pressed('b'):
@@ -413,7 +477,7 @@ class Visual:
         percent = 0
         for point in self.mask:
             if not self.detect_point_state(index):
-                #print("Point with index {} at x:{} y:{} is invalid!" . format(index, point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y))
+                # print("Point with index {} at x:{} y:{} is invalid!" . format(index, point['x'] + self.mask_offset_x, point['y'] + self.mask_offset_y))
                 if not return_percent:
                     return False
 
@@ -432,7 +496,7 @@ class Visual:
         y = self.mask[index]['y'] + self.mask_offset_y
 
         # Pick up small region of interest
-        roi = self.image[y - 3:y+3, x-3:x+3]
+        roi = self.image[y - 3:y + 3, x - 3:x + 3]
 
         mask_min = np.array([self.mask[index]['h1'], self.mask[index]['s1'], self.mask[index]['v1']], np.uint8)
         mask_max = np.array([self.mask[index]['h2'], self.mask[index]['s2'], self.mask[index]['v2']], np.uint8)
@@ -463,6 +527,7 @@ class Visual:
             state = True
 
         return state
+
 
 def print_sticker(test_status, printer):
     program = "S001"
@@ -508,7 +573,6 @@ def print_sticker(test_status, printer):
              'AA,8,48,1,1,0,0E,{}  {}\n'
              'E\n').format(darkness, inverse, code[program], " ", program, date, qc)
 
-    print("a")
     printer.send_to_printer(label)
     time.sleep(1)
 

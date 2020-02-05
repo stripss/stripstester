@@ -506,6 +506,7 @@ if __name__ == "__main__":
 
     date_at_midnight = datetime.datetime.combine(datetime.datetime.today().date(), datetime.time(0))
 
+
     if strips_tester.data['db_connection'] is not None:
         module_logger.info("[StripsTesterDB] RemoteDB is available.")
 
@@ -605,7 +606,6 @@ if __name__ == "__main__":
             strips_tester.settings.test_device_name, strips_tester.data['good_count'], strips_tester.data['bad_count'], strips_tester.data['good_count_today'], strips_tester.data['bad_count_today'],
             strips_tester.data['worker_id'], strips_tester.data['worker_type'], strips_tester.data['worker_comment'], strips_tester.data['serial'], str(json.dumps(strips_tester.data['memory']))))
         strips_tester.data['db_local_connection'].commit()
-
 
         # Update local DB custom counters
         strips_tester.data['db_local_cursor'].execute('''INSERT INTO test_worker(id, good, bad, comment) VALUES(?, ?,?,?)''', (

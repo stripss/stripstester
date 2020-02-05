@@ -1040,6 +1040,7 @@ class PrintSticker(Task):
             for current_nest in range(2):
                 if strips_tester.data['exist'][current_nest]:
                     gui_web.send({"command": "error", "nest": current_nest, "value": "Tiskalnika ni mogoče najti!"})
+                    module_logger.error("Godex is not found")
             return
 
         # Lid is now opened.

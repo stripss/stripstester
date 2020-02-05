@@ -88,7 +88,7 @@ class CurrentTest(Task):
     def set_up(self):
         try:
             strips_tester.data['device_yocto']
-        except KeyError:
+        except KeyError:  # Ammeter not initialized yet
             strips_tester.data['device_yocto'] = devices.YoctoVoltageMeter("YAMPMK01-EC277.current1", 0.1)
 
         self.ammeter = strips_tester.data['device_yocto']
@@ -136,13 +136,13 @@ class LightTest(Task):
         try:
             strips_tester.data['device_feasa1']
             module_logger.info("Device FeasaM335 initalized successfully.")
-        except KeyError:
+        except KeyError:  # Feasa not initialized yet
             strips_tester.data['device_feasa1'] = devices.Feasa("/dev/feasaM335")
 
         try:
             strips_tester.data['device_feasa2']
             module_logger.info("Device FeasaN218 initalized successfully.")
-        except KeyError:
+        except KeyError:  # Feasa not initialized yet
             strips_tester.data['device_feasa2'] = devices.Feasa("/dev/feasaN218")
 
         self.feasa1 = strips_tester.data['device_feasa1']
@@ -162,7 +162,7 @@ class LightTest(Task):
 
         # Capture all measurements from Feasa
         if not self.feasa1.capture(5) or not self.feasa2.capture(5):
-            print("ERROR Capturing from Feasa device")
+            module_logger.error("ERROR Capturing from Feasa device")
 
         # Retrieve CCT values for all LEDs
         cct = self.feasa1.get_CCT()
@@ -189,7 +189,7 @@ class LightTest(Task):
                 # Check colour
                 pass
             else:
-                if not self.in_range(cct[current_led], 4300, 1000, False):
+                if cct[current_led] < 4000 or cct[current_led] > 5000:
                     module_logger.warning("CCT of LED{} is out of bounds: meas: {}K" . format(current_led + 1, cct[current_led]))
                     gui_web.send({"command": "error", "nest": 0, "value": "Meritev barve na LED #{} je izven območja: {}K".format(current_led + 1, cct[current_led])})
                     self.add_measurement(0, False, "LED{}_CCT" . format(current_led + 1), cct[current_led], "K")
@@ -198,22 +198,24 @@ class LightTest(Task):
                     gui_web.send({"command": "info", "nest": 0, "value": "Meritev barve LED#{}: {}K".format(current_led + 1, cct[current_led])})
                     self.add_measurement(0, True, "LED{}_CCT" . format(current_led + 1), cct[current_led], "K")
 
-                if hsi[current_led]['I'] < 10000:
-                    module_logger.warning("Intensity of LED{} is out of bounds: meas: {}" . format(current_led + 1, hsi[current_led]['I']))
-                    gui_web.send({"command": "error", "nest": 0, "value": "Meritev svetilnosti na LED #{} je izven območja: {}i".format(current_led + 1, hsi[current_led]['I'])})
-                    self.add_measurement(0, False, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
-                else:
-                    module_logger.info("Intensity of LED{} in bounds: meas: {}i" . format(current_led + 1, hsi[current_led]['I']))
-                    gui_web.send({"command": "info", "nest": 0, "value": "Meritev svetilnosti LED#{}: {}i".format(current_led + 1, hsi[current_led]['I'])})
-                    self.add_measurement(0, True, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
+            # Check intensity range
+            if hsi[current_led]['I'] < 30000:
+                module_logger.warning("Intensity of LED{} is out of bounds: meas: {}" . format(current_led + 1, hsi[current_led]['I']))
+                gui_web.send({"command": "error", "nest": 0, "value": "Meritev svetilnosti na LED #{} je izven območja: {}i".format(current_led + 1, hsi[current_led]['I'])})
+                self.add_measurement(0, False, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
+            else:
+                module_logger.info("Intensity of LED{} in bounds: meas: {}i" . format(current_led + 1, hsi[current_led]['I']))
+                gui_web.send({"command": "info", "nest": 0, "value": "Meritev svetilnosti LED#{}: {}i".format(current_led + 1, hsi[current_led]['I'])})
+                self.add_measurement(0, True, "LED{}_Intensity" . format(current_led + 1), hsi[current_led]['I'], "i")
 
             gui_web.send({"command": "measurements", "led": {'position': current_led + 1, 'cct': cct[current_led], 'rgb': rgb[current_led], 'hsi': hsi[current_led]}})
 
-
-        # print(min_left, max_left, abs(min_left-max_left))
-        # print(min_right, max_right, abs(min_right-max_right))
-        # print(min, max, abs(min-max))
-
+        print("left: ", end="")
+        print(min_left, max_left, abs(min_left-max_left))
+        print("right: ", end="")
+        print(min_right, max_right, abs(min_right-max_right))
+        print("both: ", end="")
+        print(min, max, abs(min-max))
 
         # Wait for switch to be released
         while self.lid_closed():
@@ -227,7 +229,7 @@ class LightTest(Task):
 
 class ProductConfigTask(Task):
     def set_up(self):
-        module_logger.debug("ProductConfigTask init")
+        pass
 
     def run(self):
         if strips_tester.data['exist'][0]:
@@ -242,7 +244,7 @@ class ProductConfigTask(Task):
 
 class PrintSticker(Task):
     def set_up(self):
-        # Initalize Godex as USB
+        # Initalize Godex with USB interface
         self.godex = devices.Godex(interface=2)
 
     def run(self):
@@ -262,6 +264,7 @@ class PrintSticker(Task):
         serial = "HULE-{:07d}".format(self.get_new_serial())
         self.add_measurement(0, True, "serial", serial, "")
 
+        # Get correct code and revision
         hulecode = strips_tester.data['program'][3]
         revision = strips_tester.data['program'][4]
 
@@ -270,18 +273,20 @@ class PrintSticker(Task):
         label = label.format(hulecode=hulecode, datetime=date_format, revision=revision, serial=serial)
         label = self.godex.set_datamatrix_size(label, len(serial))
 
+        # Execute printing
         self.godex.send_to_printer(label)
         time.sleep(1)
 
         return
 
     def tear_down(self):
+        # Close Godex device if serial interface
         self.godex.close()
 
 
 class FinishProcedureTask(Task):
     def set_up(self):
-        module_logger.debug("FinishProcedureTask init")
+        return
 
     def run(self):
         # gui_web.send({"command": "semafor", "nest": 0, "value": (0, 1, 0), "blink": (0, 1, 0)})
@@ -329,4 +334,4 @@ class FinishProcedureTask(Task):
                 time.sleep(0.25)
 
     def tear_down(self):
-        pass
+        return

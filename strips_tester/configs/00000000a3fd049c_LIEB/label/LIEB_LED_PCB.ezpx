@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PrintJob xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <QLabelSDKVersion>1.4.3.7</QLabelSDKVersion>
-  <GoLabelZoomFactor>0.5</GoLabelZoomFactor>
+  <GoLabelZoomFactor>1</GoLabelZoomFactor>
   <Label>
     <SerialFormat>
       <string xsi:nil="true" />
@@ -250,9 +250,9 @@
       <string xsi:nil="true" />
     </VariableFormat>
     <qlabel>
-      <GraphicShape xsi:type="Text" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="82.32127" Y="1" Alignment="Left" AlignPointX="82.32127" AlignPointY="1" FontScript="Default" FontCmd="Microsoft Sans Serif,18&#xD;&#xA;" FontType="BuiltIn_Bitmap_Font" TextSpace="0" Encoding="Default" FontId="A" FontHeight="1" FontWidth="1" IsInverse="false" IsUTF8="true" IsCheckDigit="false">
+      <GraphicShape xsi:type="Text" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="82.32127" Y="0.40234375" Alignment="Left" AlignPointX="82.32127" AlignPointY="0.40234375" FontScript="Default" FontCmd="Microsoft Sans Serif,18&#xD;&#xA;" FontType="BuiltIn_Bitmap_Font" TextSpace="0" Encoding="Default" FontId="A" FontHeight="1" FontWidth="1" IsInverse="false" IsUTF8="true" IsCheckDigit="false">
         <qHitOnCircumferance>false</qHitOnCircumferance>
-        <Selected>false</Selected>
+        <Selected>true</Selected>
         <iBackground_color>4294967295</iBackground_color>
         <Id>19</Id>
         <ItemLabel>Text_19</ItemLabel>
@@ -276,20 +276,20 @@
         <BoundRect>
           <Location>
             <X>82.32127</X>
-            <Y>1</Y>
+            <Y>0.40234375</Y>
           </Location>
           <Size>
             <Width>102.328125</Width>
             <Height>55.1953125</Height>
           </Size>
           <X>82.32127</X>
-          <Y>1</Y>
+          <Y>0.40234375</Y>
           <Width>102.328125</Width>
           <Height>55.1953125</Height>
         </BoundRect>
         <BTrueType>true</BTrueType>
       </GraphicShape>
-      <GraphicShape xsi:type="DataMatrix" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="18" Y="-2" Alignment="Center" AlignPointX="18" AlignPointY="-2" FontScript="Default" CaptionWidth="150" bBuiltinFont="false" bSingleLine="false" bWrapBarCodeWidth="false" CaptionAlignment="None" Multiple="3" bGS1="false" IsRect="false">
+      <GraphicShape xsi:type="DataMatrix" Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="33" Y="12" Alignment="Center" AlignPointX="33" AlignPointY="12" FontScript="Default" CaptionWidth="150" bBuiltinFont="false" bSingleLine="false" bWrapBarCodeWidth="false" CaptionAlignment="None" Multiple="2" bGS1="false" IsRect="false">
         <qHitOnCircumferance>false</qHitOnCircumferance>
         <Selected>false</Selected>
         <iBackground_color>4294967295</iBackground_color>
@@ -303,24 +303,24 @@
         <P4 />
         <DataField>None</DataField>
         <Prompt>None</Prompt>
-        <BoundRectWidth>54</BoundRectWidth>
-        <DispData>LED U24 88 6071535 01 1829</DispData>
+        <BoundRectWidth>32</BoundRectWidth>
+        <DispData>LED U24 88 6071</DispData>
         <bRemovePreZeroAndEmpty>false</bRemovePreZeroAndEmpty>
-        <Data>LED U24 88 6071535 01 1829</Data>
-        <BoundRectHeight>54</BoundRectHeight>
+        <Data>LED U24 88 6071</Data>
+        <BoundRectHeight>32</BoundRectHeight>
         <BoundRect>
           <Location>
-            <X>18</X>
-            <Y>-2</Y>
+            <X>33</X>
+            <Y>12</Y>
           </Location>
           <Size>
-            <Width>54</Width>
-            <Height>54</Height>
+            <Width>32</Width>
+            <Height>32</Height>
           </Size>
-          <X>18</X>
-          <Y>-2</Y>
-          <Width>54</Width>
-          <Height>54</Height>
+          <X>33</X>
+          <Y>12</Y>
+          <Width>32</Width>
+          <Height>32</Height>
         </BoundRect>
         <MultiLineCaption Style="Cross" IsPrint="true" PageAlignment="None" Locked="false" bStroke="true" bFill="true" Direction="Angle0" X="4" Y="4" Alignment="Left" AlignPointX="0" AlignPointY="0" FontScript="Default" FontCmd="Arial,12&#xD;&#xA;" LineSpacing="Single" LineHeight="0" Multiple="10" DotBeforePara="0" DotAfterPara="0" FontWidth="24" BTrueType="true">
           <qHitOnCircumferance>false</qHitOnCircumferance>
@@ -371,8 +371,8 @@
     <IntegratedSecurity>false</IntegratedSecurity>
     <RowIndex>0</RowIndex>
   </Label>
-  <Setup LabelLength="7" LabelWidth="25" LeftMargin="16" TopMargin="0" LabelType="0" GapLength="3" FeedLength="0" ZSign="45" BlackMark="0" Position="0" Speed="2" Copy="1" bCopyDataBase="false" CopyField="None" Stripper="0" LabelsPerCut="0" Rotate180="255" Stop="12" Darkness="15" Number="1" bBatchCut="false" bNumberDataBase="false" NumberField="None" PageDirection="Portrait" PrintMode="1" PowerRFID="0" LengthRFID="-1" RetryRFID="1">
-    <Layout Shape="0" AcrossType="Copied" PageDirection="Portrait" HorAcross="1" VerAcross="1" HorGap="0" VerGap="0" HorAcrossMode1="1" VerAcrossMode1="1" LabelMode="0" HorGapMode1="0" VerGapMode1="0" BottomMargin="0" RightMargin="0" />
+  <Setup LabelLength="7" LabelWidth="25" LeftMargin="0" TopMargin="-8" LabelType="0" GapLength="3" FeedLength="0" ZSign="45" BlackMark="0" Position="0" Speed="2" Copy="1" bCopyDataBase="false" CopyField="None" Stripper="0" LabelsPerCut="0" Rotate180="255" Stop="12" Darkness="15" Number="1" bBatchCut="false" bNumberDataBase="false" NumberField="None" PageDirection="Portrait" PrintMode="1" PowerRFID="0" LengthRFID="-1" RetryRFID="1">
+    <Layout Shape="2" AcrossType="Copied" PageDirection="Portrait" HorAcross="1" VerAcross="1" HorGap="0" VerGap="0" HorAcrossMode1="1" VerAcrossMode1="1" LabelMode="0" HorGapMode1="0" VerGapMode1="0" BottomMargin="0" RightMargin="0" />
     <Description>&#x0;
 Lang:(en-US) OS:Microsoft Windows NT 6.2.9200.0(Win32NT)</Description>
     <UnitType>Mm</UnitType>
@@ -381,7 +381,7 @@ Lang:(en-US) OS:Microsoft Windows NT 6.2.9200.0(Win32NT)</Description>
   <DriverName />
   <PrinterModel>G500</PrinterModel>
   <PrinterLanguage>EZPL</PrinterLanguage>
-  <USBName>GODEX G330#12330508</USBName>
+  <USBName>GODEX G300#14430855</USBName>
   <COMName />
   <CommunicationType>USB</CommunicationType>
   <NetworkIPAddress>0</NetworkIPAddress>

@@ -1,0 +1,5 @@
+rules.d -> 99-usb-serial.rules
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", SYMLINK+="godex"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="195f", ATTRS{idProduct}=="0001", SYMLINK+="godex"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2141", SYMLINK+="atmelice"

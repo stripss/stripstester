@@ -96,23 +96,6 @@ class StartProcedureTask(Task):
 
         self.start_test(0)
 
-        '''
-        self.ftdi = devices.ArduinoSerial('/dev/ftdi', baudrate=57600, mode="hex")
-
-        if self.ftdi.write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.3, wait=0.3, retry=10):
-            module_logger.info("UART OK: Successfully enter production mode")
-
-            self.set_digit(0, "{}".format(hex(0b1111111)[2:].zfill(2)), "{}".format(hex(0b1111111)[2:].zfill(2)))
-            self.set_display(0, "{}".format(hex(0b11111111)[2:].zfill(2)), "{}".format(hex(0b1111)[2:].zfill(2)))
-
-            time.sleep(1)
-            self.ftdi.write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
-
-        else:
-            module_logger.error("UART FAIL: Cannot enter production mode")
-        self.ftdi.close()
-        '''
-
         # Product detection
         # Must be held high, otherwise E2 error
         #GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.HIGH)
@@ -123,30 +106,7 @@ class StartProcedureTask(Task):
         else:
             gui_web.send({"command": "semafor", "nest": 0, "value": (0, 0, 0), "blink": (0, 0, 0)})  # Clear indicator light where DUT is not found
 
-
         return
-
-    def set_digit(self, nest, digit1, digit2):
-        self.ftdi.ser.write(unhexlify(self.with_crc("AA 55 08 {} {} 55 AA" . format(digit1,digit2))))  # Write data to UART
-
-        return
-
-    def set_display(self, nest, display1, display2):
-        print(display1, display2)
-        self.ftdi.ser.write(unhexlify(self.with_crc("AA 55 09 {} {} 55 AA" . format(display1,display2))))  # Write data to UART
-
-        return
-    def with_crc(self, a):
-        a = a.replace(" ", "").upper()  # Remove spaces
-
-        b = [a[i:i + 2] for i in range(0, len(a), 2)]
-        c = [int(i, 16) for i in b]
-        d = (255 - sum(c) % 256) + 1
-
-        e = hex(d)[2:].zfill(2)
-
-        result = "{}{}".format(a, e)
-        return result.upper()
 
     def tear_down(self):
         pass
@@ -158,7 +118,7 @@ class RelayBoard:
         self.size = len(order)
         self.order = order  # List of ordered relays
         self.invert = invert
-        self.delay = 0.0001
+        self.delay = 0.0000001
 
         try:
             strips_tester.data['shifter']
@@ -181,8 +141,6 @@ class RelayBoard:
         # Translate binary data to int array
         self.state = [int(d) for d in bin(strips_tester.data['shifter'])[2:].zfill(self.size)]
         self.state.reverse()  # LSB to MSB conversion
-
-        print(self.state)
 
         for x in range(self.size):
             if not self.invert:
@@ -207,10 +165,10 @@ class FinishProcedureTask(Task):
     def set_up(self):
         self.relay = RelayBoard([9,11,13,15,16,14,12,10,1,3,5,7,8,6,4,2,24,22,20,18,17,19,21,23,32,30,28,26,25,27,29,31], False)
 
-    def run(self):
         # Product power off
         self.relay.clear(0xFFFFFFFF)
 
+    def run(self):
         for current_nest in range(strips_tester.settings.test_device_nests):
             if strips_tester.data['exist'][current_nest]:
                 if strips_tester.data['status'][current_nest] == -1:
@@ -246,16 +204,19 @@ class FinishProcedureTask(Task):
     def tear_down(self):
         pass
 
-# Working
+# Working 11.12.2019
 class VoltageTest(Task):
     def set_up(self):
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B5AF.voltage1", 0.16)  # Rectified DC Voltage
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B5AF.voltage1", 0.16)
         self.relay = RelayBoard([9,11,13,15,16,14,12,10,1,3,5,7,8,6,4,2,24,22,20,18,17,19,21,23,32,30,28,26,25,27,29,31], False)
 
     def run(self):
         # Power on if any product exists
         if not self.is_product_ready(0):
             return
+
+        # Power boards with L and N (!DANGER!)
+        self.relay.set(int(custom_data['RELAY_BOARDS_LN'], 16))
 
         gui_web.send({"command": "status", "value": "Meritev napetosti"})
 
@@ -271,7 +232,6 @@ class VoltageTest(Task):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
-            print(voltage)
 
             if not num_of_tries:
                 break
@@ -314,11 +274,14 @@ class VoltageTest(Task):
             module_logger.info("3V3 in bounds: meas: %sV" , voltage)
             gui_web.send({"command": "info", "nest": 0, "value": "Meritev napetosti 3V3: {}V" . format(voltage)})
             self.add_measurement(0, True, "3V3", voltage, "V")
+
         return
 
     def tear_down(self):
+        self.relay.clear(int(custom_data['RELAY_BOARDS_LN'], 16))
         self.voltmeter.close()
 
+# Working 11.12.2019
 class FlashMCU(Task):
     def set_up(self):
         self.flasher = devices.STLink()
@@ -332,13 +295,18 @@ class FlashMCU(Task):
         if not self.is_product_ready(0):
             return
 
+        # Power boards with L and N (!DANGER!)
+        self.relay.set(int(custom_data['RELAY_BOARDS_LN'], 16))
+
+        time.sleep(1)
+
         gui_web.send({"command": "status", "value": "Programiranje {sw}..." . format(sw=strips_tester.data['program'])})
         gui_web.send({"command": "progress", "value": "25"})
 
         # Power DUT and enable programming pins
         self.relay.set(int(custom_data['RELAY_STLINK'], 16))
 
-        num_of_tries = 9999
+        num_of_tries = 5
 
         flash = self.flasher.flash_stm8()
 
@@ -366,297 +334,403 @@ class FlashMCU(Task):
         return
 
     def tear_down(self):
-        pass
+        # Detach power pins
+        self.relay.clear(int(custom_data['RELAY_BOARDS_LN'], 16))
 
 class LoadTest(Task):
     def set_up(self):  # Prepare FTDI USB-to-serial devices
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-10B5AF.voltage2", 0.5)
         self.relay = RelayBoard([9,11,13,15,16,14,12,10,1,3,5,7,8,6,4,2,24,22,20,18,17,19,21,23,32,30,28,26,25,27,29,31], False)
         self.ftdi = devices.ArduinoSerial('/dev/ftdi', baudrate=57600, mode="hex")
 
-    def run(self):
+        self.ftdi.ser.flushInput()
+        self.ftdi.ser.flushOutput()
 
+    def run(self):
+        # Check if product exists
+        if not self.is_product_ready(0):
+            pass
+
+        # Attach User Interface to the DUT
         self.relay.set(int(custom_data['RELAY_UI'], 16))
 
-        # Enter production mode
-        if self.ftdi.write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.3, wait=0.3, retry=10):
-            module_logger.info("UART OK: Successfully enter production mode")
+        time.sleep(1)
 
-            # Connect UI to PB (Voltage levels OK, measured with VoltageTest function)
+        # Attach Power Board power
+        self.relay.set(int(custom_data['RELAY_BOARDS_LN'], 16))
 
-            # skleni UI pine
-            # read errors
-            # control PB (heater on / off...)
-
-
-
-
-            self.set_heater_control(True)
-            self.set_motor_control(True)
-            time.sleep(3)
-            self.set_heater_control(False)
-            self.set_motor_control(False)
-            time.sleep(3)
-            self.set_heater_control(True)
-            self.set_motor_control(True)
-            time.sleep(3)
-
-            # Measure NTC on PCB
-            num_of_tries = 3
-
-            temperature = self.get_pb_temperature()  # Get PCB temperature
-
-            while not self.in_range(temperature, 25, 5, False):
-                time.sleep(1)
-                num_of_tries = num_of_tries - 1
-
-                temperature = self.get_pb_temperature()  # Get PCB temperature
-
-                if not num_of_tries:
-                    break
-
-            if not num_of_tries:
-                module_logger.warning("NTC_PCB is out of bounds: meas: %s°C", temperature)
-                gui_web.send({"command": "error", "nest": 0, "value": "Meritev temperature na tiskanini je izven območja: {}°C" . format(temperature)})
-                self.add_measurement(0, False, "NTC_PCB", temperature, "°C")
-            else:
-                module_logger.info("NTC_PCB in bounds: meas: %s°C", temperature)
-                gui_web.send({"command": "info", "nest": 0, "value": "Meritev temperature na tiskanini: {}°C".format(temperature)})
-                self.add_measurement(0, True, "NTC_PCB", temperature, "°C")
-
-            # Measure NTC on PCB
-            for i in range(10):
-                error = self.get_error_state()  # Get PCB temperature
-                print(error)
-                time.sleep(1)
-
-
-        else:
-            module_logger.error("UART FAIL: Cannot enter production mode")
-
-        self.ftdi.write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 01 00 55 AA"), timeout=0.1, wait=0.5, retry=5)  # Exit production mode
-
-        self.relay.clear(int(custom_data['RELAY_UI'], 16))
-        gui_web.send({"command": "status", "value": "Testiranje funkcij modula"})
-
-        return
-
-    def test(self):
-        if not self.is_product_ready(0):
-            return
-
-        # Check https://stackoverflow.com/questions/22605164/pyserial-how-to-understand-that-the-timeout-occured-while-reading-from-serial-p
-        # You must send datacode with crc and you want to get the same answer, if not or timeout (set in serial obj) -> repeat 10x
-        # Entering production mode with 10 retries
-
-        if self.ftdi[0].write(self.with_crc("AA 55 01 00 00 55 AA"), append="", response=self.with_crc("AA 55 01 00 00 55 AA"), timeout=0.3, wait=0.3, retry=10):
-            module_logger.info("UART OK: Successfully enter production mode")
-            gui_web.send({"command": "info", "nest": 0, "value": "Vstop v TEST način"})
-
-            gui_web.send({"command": "progress", "value": "40", "nest": 0})
-
-            # Measure NTC on PCB
-            num_of_tries = 50
-
-            temperature = self.get_pb_temperature()  # Get PCB temperature
-
-            while not self.in_range(temperature, 61, 5):
-                time.sleep(0.2)
-                num_of_tries = num_of_tries - 1
-
-                temperature = self.get_pb_temperature()  # Get PCB temperature
-
-                if not num_of_tries:
-                    break
-            '''
-            #gui_web.send({"command": "progress", "value": "45", "nest": 0})
-
-            if not num_of_tries:
-                module_logger.warning("NTC_PCB is out of bounds: meas: %s°C", temperature)
-                gui_web.send({"command": "error", "nest": 0, "value": "Meritev temperature na tiskanini je izven območja: {}°C".format(temperature)})
-                self.add_measurement(0, False, "NTC_PCB", temperature, "°C")
-            else:
-                module_logger.info("NTC_PCB in bounds: meas: %s°C", temperature)
-                gui_web.send({"command": "info", "nest": 0, "value": "Meritev temperature na tiskanini: {}°C".format(temperature)})
-                self.add_measurement(0, True, "NTC_PCB", temperature, "°C")
-
-
-            if not self.set_heater_control(i, True):
-                module_logger.warning("Heater control FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu grelca!"})
-                self.add_measurement(i, False, "HeaterControl", "Fail on turn on", "")
-            else:
-                module_logger.info("Heater Control OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Vklop grelca OK"})
-                self.add_measurement(i, True, "HeaterControl", "OK", "")
-
-            if not self.set_heater_control(i, False):
-                module_logger.warning("Heater control FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu grelca!"})
-                self.add_measurement(i, False, "HeaterControl", "Fail on turn off", "")
-            else:
-                module_logger.info("Heater Control OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Izklop grelca OK"})
-                self.add_measurement(i, True, "HeaterControl", "OK", "")
-
-            gui_web.send({"command": "progress", "value": "75", "nest": i})
-
-            if not self.is_product_ready(i):
-                return
-
-            if not self.set_motor_control(i, True):
-                module_logger.warning("Motor control FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri izklopu motorja!"})
-                self.add_measurement(i, False, "MotorControl", "Fail on turn off", "")
-            else:
-                module_logger.info("Motor Control OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Izklop motorja OK"})
-                self.add_measurement(i, True, "MotorControl", "OK", "")
-
-            if not self.set_motor_control(i, True):
-                module_logger.warning("Motor control FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Napaka pri vklopu motorja!"})
-                self.add_measurement(i, False, "MotorControl", "Fail on turn on", "")
-            else:
-                module_logger.info("Motor Control OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Vklop motorja OK"})
-                self.add_measurement(i, True, "MotorControl", "OK", "")
-
-            gui_web.send({"command": "progress", "value": "80", "nest": i})
-
-            # Error detection signal -> get UART state of GPIO pin TMP_SW_DET
-
-            if not self.is_product_ready(i):
-                return
-
-            # Module must have no errors:
-            num_of_tries = 20
-
-            error = self.get_error_states(i)
-            while error:
-                time.sleep(0.1)
-                num_of_tries = num_of_tries - 1
-
-                error = self.get_error_states(i)
-
-                if not num_of_tries:
-                    break
-
-            if not num_of_tries:
-                module_logger.warning("Error detection FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Zaznana napaka na modulu: {}!" . format(error)})
-                self.add_measurement(i, False, "ErrorDetection", "Detected error {}" . format(error), "")
-            else:
-                module_logger.info("Error detection OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Zaznavanje napak na modulu OK"})
-                self.add_measurement(i, True, "ErrorDetection", "OK", "")
-
-            # Trigger E2 error
-            GPIO.output(gpios['DUT_{}_TMP_SW' . format(i)], GPIO.LOW)
-            time.sleep(2)
-
-            num_of_tries = 20
-
-            error = self.get_error_states(i)
-            while error != 2:
-                time.sleep(0.1)
-                num_of_tries = num_of_tries - 1
-
-                error = self.get_error_states(i)
-
-                if not num_of_tries:
-                    break
-
-            if not num_of_tries:
-                module_logger.warning("Error detection FAIL")
-                gui_web.send({"command": "error", "nest": i, "value": "Ni zaznane simulirane napake E2!"})
-                self.add_measurement(i, False, "ErrorDetection", "Not detected E2", "")
-            else:
-                module_logger.info("Error detection OK")
-                gui_web.send({"command": "info", "nest": i, "value": "Simulirana napaka zaznana."})
-                self.add_measurement(i, True, "ErrorDetection", "OK", "")
-                
-            '''
-
-            # Do not exit procution mode because camera needs to be tested.
-            #self.ftdi[i].write(self.with_crc("AA 55 02 01 00 55 AA"), append="", response=self.with_crc("AA 55 02 00 00 55 AA"), timeout=0.1, wait=0.5, retry=5) # Exit production mode
-        else:
+        # Try to set UI in production mode 10 times
+        if not self.enter_production_mode():
             module_logger.warning("UART Error: cannot enter production mode")
             gui_web.send({"command": "error", "nest": 0, "value": "Napaka pri vstopu v TEST način."})
             self.add_measurement(0, False, "UART", "Cannot enter test mode", "")
 
+            return
+
+        module_logger.info("UART OK: Successfully enter production mode")
+
+        # Check for errors
+        num_of_tries = 3
+
+        error = self.get_error_state()  # Get Error from UI
+
+        while error:
+            time.sleep(1)
+            num_of_tries = num_of_tries - 1
+
+            error = self.get_error_state()  # Get Error from UI
+
+            if not num_of_tries:
+                break
+
+        if error:  # Get Error from UI
+            module_logger.warning("Error detected: E%s", error)
+            gui_web.send({"command": "error", "nest": 0, "value": "Zaznana napaka - E{}" . format(error)})
+            self.add_measurement(0, False, "ErrorDetect", error)
+        else:
+            module_logger.info("No error has been detected.")
+            gui_web.send({"command": "info", "nest": 0, "value": "Ni zaznanih napak"})
+            self.add_measurement(0, True, "ErrorDetect", error)
+
+
+
+
+        # Connect UI to PB (Voltage levels OK, measured with VoltageTest function)
+
+        # Measure NTC on PCB
+        num_of_tries = 3
+
+        temperature = self.get_pb_temperature()  # Get PCB temperature
+
+        while not self.in_range(temperature, 25, 5, False):
+            time.sleep(1)
+            num_of_tries = num_of_tries - 1
+
+            temperature = self.get_pb_temperature()  # Get PCB temperature
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("NTC_PCB is out of bounds: meas: %s°C", temperature)
+            gui_web.send({"command": "error", "nest": 0, "value": "Meritev temperature na tiskanini je izven območja: {}°C" . format(temperature)})
+            self.add_measurement(0, False, "NTC_PCB", temperature, "°C")
+        else:
+            module_logger.info("NTC_PCB in bounds: meas: %s°C", temperature)
+            gui_web.send({"command": "info", "nest": 0, "value": "Meritev temperature na tiskanini: {}°C".format(temperature)})
+            self.add_measurement(0, True, "NTC_PCB", temperature, "°C")
+
+        # Test procedure:
+        # skleni UI pine
+        # read errors
+        # control PB (heater on / off...)
+
+        # check motor voltage (must be 0)
+        # turn motor on
+        # check motor voltage (must be 230)
+        # turn motor off
+
+
+        # Disable motor with Power Board
+        self.set_motor_control(False)
+
+        # Connect voltmeter to motor output pin (Relay 13, 14 on HV board)
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_MOTOR'], 16))
+
+        time.sleep(0.2)
+
+        # Enable soft-start on motor - reduce EMI
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_MOTOR_SOFTSTART'], 16))
+
+
+        # Measure motor voltage
+        num_of_tries = 10
+
+        voltage = self.voltmeter.read()
+        while not self.in_range(voltage, 0, 10, False):
+            #self.set_motor_control(False)
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("MotorOFF output shorted! Measured: %sV", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Izhod motorja ima kratek stik: {}V" . format(voltage)})
+            self.add_measurement(0, False, "MotorOFF", voltage, "V")
+        else:
+            module_logger.info("MotorOFF output OK: Measured %sV" , voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Izhod izklopljenega motorja OK - {}V" . format(voltage)})
+            self.add_measurement(0, True, "MotorOFF", voltage, "V")
+
+        # Engage motor with Power Board
+        self.set_motor_control(True)
+
+        # Measure motor voltage
+        num_of_tries = 10
+
+        voltage = self.voltmeter.read()
+        while not self.in_range(voltage, 230, 10, False):
+            #self.set_motor_control(True)
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("MotorON output FAIL. Measured: %sV", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Izhod motorja ne deluje: {}V" . format(voltage)})
+            self.add_measurement(0, False, "MotorON", voltage, "V")
+        else:
+            module_logger.info("MotorON output OK: Measured %sV" , voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Izhod motorja OK: {}V" . format(voltage)})
+            self.add_measurement(0, True, "MotorON", voltage, "V")
+
+        time.sleep(2)
+        # Turn motor off
+        self.set_motor_control(False)
+
+        # Enable soft-start on motor - reduce EMI
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_MOTOR_SOFTSTART'], 16))
+
+        time.sleep(0.2)
+
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_MOTOR'], 16))
+
+        #self.set_heater_control(False)
+
+        # Connect voltmeter to heater output pin (Relay 13, 14 on HV board)
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_HEATER'], 16))
+
+        time.sleep(0.2)
+
+        # Enable soft-start on heater - reduce EMI
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_HEATER_SOFTSTART'], 16))
+
+        # Measure heater voltage
+        num_of_tries = 10
+
+        voltage = self.voltmeter.read()
+        while not self.in_range(voltage, 0, 10, False):
+            #self.set_heater_control(False)
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("HeaterOFF output shorted! Measured: %sV", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Izhod grelca ima kratek stik: {}V" . format(voltage)})
+            self.add_measurement(0, False, "HeaterOFF", voltage, "V")
+        else:
+            module_logger.info("HeaterOFF output OK: Measured %sV" , voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Izhod izklopljenega grelca OK - {}V" . format(voltage)})
+            self.add_measurement(0, True, "HeaterOFF", voltage, "V")
+
+        # Engage heater from Power Board
+        self.set_heater_control(True)
+
+        # Measure heater voltage
+        num_of_tries = 10
+
+        voltage = self.voltmeter.read()
+        while not self.in_range(voltage, 230, 10, False):
+            self.set_heater_control(True)
+            num_of_tries = num_of_tries - 1
+
+            voltage = self.voltmeter.read()
+
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:
+            module_logger.warning("HeaterON output FAIL. Measured: %sV", voltage)
+            gui_web.send({"command": "error", "nest": 0, "value": "Izhod grelca ne deluje: {}V" . format(voltage)})
+            self.add_measurement(0, False, "HeaterON", voltage, "V")
+        else:
+            module_logger.info("HeaterON output OK: Measured %sV" , voltage)
+            gui_web.send({"command": "info", "nest": 0, "value": "Izhod grelca OK: {}V" . format(voltage)})
+            self.add_measurement(0, True, "HeaterON", voltage, "V")
+
+        # Enable soft-start on heater - reduce EMI
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_HEATER_SOFTSTART'], 16))
+
+        time.sleep(0.2)
+
+        # Detach heater from voltmeter
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_HEATER'], 16))
+
+        '''
+        # Check for errors
+        num_of_tries = 5
+
+        error = self.get_error_state()  # Get Error from UI
+
+        while error != 1:
+            time.sleep(1)
+            num_of_tries = num_of_tries - 1
+
+            error = self.get_error_state()  # Get Error from UI
+            print(error)
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:  # Get Error from UI
+            module_logger.warning("Error detected: E%s", error)
+            gui_web.send({"command": "error", "nest": 0, "value": "Zaznana napaka - E{}".format(error)})
+            #self.add_measurement(0, False, "ErrorDetect", error)
+        else:
+            module_logger.info("No error has been detected.")
+            gui_web.send({"command": "info", "nest": 0, "value": "Ni zaznanih napak"})
+            #self.add_measurement(0, True, "ErrorDetect", error)
+
+
+        # Disable heater
+        # Make short on heater
+        self.set_heater_control(False)
+
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_HEATER_SHORT'], 16))
+        time.sleep(0.2)
+
+        # Enable soft-start on heater - reduce EMI
+        self.relay.set(int(custom_data['RELAY_GAHF_1P_HEATER_SOFTSTART'], 16))
+
+        # Check for errors
+        num_of_tries = 5
+
+        error = self.get_error_state()  # Get Error from UI
+
+        while error != 2:
+            time.sleep(1)
+            num_of_tries = num_of_tries - 1
+
+            error = self.get_error_state()  # Get Error from UI
+            print(error)
+            if not num_of_tries:
+                break
+
+        if not num_of_tries:  # Get Error from UI
+            module_logger.warning("Error detected: E%s", error)
+            gui_web.send({"command": "error", "nest": 0, "value": "Zaznana napaka - E{}".format(error)})
+            #self.add_measurement(0, False, "ErrorDetect", error)
+        else:
+            module_logger.info("No error has been detected.")
+            gui_web.send({"command": "info", "nest": 0, "value": "Ni zaznanih napak"})
+            #self.add_measurement(0, True, "ErrorDetect", error)
+
+
+        # Enable soft-start on heater - reduce EMI
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_HEATER_SOFTSTART'], 16))
+
+        time.sleep(0.2)
+
+        # Turn heater off
+        self.relay.clear(int(custom_data['RELAY_GAHF_1P_HEATER_SHORT'], 16))
+
+        # short heater
+        # check error
+        '''
+        self.exit_production_mode()
+
+        self.relay.clear(int(custom_data['RELAY_UI'], 16))
+
+        return
+
+    def enter_production_mode(self):
+        for retry in range(10):
+            self.send_to_ui([0xAA, 0x55, 0x01, 0x01, 0x00, 0x55, 0xAA])
+            response = self.receive_from_ui()
+
+            if response is not None:
+                return True
+
+        return False
+
+    def exit_production_mode(self):
+        self.send_to_ui([0xAA, 0x55, 0x02, 0x01, 0x00, 0x55, 0xAA])
+        response = self.receive_from_ui()
+
+        if response is not None:
+            return True
+
+        return False
+
     def get_pb_temperature(self):
         self.send_to_ui([0xAA, 0x55, 0x05, 0x01, 0x00, 0x55, 0xAA])
+        response = self.receive_from_ui()
 
-        # read 8 bytes or timeout (set in serial.Serial)
-        response = self.ftdi.ser.read(8)
-        checksum = self.checksum(response[:-1])
+        if response is not None:
+            return response[4]
 
-        if checksum != response[-1]:  # Checksum is the same
-            print("Checksum not match")
-            return False
+        return None
 
-        return response[4]
+    def set_heater_control(self, state):
+        self.send_to_ui([0xAA, 0x55, 0x03, state, 0x00, 0x55, 0xAA])
+        response = self.receive_from_ui()
 
-    def set_heater_control(self, command):
-        self.send_to_ui([0xAA, 0x55, 0x03, command, 0x00, 0x55, 0xAA])
-        # read 8 bytes or timeout (set in serial.Serial)
-        response = self.ftdi.ser.read(8)
+        if response is not None:
+            return True
 
-        if response != message:
-            print("Checksum heater does not match")
-            return False
+        return False
 
-        return True
+    def set_motor_control(self, state):
+        self.send_to_ui([0xAA, 0x55, 0x04, state, 0x00, 0x55, 0xAA])
+        response = self.receive_from_ui()
 
-    def set_motor_control(self, command):
-        self.send_to_ui([0xAA, 0x55, 0x04, command, 0x00, 0x55, 0xAA])
+        if response is not None:
+            return True
 
-        # read 8 bytes or timeout (set in serial.Serial)
-        response = self.ftdi.ser.read(8)
-
-        if response != message:
-            print("Checksum motor does not match")
-            return False
-
-        return True
+        return False
 
     def get_error_state(self):
         self.send_to_ui([0xAA, 0x55, 0x0A, 0x01, 0x00, 0x55, 0xAA])
+        response = self.receive_from_ui()
 
-        # read 8 bytes or timeout (set in serial.Serial)
-        response = self.ftdi.ser.read(8)
-        checksum = self.checksum(response[:-1])
+        if response is not None:
+            return response[3]
 
-        if checksum != response[-1]:  # Checksum is the same
-            print("Checksum not match")
-            return False
+        return None
 
-        return response[3]
-
-    def with_crc(self, a):
-        a = a.replace(" ", "").upper()  # Remove spaces
-
-        b = [a[i:i + 2] for i in range(0, len(a), 2)]
-        c = [int(i, 16) for i in b]
-        d = (255 - sum(c) % 256) + 1
-
-        e = hex(d)[2:].zfill(2)
-
-        result = "{}{}".format(a, e)
-        return result.upper()
-
+    # Calculate checksum value of message
     def checksum(self, message):
-        return 255 - (sum(message) % 256) + 1
+        return ((255 - sum(message) % 256) + 1) % 256
 
+    # Wrapper for sending message to User Interface
     def send_to_ui(self, message):
-        message = bytes(message)
-        checksum = self.checksum(message)
-        message += bytes([checksum])
+        message = bytes(message) + bytes([self.checksum(message)])
 
-        self.ftdi.ser.write(message)  # Write data to UART
+        #self.ftdi.ser.flushOutput()
+        #self.ftdi.ser.flushInput()
+
+        # Write data to UART
+        self.ftdi.ser.write(message)
+        #time.sleep(2)
+
         return
 
+    # Wrapper for receiving messages from User Interface
+    def receive_from_ui(self):
+        # read 8 bytes or timeout (set in serial.Serial)
+        response = self.ftdi.ser.read(8)
+
+        if not response:
+            return None
+
+        if self.checksum(response[:-1]) != response[-1]:  # Checksum is not the same
+            module_logger.error("Checksum does not match - {} != {}" . format(self.checksum(response[:-1]), response[-1]))
+            return None
+
+        return response
+
     def tear_down(self):
+        self.relay.clear(int(custom_data['RELAY_BOARDS_LN'], 16))
+
         self.ftdi.close()
 
 class PrintSticker(Task):
@@ -681,15 +755,10 @@ class PrintSticker(Task):
     def print_sticker(self, current_nest):
         date = datetime.datetime.now()
         date_full = date.strftime("%y%m%d")  # Generate full date
+        inverse = False
 
-        if strips_tester.data['status'][current_nest] == True:  # Test OK
-            inverse = '^L\n'
-            darkness = '^H15\n'
-        elif strips_tester.data['status'][current_nest] == False:  # Test FAIL
-            inverse = '^LI\n'
-            darkness = '^H4\n'
-        else:
-            return
+        if strips_tester.data['status'][current_nest] == False:  # Test FAIL
+            inverse = True
 
         datamatrix = '{}{:07d}' . format(date_full,self.get_new_serial())
         self.add_measurement(current_nest, True, "serial", datamatrix, "")
@@ -697,64 +766,18 @@ class PrintSticker(Task):
         params = [s for s in strips_tester.data['program'].split("_")]
 
         firmware = params[0]  # GADF or GAHF
-        saop = params[3]  # Saop number
-        fw_version = params[2]  # Firmware version
-        size = 2
 
         if firmware == "GADF":
             garo = "109561"
         else:
             garo = "41948"
 
-        if size == 1:  # 25x10mm
-            label = ('^Q10,3\n'
-                    '^W21\n'
-                    '{darkness}'
-                    '^P1\n'
-                    '^S2\n'
-                    '^AD\n'
-                    '^C1\n'
-                    '^R0\n'
-                    '~Q+0\n'
-                    '^O0\n'
-                    '^D0\n'
-                    '^E12\n'
-                    '~R255\n'
-                    '{inverse}'
-                    'Dy2-me-dd\n'
-                    'Th:m:s\n'
-                    'AA,10,12,1,1,0,0E,{firmware} int {saop}\n'
-                    'AA,10,31,1,1,0,0E,f.w.: {version}\n'
-                    'AA,10,50,1,1,0,0E,{garo}, QC: {qc}\n'
-                    'XRB115,35,2,0,13\n'
-                    '{datamatrix}\n'
-                    'E\n').format(darkness = darkness,inverse = inverse,firmware = firmware, saop=saop, version = fw_version,qc=strips_tester.data['worker_id'], datamatrix=datamatrix,garo=garo)
-        else:  # 25x7mm
-            label = ('^Q7,3\n'
-                     '^W25\n'
-                     '{darkness}'
-                     '^P1\n'
-                     '^S3\n'
-                     '^AD\n'
-                     '^C1\n'
-                     '^R0\n'
-                     '~Q+0\n'
-                     '^O0\n'
-                     '^D0\n'
-                     '^E12\n'
-                     '~R255\n'
-                     '{inverse}'
-                     'Dy2-me-dd\n'
-                     'Th:m:s\n'
-                     'AA,9,2,1,1,0,0E,{firmware} int {saop}\n'
-                     'AA,9,21,1,1,0,0E,f.w.: {version}\n'
-                     'AA,9,40,1,1,0,0E,{garo}, QC: {qc}\n'
-                     'XRB152,10,2,0,13\n'
-                     '{datamatrix}\n'
-                     'E\n').format(darkness=darkness, inverse=inverse, firmware=firmware, saop=saop, version=fw_version, qc=strips_tester.data['worker_id'], datamatrix=datamatrix,garo=garo)
+        label = self.godex.load_label(strips_tester.settings.test_dir + "label/label20x9.txt")
+        label.format(firmware = firmware, saop=params[3], version = params[2],qc=strips_tester.data['worker_id'], datamatrix=datamatrix,garo=garo)
 
-        self.godex.send_to_printer(label)
-        time.sleep(1)
+        self.godex.send_to_printer(label, inverse)
+
+        return
 
     def tear_down(self):
         self.godex.close()

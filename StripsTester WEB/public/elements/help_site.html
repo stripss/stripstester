@@ -1,0 +1,195 @@
+<style>
+    #help_list .row {
+        margin: 5px;
+    }
+
+    #help_main .help_image {
+        width: 100%;
+    }
+</style>
+
+<!-- Modal -->
+<div class="modal fade" id="confirm_delete_help" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Izbris navodil</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Ali želite izbrisati željena navodila?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" id="confirm_delete_help_yes">Da</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Ne</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<h1><i class="fas fa-chalkboard-teacher"></i>Navodila za uporabo testnih naprav</h1>
+
+<div class="row">
+    <div class="col-4">
+        <h5>Seznam navodil</h5>
+        <div id="help_list"></div>
+
+        <div id="help_other" class="invisible">
+            <hr>
+            <h5>Dodatne možnosti</h5>
+            <a id="add_new_help" href="#">Dodaj novo navodilo</a>
+        </div>
+    </div>
+
+    <div class="col-8">
+        <div id="help_main">
+            <h2>Navodilo</h2>
+
+            <p id="help_description">Kliknite ustrezno navodilo na levi strani.</p>
+
+            <iframe style="margin: auto; margin-top: 20px; width: 100%; display: none;" height="480" controls allowfullscreen webkitallowfullscreen>
+
+            </iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Retrieve TN list and make dropdown
+        $("#help_list").on('click', 'button', function (e) {
+            $("#confirm_delete_help_yes").data("id", $(this).data('id'));
+
+            $('#confirm_delete_help').modal('show');
+        });
+
+        $("#confirm_delete_help_yes").click(function (e) {
+            $.ajax({
+                url: '/delhelp',
+                type: 'post',
+                dataType: 'json',
+                data: {'id': $("#confirm_delete_help_yes").data('id')},
+
+                success: function (data) {
+                    if (data.success) {
+                        reload_help_list();
+                    } else {
+                        alert("Meritve ni v bazi podatkov!");
+                    }
+                }
+            });
+        });
+
+        reload_help_list = function () {
+            $("#help_list").empty();
+
+            if (!admin_logged) $("#help_other").addClass("invisible");
+            else $("#help_other").removeClass("invisible");
+
+            $.getJSON("/tn", function (data) {
+                $("#help_list").append("<div id='help_all' class='help_tn_title'><b>Vse</b><br></div>");
+
+                $.each(data, function (index, value) {
+                    $("#help_list").append("<div class='help_tn_title' id='help_" + value['_id'] + "'><b>" + value['name'] + "</b><br></div>");
+                });
+
+                // Help section - enumerate help list
+                $.getJSON("/help", function (data) {
+                    $.each(data, function (index, value) {
+                        let new_container = $("<div class='row'><div class='col helplink'></div><div class='col col-auto extra'></div></div>");
+
+                        let new_link = $("<a class='help_link' href='#'>" + value.title + "</a>");
+                        $(new_link).data("description", value.description);
+                        $(new_link).data("link", value.link);
+                        $(new_link).data("author", value.author);
+                        $(new_link).data("date", value.date_of_creation);
+
+                        $(new_container).find(".helplink").append(new_link);
+
+                        if (admin_logged) {
+                            let last_button = $("<button class='btn btn-sm btn-danger'><i class='fas fa-trash-alt'></i>Izbriši</button>");
+                            $(last_button).data('id', value._id);
+                            $(new_container).find("div.extra").append(last_button);
+                        }
+
+                        if (value.test_device == -1) $("#help_list #help_all").append(new_container);
+                        else $("#help_list #help_" + value.test_device).append(new_container);
+                    });
+
+                    // Remove test devices if there is no help available
+                    $.each($("#help_list div.help_tn_title"), function () {
+                        let length = $(this).find("a").length;
+
+                        if (!length) $(this).empty();
+                    });
+
+                    $("#help_list a").click(function (e) {
+                        e.preventDefault();
+
+                        // Fade in new video
+                        $("#help_main").fadeOut("fast", function () {
+                            $("#help_main h2").html($(e.target).text());
+                            $("#help_main iframe").show();
+
+                            $("#help_main #help_description").html($(e.target).data("description"));
+
+                            if ($(e.target).data("author")) {
+                                if ($(e.target).data("description")) $("#help_main #help_description").append("<br><br>");
+                                $("#help_main #help_description").append("Objavil: <b>" + $(e.target).data("author") + "</b>");
+                            }
+
+                            let media_type = "";
+                            try {
+                                media_type = $(e.target).data("link").split('.').pop();
+                            } catch (e) {
+                            }
+
+                            // Remove existing images
+                            $("#help_main img").remove();
+
+                            if (media_type == 'pdf') {  // Open in Google viewer
+                                $("#help_main iframe").prop("src", "./plugins/ViewerJS/#" + $(e.target).data("link"));
+                            } else if (media_type == 'jpg') {
+                                $("#help_main iframe").hide();
+
+                                $("#help_main").append("<img class='help_image' src='" + $(e.target).data("link") + "' />");
+                            } else if (media_type == 'mp4') {
+                                $("#help_main iframe").prop("src", $(e.target).data("link"));
+                            }
+                            else {
+                                $("#help_main iframe").hide();
+                            }
+
+                            $("#help_main").fadeIn("fast");
+                        });
+                    });
+
+                });
+            });
+        };
+
+        reload_help_list();
+
+        $("#add_new_help").click(function (e) {
+            e.preventDefault();
+
+            // Prevent unauthorised access
+            if (!admin_logged) return;
+
+            $("#help_main").fadeOut("fast", function () {
+                $("#help_main iframe").hide();
+                // Remove existing images
+                $("#help_main img").remove();
+
+                $("#help_main h2").html("Dodaj novo navodilo");
+
+                $("#help_main #help_description").load("elements/add_new_help_form.html");
+
+                $("#help_main").fadeIn("fast");
+            });
+        });
+    });
+</script>

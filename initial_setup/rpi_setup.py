@@ -2,11 +2,22 @@
 import os
 import time
 
+# Numpy needs libatlas for some reasons
+os.system("sudo apt-get -y install libatlas-base-dev")
+
 # # install python virtual venv
 os.system("sudo apt-get -y install python3-venv")
 os.system("sudo python3 -m venv /venv_strips_tester")
 os.system("virtualenv -p /venv_strips_tester/bin/python3.7 /venv_strips_tester")
 os.system("sudo chown -R pi /venv_strips_tester/")
+
+# # python
+os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
+os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
+os.system("/venv_strips_tester/bin/python -m pip install -r /strips_tester_project/initial_setup/requirements.txt")
+os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_strips_tester/bin/")
+
+
 
 ## ###hidapi dependencies
 #os.system("sudo apt-get install -y libusb-1.0-0-dev")
@@ -31,11 +42,6 @@ os.system("sudo chown -R pi /venv_strips_tester/")
 ## ## I2C
 #os.system("sudo apt-get install -y i2c-tools")
 
-# # python
-os.system("/venv_strips_tester/bin/python -m pip install pip -UI")
-os.system("/venv_strips_tester/bin/python -m pip install setuptools -UI")
-os.system("/venv_strips_tester/bin/python -m pip install -r /strips_tester_project/initial_setup/requirements.txt")
-os.system("sudo cp /strips_tester_project/initial_setup/python-sudo.sh /venv_strips_tester/bin/")
 
 # rpi files config
 #os.system("sudo systemctl stop serial-getty@ttyS0.service")

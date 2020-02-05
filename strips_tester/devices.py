@@ -683,11 +683,11 @@ class Godex:
         for occ in string.split():
             if 'XRB' in occ:  # Found datamatrix
                 current_occ = occ.split(",")  # Get last element
-                current_occ[-1] = str(length)
+                current_occ[-1] = str(length) # Get old datamatrix length
 
-                string = string.replace(occ, ",".join(current_occ))
+                string = string.replace(occ, ",".join(current_occ))  # Replace with new length
 
-        return string
+        return string  # Return formatted label
 
     # Command for actual printing (if inverse is used, label will be printed in inverse colors.
     def send_to_printer(self, string, inverse=False):
@@ -1914,7 +1914,7 @@ class STLink:
         self.binary = None
         self.process = None
         self.mcu = None
-        self.flash = 0x008000
+        #self.flash = 0x008000  # watch because shadows on function!
 
     def flash(self):
         if self.binary is None:
@@ -1999,6 +1999,125 @@ class STLink:
     def close(self):
         pass
 
+
+class Device:
+    def __init__(self):
+        pass
+
+    def power_up(self):
+        pass
+
+    def power_down(self):
+        pass
+
+    def enable(self):
+        pass
+
+    def disable(self):
+        pass
+
+    def reset(self):
+        self.disable()
+        self.enable()
+
+        return
+
+class ATMEL_ICE:
+    def __init__(self):
+        self.binary = None
+        self.process = None
+        self.mcu = None
+        self.eeprom = None
+        #self.flash = 0x008000  # watch because shadows on function!
+
+    def upload_eeprom(self):
+        # Return if no EEPROM is selected
+        if self.eeprom is None:
+            module_logger.warning("No EEPROM selected. Returning...")
+            return True
+
+        # Execute bash command for avrdude
+        self.process = subprocess.Popen(['avrdude', '-c', 'atmelice_isp', '-p', self.mcu, '-P', 'usb', '-U', 'eeprom:w:' + self.eeprom], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        out, err = self.process.communicate()
+
+        # Return if uploading failed
+        if "bytes of eeprom verified" not in out.decode():
+            module_logger.error("Writing '{}' to EEPROM memory failed." . format(self.eeprom))
+            return False
+
+        module_logger.info("Successfully writing '{}' to EEPROM memory." . format(self.eeprom))
+        return True
+
+    def upload_flash(self):
+        # Return if no flash is selected
+        if self.binary is None:
+            module_logger.warning("No Flash selected. Returning...")
+            return True
+
+        # Execute bash command for avrdude
+        self.process = subprocess.Popen(['avrdude', '-c', 'atmelice_isp', '-p', self.mcu, '-P', 'usb', '-U', 'flash:w:' + self.binary], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        out, err = self.process.communicate()
+
+        # Return if uploading failed
+        if "bytes of flash verified" not in out.decode():
+            module_logger.error("Writing '{}' to flash memory failed.".format(self.binary))
+            return False
+
+        module_logger.info("Successfully writing '{}' to flash memory.".format(self.binary))
+        return True
+
+    def upload(self):
+        success_flash = self.upload_flash()
+        success_eeprom = self.upload_eeprom()
+
+        return success_flash and success_eeprom
+
+    def set_binary(self, binary):
+        # Check if binary exists
+        if binary is None or os.path.isfile(binary):
+            self.binary = binary
+            module_logger.info("Successfully set '{}' binary." . format(self.binary))
+        else:
+            module_logger.error("Binary '{}' does not exist." . format(binary))
+            return False
+
+        return True
+
+    def set_eeprom(self, eeprom):
+        # Check if binary exists
+        if eeprom is None or os.path.isfile(eeprom):
+            self.eeprom = eeprom
+            module_logger.info("Successfully set '{}' EEPROM file." . format(self.eeprom))
+        else:
+            module_logger.error("EEPROM file '{}' does not exist." . format(eeprom))
+            return False
+
+        return True
+
+    def set_mcu(self, mcu):
+        # Check if binary exists
+        self.mcu = mcu
+        module_logger.info("Successfully set '{}' processor." . format(self.mcu))
+
+        return True
+
+    # Reset the programmer. Before using this command, make rules.d for Atmel ICE based on VID and PID
+    def reset_programmer(self):
+        self.process = subprocess.Popen(['/strips_tester_project/strips_tester/drivers/usb/usbreset', '/dev/atmelice'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        out, err = self.process.communicate()
+
+        if "Reset successful" in out.decode():
+            return True
+
+        module_logger.error(out.decode())
+
+        return False
+
+    def close(self):
+        # No need to close since it is bash script
+        pass
+
+
 # Feasa module for LED analitics. Working via USB as serial port emulator
 class Feasa:
     def __init__(self, port='/dev/ttyUSB0'):
@@ -2041,12 +2160,42 @@ class Feasa:
         command += "\n"
         self.ser.write(command.encode('ascii'))
 
-    # Recieve response from Freasa with EOT character
+        return
+
+    # Recieve response from Feasa with EOT character
     def recieve(self):
         response = self.ser.read_until(self.terminator).decode().split("\r\n")
         response.remove(self.terminator.decode())
 
         return response
+
+    # Get exposure factor of Feasa module
+    def get_factor(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return False
+
+        self.send("getfactor")
+        response = self.recieve()
+
+        if response:
+            return response
+
+        return False
+
+    # Get exposure factor of Feasa module
+    def get_average(self):
+        if not self.found:
+            print("Cannot connect to Feasa module")
+            return False
+
+        self.send("getaverage")
+        response = self.recieve()
+
+        if response:
+            return response
+
+        return False
 
     # Free communication bus
     def free_bus(self):
@@ -2063,7 +2212,7 @@ class Feasa:
         return False
 
     # Capture new measurements. Return True if succeded
-    def capture(self, range=5):
+    def capture(self, range=0):
         if not self.found:
             print("Cannot connect to Feasa module")
             return False

@@ -35,6 +35,10 @@
         margin: auto;
     }
 
+    .hule-title {
+        font-size: 24px;
+    }
+
     @media (max-width: 768px) {
         .led {
             font-size: 13px;
@@ -53,6 +57,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
 <div class="row text-center">
     <div class="hule-lights">
+        <div class="row">
+        <div class="col-6 hule-title" style="display: none;">LEVO</div><div class="col-6 hule-title" style="display: none;">DESNO</div></div>
         <div id="hule1" style="display: none;" class="col-auto float-left hule hule-left"></div>
         <div id="hule2" style="display: none;" class="col-auto float-right hule hule-right"></div>
     </div>
@@ -128,6 +134,8 @@
 
         if (data.command == "measurements") {
             if (data.led != null) {
+
+
                 //let led = $("<div class='led'>" + data.led.position + "<div class='t'>" + data.led.hsi['I'] + "</div></div>");
                 let led = $("<div class='led'>" + data.led.position + "</div>");
 
@@ -150,10 +158,10 @@
                     $("#hule2").prepend(led);
                 }
 
-                $("#hule1, #hule2").show();
+                $("#hule1, #hule2, .hule-title").show();
             } else {
                 $("#hule1, #hule2").empty();
-                $("#hule1, #hule2").hide();
+                $("#hule1, #hule2, .hule-title").hide();
             }
         }
     }

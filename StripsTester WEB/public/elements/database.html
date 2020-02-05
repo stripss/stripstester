@@ -1,0 +1,502 @@
+<style>
+    #database_form_result {
+        margin-top: 10px;
+    }
+
+    .dbbuttons {
+        display: block;
+        text-align: right;
+        margin: 10px;
+    }
+</style>
+<h1><i class="fas fa-database"></i>Baza opravljenih testov in meritev</h1>
+
+<p>Prosimo, izberite testno napravo za prikaz meritev:</p>
+
+<form id="database_form">
+    <div class="form-group">
+        <div class="row">
+            <div class="col-4">
+                <label for="database_test_device">Testna naprava</label>
+                <div class="dropdown show">
+                    <a class="btn btn-light btn-lg dropdown-toggle" href="#" role="button" data-toggle="dropdown">Testna naprava</a>
+                    <input type="hidden" name="tid" id="database_test_device">
+
+                    <div class="dropdown-menu"></div>
+                </div>
+            </div>
+
+            <div class="col-8">
+                <label for="database_description">Časovno območje</label>
+                <div class="row">
+                    <div class='col-6'>
+                        <div class="form-group">
+                            <label for="database_date_from">Od</label>
+                            <div class="input-group date" id="database_date_from" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#database_date_from"/>
+                                <div class="input-group-append" data-target="#database_date_from" data-toggle="datetimepicker">
+                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class='col-6'>
+                        <div class="form-group">
+                            <label for="database_date_to">Do</label>
+                            <div class="input-group date" id="database_date_to" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#database_date_to"/>
+                                <div class="input-group-append" data-target="#database_date_to" data-toggle="datetimepicker">
+                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="database_display_plot">
+                    <label class="form-check-label" for="database_display_plot">Posodabljanje grafa med iskanjem po meritvah</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="refresh_db" type="submit" class="btn btn-primary"><i class="fas fa-sync"></i>Posodobi podatke
+        <div style="display:none;" id="db_spinner" class="spinner-border spinner-border-sm" role="status"></div>
+    </button>
+
+    <p id="database_form_result"></p>
+    <div id="database_plot"></div>
+</form>
+
+<h5 class="h5-subtitle">Tabela meritev</h5>
+<p id="db_refresh_info"></p>
+
+<table id="dbtable" class="display">
+    <thead>
+    <tr>
+        <th>Datum testiranja</th>
+        <th>Gnezdo</th>
+        <th>Status</th>
+        <th>Čas testiranja</th>
+        <th>Tip</th>
+        <th>Delavec</th>
+        <th>Rezultati meritev</th>
+        <th>Dodatno</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+        <th>Datum testiranja</th>
+        <th>Gnezdo</th>
+        <th>Status</th>
+        <th>Čas testiranja</th>
+        <th>Tip</th>
+        <th>Delavec</th>
+        <th>Rezultati meritev</th>
+        <th>Dodatno</th>
+    </tr>
+    </tfoot>
+</table>
+
+
+<script>
+    $(document).ready(function () {
+        $('#dbtable').DataTable({
+            "dom": '<"dbbuttons"B>l<"dbsearch"f>rtip',
+            "buttons": ['csv', 'excel', 'pdf'],
+            "language": {
+                "sEmptyTable": "Nobenih podatkov ni na voljo",
+                "sInfo": "Prikazujem _START_ do _END_ od _TOTAL_ opravljenih testiranj",
+                "sInfoEmpty": "Prikazujem 0 do 0 od 0 opravljenih testiranj",
+                "sInfoFiltered": "(filtrirano od _MAX_ vseh opravljenih testiranj)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ",",
+                "sLengthMenu": "Prikaži _MENU_ opravljenih testiranj",
+                "sLoadingRecords": "Nalagam...",
+                "sProcessing": "Obdelujem...",
+                "sSearch": "",
+                "sZeroRecords": "Nobeden zapis ne ustreza",
+                "oPaginate": {
+                    "sFirst": "Prvi",
+                    "sLast": "Zadnji",
+                    "sNext": "Naslednja",
+                    "sPrevious": "Prejšna"
+                },
+                "oAria": {
+                    "sSortAscending": ": vključite za naraščujoči sort",
+                    "sSortDescending": ": vključite za padajoči sort"
+                }
+
+            },
+            "order": [[0, 'desc']], // Default ordering by date
+            "columnDefs": [
+                {
+                    "targets": 7,
+                    "data": null,
+                    "defaultContent": '',
+                    "orderable": false
+                }, {
+                    "targets": 6,
+                    "defaultContent": ''
+                }
+            ],
+            "columns":
+                [
+                    {
+                        "data": "datetime", "render": $.fn.dataTable.render.moment('x', 'DD.MM.YYYY HH:mm:ss')
+                    },
+                    {
+                        "data": "nest", "render": function (data) {
+                            return data + 1
+                        }
+                    },
+                    {
+                        "data": "result", "render": function (data) {
+                            if (data == "1") return "OK";
+                            else if (data == "0") return "FAIL";
+                            else return "Neznano";
+                        },
+                        "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "1") {
+                                $(td).css('color', 'green');
+                            } else if (cellData == "0") {
+                                $(td).css('color', 'red');
+                            } else {
+                                $(td).css('color', 'gray');
+                            }
+                        }
+                    },
+                    {
+                        "data": "start_test", "createdCell": function (td, cellData) {
+                            if (cellData != -1) $(td).html("<b>" + cellData + " sekund</b>");
+                            else $(td).html("<span style='color: gray;'>Neznan</span>");
+                        }
+                    },
+                    {
+                        "data": "type", "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "-1") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Neznan");
+                            } else {
+                                var test_type = ['Redna proizvodnja', 'Kosi iz popravila', 'Analiza reklamacije', 'Ostalo'];
+                                $(td).html(test_type[parseInt(cellData)]);
+                            }
+                        }
+                    },
+                    {
+                        "data": "worker", "createdCell": function (td, cellData, rowData, row, col) {
+                            if (cellData == "-1") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Neznan");
+                            }
+                        }
+                    },
+                    {
+                        "data": "measurements", "render": function (value, type, row) {
+                            // https://datatables.net/examples/api/row_details.html
+                            var val = "";
+
+                            $.each(value, function (i, v) {
+                                if (!Object.size(v)) return true;
+
+                                val = val + "<span class='task_name'>" + i + "</span><ul>";
+
+                                $.each(v, function (j, w) {
+                                    var add = "";
+                                    if (!w[1]) add = "class='fail'";
+                                    if (w[2] == "N/A") w[2] = "";
+
+                                    val = val + "<li " + add + ">" + j + ": " + w[0] + " " + w[2] + "</li>";
+                                });
+
+                                val = val + "</ul>";
+                            });
+
+                            return val;
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if ($(td).text() == "") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Brez meritev");
+                            } else {
+                                $.each($(td).find("ul"), function () {
+                                    let error = 0;
+                                    var $this = this;
+
+                                    $.each($(this).find("li.fail"), function () {
+                                        error = 1;
+
+                                        $($this).prepend($(this)[0]);
+                                    });
+
+                                    if (error) {
+                                        let span = $($this).prev();
+                                        $(td).prepend($(this)[0]);
+                                        $(td).prepend($(span)[0]);
+                                    }
+                                });
+
+                                if ($(td).find("li").length > 10) {
+                                    var $cell = $(td);
+
+                                    $(td).contents().wrapAll("<div class='content'></div>");
+                                    var $content = $cell.find(".content");
+
+                                    $(td).append($("<button class='btn btn-sm btn-primary db_more_button'>Podrobnosti</button>"));
+                                    $btn = $(td).find("button");
+
+                                    $content.css({
+                                        "height": "100px",
+                                        "overflow": "hidden"
+                                    });
+                                    $cell.data("isLess", true);
+
+                                    $btn.click(function () {
+                                        var isLess = $cell.data("isLess");
+                                        $content.css("height", isLess ? "auto" : "100px");
+                                        $(this).text(isLess ? "Skrij podrobnosti" : "Podrobnosti");
+                                        $cell.data("isLess", !isLess)
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "data": null, "render": function (value, type, row) {
+                            var val = "";
+
+                            if (parseInt(row['type']) == 3 && row['comment']) val = row['comment'];
+
+                            return val;
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if (parseInt(rowData['type']) == 3 && rowData['comment']) {
+                                $(td).html("<p>Komentar: <i>" + rowData['comment'] + "</i></p>");
+                            }
+
+                            if (admin_logged) {
+                                $(td).append($('<button type="button" class="btn btn-sm btn-danger"><i class="fas fa-trash-alt"></i>Izbriši test</button>'));
+
+                                $(td).find("button").click(function () {
+                                    if (admin_logged) {
+                                        $("#db_confirm_delete_row_yes").data("data", rowData['_id']);
+
+                                        $("#db_confirm_delete_row_yes").data("td", td);
+                                        $('#db_confirm_delete_row').modal('show');
+                                    } else {
+                                        alert("No admin privileges!");
+                                    }
+                                });
+                            }
+                        }
+                    }
+                ]
+            , "initComplete": function (settings, json) {
+                $(".dbsearch input").addClass("form-control");
+                $(".dbsearch input").attr("placeholder", "Iskanje po meritvah");
+                $(".dbsearch input").attr("aria-label", "Iskanje po meritvah");
+                $(".dbsearch input").css("width", "300px");
+
+
+                $('#dbtable tbody').on('click', 'tr', function () {
+                    var selected = $('#dbtable').dataTable().fnGetData(this);
+
+                    // Get JSON about this TN
+                    console.log(selected);
+                });
+
+                $(".dt-buttons").prepend("Izvoz meritev: ");
+
+                $.each($.find(".dbbuttons button"), function () {
+                    $(this).addClass("btn btn-primary");
+                })
+            }
+        });
+
+        $('#dbtable').DataTable().on('search.dt', function () {
+            if(!$("#database_display_plot").is(':checked')) return true;
+            $("#database_plot").empty();
+
+            let trace_names = [];
+            let trace_plots = [];
+
+            let data = $('#dbtable').DataTable().rows({filter: 'applied'}).data();
+            if (!data.length) return true;
+
+            // Retrieve TN list and make dropdown
+            $.each(data, function () {
+                // Loop through filtered measurements
+                $.each(this['measurements'], function () {
+                    if (!Object.size(this)) return true;  // Remove empty measurements
+
+                    $.each(this, function (index, value) {
+                        if (!value[2]) return true;  // Remove measurements without units and failed measurements
+
+                        if (!trace_names.includes(index)) {
+                            trace_names.push(index);
+                            trace_plots.push({  // Create trace with index as name
+                                x: [],
+                                y: [],
+                                type: "bar",
+                                name: index,
+                                hovertemplate: '%{y}: %{x}' + value[2]
+                            });
+                        }
+
+                        if (!trace_plots[trace_names.indexOf(index)].x.includes(value[0])) {  // Does x axis includes measurement value?
+                            trace_plots[trace_names.indexOf(index)].x.push(value[0]);
+                            trace_plots[trace_names.indexOf(index)].y.push(1);
+                        } else {
+                            trace_plots[trace_names.indexOf(index)].y[trace_plots[trace_names.indexOf(index)].x.indexOf(value[0])]++;
+                        }
+                    });
+                });
+            });
+
+            var layout = {
+                barmode: 'group',
+                title: 'Raztros meritev',
+                xaxis: {
+                    title: {
+                        text: "izmerjena vrednost"
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: "pogostost"
+                    }
+                }
+            };
+
+            if (trace_plots.length) Plotly.newPlot('database_plot', trace_plots, layout);
+        });
+
+        $.getJSON("/tn", function (data) {
+            $.each(data, function (index, value) {
+                $('#database_form .dropdown-menu').append("<a class='dropdown-item' href='#'>" + value['name'] + "</a>");
+            });
+
+            $("#database_form .dropdown-menu a").click(function (e) {
+                e.preventDefault(); // cancel the link behaviour
+
+                $(this).parents(".dropdown").find('.btn').html($(this).text());
+                $("#database_test_device").val($(this).text());
+            });
+        });
+
+        $('#database_date_from').datetimepicker({
+            buttons: {
+                showToday: true
+            },
+            icons: {
+                today: 'fa fa-calendar',
+            },
+            tooltips: {
+                today: 'Danes'
+            },
+            format: 'DD.MM.YYYY',
+            defaultDate: moment()  // Todays date
+        });
+        $('#database_date_to').datetimepicker({
+            buttons: {
+                showToday: true
+            },
+            icons: {
+                today: 'fa fa-calendar',
+            },
+            tooltips: {
+                today: 'Danes'
+            },
+            format: 'DD.MM.YYYY',
+            defaultDate: moment()  // Todays date
+        });
+
+        $("#database_form").submit(function (event) {
+            event.preventDefault();
+
+            $.each($.find("#database_form .is-invalid"), function () {
+                $(this).removeClass("is-invalid");
+            });
+
+            if (!$("#database_test_device").val()) return false;
+
+            let date_from = $("#database_date_from").data('date');
+            let date_to = $("#database_date_to").data('date');
+
+            if (!date_from) $("#database_date_from input").addClass("is-invalid");
+            if (!date_to) $("#database_date_to input").addClass("is-invalid");
+
+            date_from = date_from.split(".");
+            date_to = date_to.split(".");
+
+            date_from = date_from[1] + "." + date_from[0] + "." + date_from[2];
+            date_to = date_to[1] + "." + date_to[0] + "." + date_to[2];
+
+            if (moment(date_from) > moment(date_to)) {
+                $("#database_date_from input").addClass("is-invalid");
+                $("#database_date_to input").addClass("is-invalid");
+            }
+
+            if ($.find("#database_form .is-invalid").length) return false;
+
+            $("#database_form input[name='date_from']").remove();
+            $("#database_form input[name='date_to']").remove();
+
+            $("#database_form").append("<input type='hidden' name='date_from' value='" + date_from + "'/>");
+            $("#database_form").append("<input type='hidden' name='date_to' value='" + date_to + "'/>");
+
+            $("#db_spinner").fadeIn("fast");
+            $('#dbtable').dataTable().fnClearTable();
+            $("#refresh_db").prop('disabled', true);
+
+            if ($('#database_form_result').is(':visible')) $("#database_form_result").fadeOut('fast');
+
+            $.ajax({
+                type: "get",
+                url: "/db",
+
+                data: $("#database_form").serialize(),
+                contentType: false,
+                processData: false
+            }).done(function (data) {
+                if (data.length) {  // Display DataTable only if data available
+                    $.each(data, function (index) {
+                        data[index]['datetime'] = moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
+
+                        // start_time is known as duration from now on!
+                        if (data[index]['start_test'] != null) {
+                            data[index]['start_test'] = moment.utc(data[index]['start_test']).local().format('x');
+                            data[index]['start_test'] = Math.round(moment.duration(data[index]['datetime'] - data[index]['start_test']).as('seconds'), 1)
+                        }  // Convert datetime to unix
+                        else data[index]['start_test'] = -1;
+
+                    });
+
+                    // Add data to DataTable
+                    $('#dbtable').dataTable().fnAddData(data);
+                }
+
+                $("#db_refresh_info").fadeOut("fast", function () {
+                    var date = moment(new Date());
+
+                    $("#db_refresh_info").html("Zadnjič osveženo: " + date.format("DD.MM.YYYY ob HH:mm:ss") + " za testno napravo " + $("#database_test_device").val());
+                    $("#db_refresh_info").fadeIn("fast");
+                });
+            }).fail(function () {
+                // Database query failed
+                $("#database_form_result").fadeOut("fast", function () {
+                    $("#database_form_result").html("Baza podatkov trenutno ni dostopna.").css("color", "red");
+                    $("#database_form_result").fadeIn("fast");
+                });
+            }).always(function () {
+                $('#refresh_db').prop('disabled', false); // Enable DB refresh button
+                $("#db_spinner").fadeOut("fast");
+            });
+        });
+    });
+
+</script>

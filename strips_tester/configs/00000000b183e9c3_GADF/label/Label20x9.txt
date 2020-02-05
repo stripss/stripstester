@@ -1,0 +1,23 @@
+^Q9,3
+^W20
+^H15
+^P1
+^S2
+^AD
+^C1
+^R0
+~Q+0
+^O0
+^D0
+^E12
+~R255
+^L
+Dy2-me-dd
+Th:m:s
+AA,5,5,1,1,0,0E,{type} {saop}
+AA,4,27,1,1,0,0E,f.w.: {firmware}
+XRB111,27,3,0,8
+{serial}
+AA,7,48,1,1,0,0E,s: {serial}
+E
+

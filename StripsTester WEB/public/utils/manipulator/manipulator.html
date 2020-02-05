@@ -30,7 +30,7 @@
 
 </head>
 <body>
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <div class="col-3">
             <div class="card text-white bg-dark">
@@ -60,7 +60,7 @@
                     <br>
 
                     <button type="button" class="btn btn-primary disabled" id="prev_image">Previous image</button>
-
+<br>
                     <button type="button" class="btn btn-primary disabled" id="next_image">Next image</button>
 
                     </p>
@@ -72,8 +72,8 @@
             </div>
 
             <div class="copyright">
-                <img src="/img/strips.gif"/>
-                <div class="text-center">Made by Marcel Jančar</div>
+                <img src="/img/strips.png" style="width: 50%;"/>
+                <div class="copyright text-center">Made by Marcel Jančar &copy; 2019</div>
             </div>
         </div>
 
@@ -771,7 +771,7 @@
                 var result = JSON.parse(e.target.result);
 
                 load_mask(result);
-            }
+            };
 
             fr.readAsText(files.item(0));
         });
@@ -785,7 +785,7 @@
 
             $("#current_image").prop("src", images[0]);
             $("#current_image").fadeIn(100, function () {
-                $("#thresholded").css("margin-top", $("#current_image").height() + "px");
+                //$("#thresholded").css("margin-top", $("#current_image").height() + "px");
                 $("div.wrapper").css("height", $("#current_image").height() + "px");
             });
         }

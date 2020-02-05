@@ -1,0 +1,138 @@
+<style>
+    #add_new_help_form_result {
+        margin-top: 10px;
+    }
+</style>
+
+
+<form id="add_new_help_form" class="needs-validation" enctype="multipart/form-data">
+    <div class="form-group">
+        <label for="add_new_help_form_title">Naslov</label>
+        <input type="text" class="form-control" id="add_new_help_form_title" name="title" placeholder="Naslov navodila">
+    </div>
+    <div class="form-group">
+        <label for="add_new_help_form_test_device">Testna naprava</label>
+        <div class="dropdown show">
+            <a class="btn btn-light dropdown-toggle" href="#" role="button" data-toggle="dropdown">Vse</a>
+            <input type="hidden" name="test_device" id="add_new_help_form_test_device" value="vse">
+
+            <div class="dropdown-menu">
+                <a class='dropdown-item' href='#'>Vse</a>
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="add_new_help_form_description">Opis</label>
+        <textarea class="form-control" name="description" id="add_new_help_form_description" rows="3" placeholder="Kratek opis navodila"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="add_new_help_form_file">Datoteka</label>
+        <div class="custom-file">
+            <input type="file" class="custom-file-input" name="file" id="add_new_help_form_file">
+            <label class="custom-file-label" for="add_new_help_form_file">Izberi datoteko</label>
+            <small id="fileHelp" class="form-text text-muted">Dovoljeni formati so .mp4, .jpg, .png in .pdf</small>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="add_new_help_form_author">Avtor</label>
+        <input type="text" class="form-control" name="author" id="add_new_help_form_author" placeholder="Avtor navodil">
+    </div>
+    <button type="submit" class="btn btn-primary">Dodaj</button>
+
+    <p id="add_new_help_form_result"></p>
+</form>
+
+<script>
+    $(document).ready(function () {
+        // Retrieve TN list and make dropdown
+        $.getJSON("/tn", function (data) {
+            $.each(data, function (index, value) {
+                $('#add_new_help_form .dropdown-menu').append("<a class='dropdown-item' href='#'>" + value['name'] + "</a>");
+            });
+
+            $("#add_new_help_form .dropdown-menu a").click(function (e) {
+                e.preventDefault(); // cancel the link behaviour
+
+                $(this).parents(".dropdown").find('.btn').html($(this).text());
+                $("#add_new_help_form_test_device").val($(this).text());
+            });
+        });
+
+        // Change file upload text when file is selected
+        $('.custom-file-input').on('change', function () {
+            let fileName = $(this).val().split('\\').pop();
+            $("#add_new_help_form .custom-file-label").html(fileName);
+        });
+
+        $("#add_new_help_form").submit(function (event) {
+            event.preventDefault();
+
+            // Remove all validation classes from form
+            $.each($("#add_new_help_form input"), function () {
+                $(this).removeClass("is-valid is-invalid");
+            });
+
+            // Validation of form
+            if ($.trim($("#add_new_help_form_title").val()) == '') $("#add_new_help_form_title").addClass("is-invalid");
+            if ($.trim($("#add_new_help_form_author").val()) == '') $("#add_new_help_form_author").addClass("is-invalid");
+
+            // If any attribute is invalid, return without adding
+            if (!$("#add_new_help_form").find(".is-invalid").length) {
+                let formdata = new FormData();
+
+                formdata.append('fileName', $("#add_new_help_form #add_new_help_form_file")[0].files[0]);
+
+                // Send POST method to the server
+                $.ajax({
+                    type: "post",
+                    url: "/upload_file",
+
+                    data: formdata,
+                    mimeTypes: "multipart/form-data",
+                    contentType: false,
+                    cache: false,
+                    processData: false
+                }).done(function (data) {  // File uploaded successfully (may return filename)
+                    if (data['filename'] != null) {
+
+                        // Add link to existing form
+                        let filename = '/media/' + data['filename'];
+
+                        // Empty previous made link
+                        $("#add_new_help_form input[name='link']").remove();
+                        $("#add_new_help_form").append('<input type="hidden" name="link" value="' + filename + '" /> ');
+                    }
+
+                    $.ajax({
+                        type: "post",
+                        url: "/add_new_help",
+
+                        // Serialize form
+                        // Send post method
+                        data: $("#add_new_help_form").serialize()
+                    }).done(function (data) {
+
+                        // Help added successfully
+
+                        if (data['result']) {
+                            $("#add_new_help_form_result").html("Navodila uspešno dodana. ").css("color", "green");
+
+                            window.parent.reload_help_list();
+                        } else $("#add_new_help_form_result").html("Napaka pri vstavitvi navodil v bazo podatkov.").css("color", "red");
+                    }).fail(function () {
+                        // Help fail
+
+                        $("#add_new_help_form_result").html("Napaka pri dodajanju novih navodil.").css("color", "red");
+                    });
+
+                }).fail(function () {
+                    // Help fail
+
+                    $("#add_new_help_form_result").html("Napaka pri nalaganju datoteke.").css("color", "red");
+                });
+            }
+        });
+    });
+</script>

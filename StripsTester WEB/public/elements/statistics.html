@@ -1,0 +1,428 @@
+<style>
+    #view_stats_form_result {
+        margin-top: 10px;
+    }
+
+    #plotsite_stats {
+        margin-top: 10px;
+    }
+</style>
+<h1><i class="fas fa-chart-line"></i>Statistika</h1>
+<form id="view_stats_form">
+    <div class="form-group">
+        <div class="row">
+            <div class="col-4">
+                <label for="view_stats_test_device">Testna naprava</label>
+                <div class="dropdown show">
+                    <a class="btn btn-light btn-lg dropdown-toggle" href="#" role="button" data-toggle="dropdown">Testna naprava</a>
+                    <input type="hidden" name="tid" id="view_stats_test_device">
+
+                    <div class="dropdown-menu"></div>
+                </div>
+            </div>
+
+            <div class="col-8">
+                <label for="database_description">Časovno območje</label>
+                <div class="row">
+                    <div class='col-6'>
+                        <div class="form-group">
+                            <label for="view_stats_date_from">Od</label>
+                            <div class="input-group date" id="view_stats_date_from" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#view_stats_date_from"/>
+                                <div class="input-group-append" data-target="#view_stats_date_from" data-toggle="datetimepicker">
+                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class='col-6'>
+                        <div class="form-group">
+                            <label for="view_stats_date_to">Do</label>
+                            <div class="input-group date" id="view_stats_date_to" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#view_stats_date_to"/>
+                                <div class="input-group-append" data-target="#view_stats_date_to" data-toggle="datetimepicker">
+                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary"><i class="fas fa-chart-pie"></i>Analiziraj <span style="display: none;" id="stats_spinner" class="spinner-border spinner-border-sm"
+                                                                                                   role="status"></span></button>
+
+    <p id="view_stats_form_result" style="display: none;"></p>
+    <div id="plotsite_stats" style="display: none;">
+        <div id="view_stats_plot"></div>
+        <div id="nest_vs_result"></div>
+        <div id="result_vs_time"></div>
+        <div id="norma"></div>
+    </div>
+</form>
+
+<script>
+    $(document).ready(function () {
+        // Retrieve TN list and make dropdown
+        $.getJSON("/tn", function (data) {
+            $.each(data, function (index, value) {
+                $('#view_stats_form .dropdown-menu').append("<a class='dropdown-item' href='#'>" + value['name'] + "</a>");
+            });
+
+            $("#view_stats_form .dropdown-menu a").click(function (e) {
+                e.preventDefault(); // cancel the link behaviour
+
+                $(this).parents(".dropdown").find('.btn').html($(this).text());
+                $("#view_stats_test_device").val($(this).text());
+            });
+        });
+
+        $('#view_stats_date_from').datetimepicker({
+
+            buttons: {
+                showToday: true
+            },
+            icons: {
+                today: 'fa fa-calendar',
+            }, tooltips: {
+                today: 'Danes'
+            },
+            format: 'DD.MM.YYYY',
+            defaultDate: moment()
+        });
+        $('#view_stats_date_to').datetimepicker({
+            buttons: {
+                showToday: true
+            },
+            icons: {
+                today: 'fa fa-calendar',
+            }, tooltips: {
+                today: 'Danes'
+            },
+            format: 'DD.MM.YYYY',
+            defaultDate: moment(),
+        });
+
+        /*
+        $("#view_stats_date_from").on("change.datetimepicker", function (e) {
+            $('#view_stats_date_to').datetimepicker('minDate', e.date);
+        });
+
+        $("#view_stats_date_to").on("change.datetimepicker", function (e) {
+            $('#view_stats_date_from').datetimepicker('maxDate', e.date);
+        });
+        */
+
+        $("#view_stats_form").submit(function (event) {
+            event.preventDefault();
+
+            $.each($.find("#view_stats_form .is-invalid"), function () {
+                $(this).removeClass("is-invalid");
+            });
+
+            if (!$("#view_stats_test_device").val()) return false;
+
+            let date_from = $("#view_stats_date_from").data('date');
+            let date_to = $("#view_stats_date_to").data('date');
+
+            if (!date_from) $("#view_stats_date_from input").addClass("is-invalid");
+            if (!date_to) $("#view_stats_date_to input").addClass("is-invalid");
+
+            date_from = date_from.split(".");
+            date_to = date_to.split(".");
+
+            date_from = date_from[1] + "." + date_from[0] + "." + date_from[2];
+            date_to = date_to[1] + "." + date_to[0] + "." + date_to[2];
+
+            if (moment(date_from) > moment(date_to)) {
+                $("#view_stats_date_from input").addClass("is-invalid");
+                $("#view_stats_date_to input").addClass("is-invalid");
+            }
+
+            if ($.find("#view_stats_form .is-invalid").length) return false;
+
+            $("#view_stats_form input[name='date_from']").remove();
+            $("#view_stats_form input[name='date_to']").remove();
+
+            $("#view_stats_form").append("<input type='hidden' name='date_from' value='" + date_from + "'/>");
+            $("#view_stats_form").append("<input type='hidden' name='date_to' value='" + date_to + "'/>");
+            $("#stats_spinner").fadeIn("fast");
+
+            if ($('#view_stats_form_result').is(':visible')) $("#view_stats_form_result").fadeOut('fast');
+
+            $.ajax({
+                type: "get",
+                url: "/db",
+
+                data: $("#view_stats_form").serialize(),
+                contentType: false,
+                processData: false
+            }).done(function (data) {
+                $("#plotsite_stats div").empty(); // Clean plot space
+
+                if (!data.length) return;
+
+                // PLOTLY - Uspešnost po gnezdih
+                var good_by_nest = {
+                    x: [],
+                    y: [],
+                    type: "bar",
+                    name: "OK",
+                    marker: {
+                        color: 'rgb(30,167,69)'
+                    }
+                };
+
+                var bad_by_nest = {
+                    x: [],
+                    y: [],
+                    type: "bar",
+                    name: "FAIL",
+                    marker: {
+                        color: 'rgb(220,53,69)'
+                    }
+                };
+
+                var layout_by_nest = {
+                    barmode: 'group',
+                    title: 'Uspešnost testiranja glede na ležišča',
+                    xaxis: {
+                        title: {
+                            text: "ležišče"
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: "rezultat"
+                        }
+                    }
+                };
+
+                var good_by_time = {
+                    x: [],
+                    y: [],
+                    type: "bar",
+                    name: "OK",
+                    text: [],
+                    marker: {
+                        color: 'rgb(30,167,69)'
+                    },
+                    transforms: [{
+                        type: 'sort',
+                        target: 'x',
+                        order: 'descending'
+                    }]
+                };
+
+                var bad_by_time = {
+                    x: [],
+                    y: [],
+                    type: "bar",
+                    name: "FAIL",
+                    text: [],
+                    marker: {
+                        color: 'rgb(220,53,69)'
+                    },
+                    transforms: [{
+                        type: 'sort',
+                        target: 'x',
+                        order: 'descending'
+                    }]
+                };
+
+                var layout_by_time = {
+                    barmode: 'group',
+                    title: 'Uspešnost testiranja po dnevih uporabe',
+                    xaxis: {
+                        title: {
+                            text: "datum testiranja"
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: "rezultat"
+                        }
+                    }
+                };
+
+                var norma_list = [];
+                var norma_plots = [];
+
+                var layout_by_norma = {
+                    title: 'Norma delavcev',
+                    xaxis: {
+                        title: {
+                            text: "časovne meje"
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: "število testiranih kosov"
+                        }
+                    }
+                };
+
+                // PLOTLY - Uspešnost po gnezdih
+                var measurement = {
+                    x: [],
+                    y: [],
+                    type: "bar",
+                    name: "FAIL",
+                    marker: {
+                        color: 'rgb(220,53,69)'
+                    },
+                };
+
+
+                var layout = {
+                    barmode: 'group',
+                    title: 'Število najpogostejših napak na testni napravi',
+                    xaxis: {
+                        title: {
+                            text: "napake"
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: "število"
+                        }
+                    }
+                };
+
+                // Loop through data
+                $.each(data, function (index, value) {
+                    let id = moment(value["datetime"]).format('DD.MM.YYYY');
+
+                    if (value["result"]) {  // Check if result was OK
+                        if (!good_by_nest.x.includes(value["nest"])) {
+                            good_by_nest.x.push(value["nest"]);
+                            good_by_nest.y[value["nest"]] = 0;
+                        }
+
+                        if (!good_by_time.x.includes(id)) {
+                            good_by_time.x.push(id);
+                            good_by_time.y[good_by_time.x.indexOf(id)] = 0;
+                        }
+
+                        if(value['type'] == 0) {  // Check if type is REDNA PROIZVODNJA
+                            // Check if days are the same
+                            let current_test_date = moment(value['datetime']).startOf('day').format('x');
+
+                            if (!norma_list.includes(current_test_date)) {
+                                norma_list.push(current_test_date);
+                                norma_plots.push({
+                                    x: [],
+                                    y: [],
+                                    name: moment(value['datetime']).format('DD.MM.YYYY'),
+                                    mode: 'lines',
+                                    type: 'bar',
+                                    line: {
+                                        width: 1,
+                                    },
+                                    transforms: [{
+                                        type: 'sort',
+                                        target: 'x',
+                                        order: 'descending'
+                                    }]
+                                });  // Append new plot to norma list
+                            }
+
+                            // Calculate time between last test and this test
+                            //let time = 10 / (moment.duration(moment(last_test['datetime']).diff(moment(value['datetime']))).asSeconds())*100;
+                            let current = moment(value['datetime']).format('DD.MM.YYYY HH');
+
+                            if (!norma_plots[norma_list.indexOf(current_test_date)].x.includes(current)) {
+                                norma_plots[norma_list.indexOf(current_test_date)].x.push(current);
+                                norma_plots[norma_list.indexOf(current_test_date)].y[norma_plots[norma_list.indexOf(current_test_date)].x.indexOf(current)] = 0;
+                            }
+
+                            norma_plots[norma_list.indexOf(current_test_date)].y[norma_plots[norma_list.indexOf(current_test_date)].x.indexOf(current)]++;
+                            /*
+                        if (time) {  // Skip zero times and times with pauses
+
+                            norma_plots[norma_list.indexOf(current_test_date)].x.push(norma_plots[norma_list.indexOf(current_test_date)].x.length + 1);
+                            norma_plots[norma_list.indexOf(current_test_date)].y.push(time);
+                        }
+
+                         */
+
+                        }
+                        good_by_time.y[good_by_time.x.indexOf(id)]++;
+                        good_by_nest.y[value["nest"]]++;
+
+                        last_test = value;  // Set last test to current test
+                    } else if (!value["result"]) {
+                        if (!bad_by_nest.x.includes(value["nest"])) {
+                            bad_by_nest.x.push(value["nest"]);
+                            bad_by_nest.y[value["nest"]] = 0;
+                        }
+                        if (!bad_by_time.x.includes(id)) {
+                            bad_by_time.x.push(id);
+                            bad_by_time.y[bad_by_time.x.indexOf(id)] = 0;
+                        }
+
+                        bad_by_time.y[bad_by_time.x.indexOf(id)]++;
+                        bad_by_nest.y[value["nest"]]++;
+                    }
+
+                    // Loop through measurements
+                    $.each(value['measurements'], function (subindex, subvalue) {
+                        if (!Object.size(subvalue)) return;  // Skip empty task results
+
+                        $.each(subvalue, function (subsubindex, subsubvalue) {
+                            if (subsubvalue[1]) return;
+                            if (!measurement.x.includes(subsubindex)) {
+                                measurement.x.push(subsubindex);
+                                measurement.y[measurement.x.indexOf(subsubindex)] = 0;
+                            }
+
+                            measurement.y[measurement.x.indexOf(subsubindex)]++;
+                        });
+                    });
+                });
+
+                // Add percentage to good counter plot
+                good_by_time.x.forEach(function (value, index) {
+                    var all = (good_by_time.y[good_by_time.x.indexOf(value)] || 0) + (bad_by_time.y[bad_by_time.x.indexOf(value)] || 0);  // this operators are for NaN convert to 0
+
+                    good_by_time.text[index] = Math.round(((good_by_time.y[good_by_time.x.indexOf(value)] || 0) / all) * 100.0, 1) + "%";
+                });
+
+                // Add percentage to bad counter plot
+                bad_by_time.x.forEach(function (value, index) {
+                    var all = (good_by_time.y[good_by_time.x.indexOf(value)] || 0) + (bad_by_time.y[bad_by_time.x.indexOf(value)] || 0);  // this operators are for NaN convert to 0
+
+                    bad_by_time.text[index] = Math.round(((bad_by_time.y[bad_by_time.x.indexOf(value)] || 0) / all) * 100.0, 1) + "%";
+                });
+
+                // Prettify nest ID
+                good_by_nest.x.forEach(function (value, index) {
+                    good_by_nest.x[index] += 1;
+                });
+
+                bad_by_nest.x.forEach(function (value, index) {
+                    bad_by_nest.x[index] += 1;
+                });
+
+                Plotly.newPlot('view_stats_plot', [measurement], layout);
+                Plotly.newPlot('nest_vs_result', [good_by_nest, bad_by_nest], layout_by_nest);
+                Plotly.newPlot('result_vs_time', [good_by_time, bad_by_time], layout_by_time);
+                Plotly.newPlot('norma', norma_plots, layout_by_norma);
+
+                if (!$('#plotsite_stats').is(':visible')) $("#plotsite_stats").fadeIn('fast');
+            }).fail(function () {
+                // Database query failed
+                $("#view_stats_form_result").html("Napaka pri analizi.").css("color", "red");
+                $("#view_stats_form_result").fadeIn('fast');
+
+            }).always(function () {
+                $("#stats_spinner").fadeOut("fast");
+            });
+
+        });
+    });
+</script>

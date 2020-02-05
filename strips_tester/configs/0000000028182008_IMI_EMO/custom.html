@@ -1,0 +1,95 @@
+<hr>
+
+<div id="accordion3" style="margin-top: 10px; margin-bottom: 10px;">
+    <div class="card">
+        <div class="card-header" id="headingThree">
+            <h5 style="display: inline; margin-right: 10px;" class="mb-0">
+                <button class="btn btn-light" data-toggle="collapse" data-target="#collapseThree">
+                    <i class="fas fa-angle-double-down"></i> Programska oprema
+                </button>
+            </h5>
+
+            <span id="current_hex">Ni nastavljeno</span>
+        </div>
+
+        <div id="collapseThree" class="collapse" data-parent="#accordion3">
+            <div class="card-body">
+
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="set_program_flash">Flash</label>
+                    </div>
+                    <select class="custom-select" id="set_program_flash">
+                        <option value="-1" data-data="-1">Brez</option>
+                    </select>
+                </div>
+
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="set_program_eeprom">EEPROM</label>
+                    </div>
+                    <select class="custom-select" id="set_program_eeprom">
+                        <option value="-1" data-data="-1">Brez</option>
+                    </select>
+
+                </div>
+                <button type="button" class="btn btn-primary" id="set_program_button"><i class="fas fa-cog"></i>Nastavi program</button>
+            </div>
+        </div>
+    </div>
+</div>
+<hr>
+
+<script>
+    $(document).ready(function () {
+        function sendJSON(txt) {
+            // Inherit socket variable from main page
+            socket.send(JSON.stringify(txt));
+        }
+
+        // Get program list
+        sendJSON({"command": "get_program_list"});
+
+        $("#set_program_button").click(function () {
+            let flash = $("#set_program_flash").find("option:selected").data("data");
+            let eeprom = $("#set_program_eeprom").find("option:selected").data("data");
+
+            sendJSON({"command": "set_program", "flash": flash, "eeprom": eeprom});
+        });
+    });
+
+    function onCustomMessage(data) {
+        if (data.command == "program_list") {
+            // Append programs to option attribute
+            $.each(data.flash, function (index, value) {
+                $('#set_program_flash').append('<option value="' + value + '">' + value + '</option>');
+                $("#set_program_flash").find("option:last-child").data("data", value);  // Set data as hidden attribute
+            });
+
+            $.each(data.eeprom, function (index, value) {
+                $('#set_program_eeprom').append('<option value="' + value + '">' + value + '</option>');
+                $("#set_program_eeprom").find("option:last-child").data("data", value);  // Set data as hidden attribute
+            });
+        }
+
+        // Recieved command for setting new program
+        if (data.command == "set_program") {
+
+            // Set current
+            if(data.flash != null) $("#set_program_flash option[value='" + data.flash + "']").prop("selected", "selected");
+            if(data.eeprom != null) $("#set_program_eeprom option[value='" + data.eeprom + "']").prop("selected", "selected");
+
+            if(data.flash == "-1") data.flash = "Brez";
+            if(data.eeprom == "-1") data.eeprom = "Brez";
+
+            $('#accordion3 #current_hex').fadeOut("fast", function () {
+                $('#accordion3 #current_hex').html("Trenutni: ");
+
+                // check if flash, eeprom
+                if(data.flash != null) $('#accordion3 #current_hex').append(" Flash: " + data.flash);
+                if(data.eeprom != null) $('#accordion3 #current_hex').append(" EEPROM: " + data.eeprom);
+            });
+            $('#accordion3 #current_hex').fadeIn("fast");
+        }
+    }
+</script>

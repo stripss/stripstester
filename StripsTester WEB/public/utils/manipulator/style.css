@@ -1,3 +1,6 @@
+body {
+    background-color: #1d1d1d;
+}
 #vertex_list .row:hover {
     background-color: #4e4e4e;
     cursor: pointer;
@@ -136,5 +139,6 @@ button {
 }
 
 .copyright {
+    color: #aaaaaa;
     font-size: 12px;
 }

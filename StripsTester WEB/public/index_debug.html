@@ -161,6 +161,7 @@
                             <option value="1">Kosi iz popravila</option>
                             <option value="2">Analiza reklamacije</option>
                             <option value="3">Ostalo</option>
+                            <option value="4">Verifikacija testne naprave</option>
                         </select>
                     </div>
 
@@ -314,7 +315,7 @@
                     </div>
 
                     <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-                        <div class="row" style="margin-top: 20px;">
+                        <div class="row">
                             <div class="col">
                                 <h1 id="gui_device_name" class="text-center">Testna naprava</h1>
                             </div>
@@ -379,7 +380,6 @@
                                     <span id="current"></span>
                                     <h5 style="display: inline; margin-left: 10px;" class="mb-0">
                                         <button id="custom_counter_button" type="button" class="btn btn-light"><i class="fas fa-sort-numeric-up"></i>Pomožni števec</button>
-                                        <button id="tilt_semaphore" type="button" class="btn btn-light"><i class="fas fa-undo"></i>Zavrti semafor</button>
                                     </h5>
                                 </div>
 
@@ -404,6 +404,8 @@
                                                 <option value="1">Kosi iz popravila</option>
                                                 <option value="2">Analiza reklamacije</option>
                                                 <option value="3">Ostalo</option>
+                                                <option value="4">Verifikacija testne naprave</option>
+
                                             </select>
                                         </div>
 
@@ -552,12 +554,6 @@
                     handle: ".modal-header"
                 });
             }
-        });
-
-        $("#tilt_semaphore").click(function () {
-            $.each($.find(".semaphore .tile"), function (index, value) {
-                $(value).toggleClass("tilt");
-            });
         });
 
         $("#good_custom_counter_button_up").click(function () {
@@ -784,6 +780,7 @@
         };
 
         $('#tntable').DataTable({
+            "pageLength": 50,
             "dom": 't',
             "columns":
                 [
@@ -801,8 +798,8 @@
                             } else {
                                 $(td).html(cellData.substring(0, 7));
 
-                                if(cellData == current_git) $(td).css('background-color', 'green');
-                                else $(td).css('background-color', 'yellow');
+                                if(cellData == current_git) $(td).css('background-color', '#caffca');
+                                else $(td).css('background-color', '#faffb4');
                             }
                         }
                     },
@@ -818,7 +815,7 @@
                                 $(td).css('color', 'gray');
                                 $(td).html("Neznan");
                             } else {
-                                var test_type = ['Redna proizvodnja', 'Kosi iz popravila', 'Analiza reklamacije', 'Ostalo'];
+                                var test_type = ['Redna proizvodnja', 'Kosi iz popravila', 'Analiza reklamacije', 'Ostalo', 'Verifikacija testne naprave'];
                                 $(td).html(test_type[parseInt(cellData)]);
                             }
                         }
@@ -983,7 +980,7 @@
 
         function handleError(name, message) {
             $("#profile-tab").addClass("disabled");
-            $('#myTab a[href="#home"]').tab('show')
+            $('#myTab a[href="#home"]').tab('show');
             $('#tn_shutdown').fadeOut("fast");
             $('#custom_counter').modal('hide');
 
@@ -1263,7 +1260,17 @@
                     $("#nest_info" + nest_id + " #info_list").show();
 
                     if (data.type == "image") $("#nest_info" + nest_id + " #info_list").append("<img class='image downloadable' src='data:image/jpg;base64, " + data.value + "' /><br>");
-                    else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>");
+                    else if(data.type == "video") {
+                        // Find video or create instance, attach blob to video
+                        let video = $("img.video").length;
+
+                        // If video found, update it to the right selector
+                        if(video) {
+                            $("img.video").prop('src', 'data:image/jpg;base64,' + data.value);
+                        } else {
+                            $("#nest_info" + nest_id + " #info_list").append("<img class='image video' src='data:image/jpg;base64, " + data.value + "' /><br>");
+                        }
+                    } else $("#nest_info" + nest_id + " #info_list").append("- " + data.value + "<br>");
 
                     $("#info_count").html($("#info_collapse br").length);
                     $("#info_count").show();
@@ -1390,15 +1397,19 @@
             if (data.command == "alert") {
                 if (data.value) {
                     if (data.value == "calibration") {  // Alert for calibration outdated
-                        if (moment.utc(data.last).add(1, "years") < moment.utc()) {
-                            console.log(moment.utc(data.last).add(1, "years"));
-                            console.log(moment.utc());
+
+                        //console.log("calibration alert trigger");
+                        if (data.last == null || moment.utc(data.last).add(1, "years") < moment.utc()) {
+                            //console.log(moment.utc(data.last).add(1, "years"));
+                            //console.log(moment.utc());
                             alert_initial = "Kalibracija na testni napravi je zastarela. Prosimo, izvedite kalibracijo merilnega dela.";
+                        } else {
+                            $('#alert_accordion').hide();
                         }
                     }
 
                     if (alert_initial != null) {
-                        $('#alert_accordion').append(data.value);
+                        $('#alert_accordion').append(alert_initial);
                         $('#alert_accordion').show();
                     }
                 } else {

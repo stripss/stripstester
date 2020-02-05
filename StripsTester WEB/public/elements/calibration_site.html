@@ -1,0 +1,338 @@
+<style>
+    .add_new_calibration_site {
+        margin-top: 20px;
+    }
+</style>
+<!-- Modal -->
+<div class="modal fade" id="cal_confirm_delete_row" tabindex="-1" role="dialog" aria-labelledby="cal_confirm_delete_row" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Izbris opravljene kalibracije</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Ali želite izbrisati željeno poročilo kalibracije?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" id="cal_confirm_delete_row_yes">Da</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Ne</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<h1><i class="fas fa-atom"></i>Kalibracije komponent testnih naprav</h1>
+
+<div class="row">
+    <div class="col">
+        <div id="calibration_mainpage">
+            <button class="btn btn-primary" id="add_new_calibration_button">Dodaj poročilo kalibracije</button>
+            <table id="calibration_table" class="display">
+                <thead>
+                <tr>
+                    <th>Testna naprava</th>
+                    <th>Opis</th>
+                    <th>Datum</th>
+                    <th>Avtor</th>
+                    <th>Priloga</th>
+                    <th>Dodatno</th>
+                </tr>
+                </thead>
+                <tfoot>
+                <tr>
+                    <th>Testna naprava</th>
+                    <th>Opis</th>
+                    <th>Datum</th>
+                    <th>Avtor</th>
+                    <th>Priloga</th>
+                    <th>Dodatno</th>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div id="calibration_addnewpage">
+            <button class="btn btn-primary" id="return_calibration_button">Seznam kalibracij</button>
+
+            <div class="add_new_calibration_site">
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        $("#cal_confirm_delete_row_yes").click(function () {
+            $.ajax({
+                url: '/delcal',
+                type: 'post',
+                dataType: 'json',
+                data: {'tid': $("#cal_confirm_delete_row_yes").data("data")},
+
+                success: function (data) {
+                    if (data.success) {
+                        //alert("Row successfully deleted. - add modal");
+                        var td = $("#cal_confirm_delete_row_yes").data("td");
+                        var target_row = $(td).closest("tr").get(0); // this line did the trick
+                        var aPos = $("#calibration_table").dataTable().fnGetPosition(target_row);
+
+                        $("#calibration_table").dataTable().fnDeleteRow(aPos);
+                    } else {
+                        alert("Meritve ni v bazi podatkov!");
+                    }
+                }
+            });
+        });
+
+        $('#calibration_addnewpage').hide();
+
+        $('#calibration_table').DataTable({
+            "dom": '<"calsearch"f>tip',
+            "language": {
+                "sEmptyTable": "Nobenih podatkov ni na voljo",
+                "sInfo": "Prikazujem _START_ do _END_ od _TOTAL_ opravljenih kalibracij",
+                "sInfoEmpty": "Prikazujem 0 do 0 od 0 opravljenih kalibracij",
+                "sInfoFiltered": "(filtrirano od _MAX_ vseh opravljenih kalibracij)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ",",
+                "sLengthMenu": "Prikaži _MENU_ opravljenih kalibracij",
+                "sLoadingRecords": "Nalagam...",
+                "sProcessing": "Obdelujem...",
+                "sSearch": "",
+                "sZeroRecords": "Nobeden zapis ne ustreza",
+                "oPaginate": {
+                    "sFirst": "Prvi",
+                    "sLast": "Zadnji",
+                    "sNext": "Naslednja",
+                    "sPrevious": "Prejšna"
+                },
+                "oAria": {
+                    "sSortAscending": ": vključite za naraščujoči sort",
+                    "sSortDescending": ": vključite za padajoči sort"
+                }
+            },
+            "order": [[2, 'desc']], // Default ordering by date
+            "columnDefs": [
+                {
+                    "targets": 4,
+                    "orderable": false
+                },
+                {
+                    "targets": 1,
+                    "orderable": false
+                },
+                {
+                    "targets": 5,
+                    "data": null,
+                    "defaultContent": '',
+                    "orderable": false
+                }
+            ],
+            "columns":
+                [
+                    {
+                        "data": "test_device"
+                    },
+                    {
+                        "data": "description"
+                    },
+                    {
+                        "data": "date", "render": $.fn.dataTable.render.moment('x', 'DD.MM.YYYY HH:mm:ss')
+                    },
+                    {
+                        "data": "author"
+                    },
+                    {
+                        "data": "link", "render": function (data, type, row) {
+                            //moment.utc(data[index]['datetime']).local().format('x');  // Convert datetime to unix
+
+
+                            if (data) return "<a target='_blank' rel='noopener noreferrer' href='" + data + "'><i class=\"fas fa-folder-open\"></i> Poročilo</a>";
+                            else return "";
+
+                        }, "createdCell": function (td, cellData, rowData, row, col) {
+                            if ($(td).text() == "") {
+                                $(td).css('color', 'gray');
+                                $(td).html("Brez priloge");
+                            }
+                        }
+                    },
+                    {
+                        "data": null, "createdCell": function (td, cellData, rowData, row, col) {
+                            if (admin_logged) {
+                                $(td).append($('<button type="button" class="btn btn-sm btn-danger"><i class="fas fa-trash-alt"></i>Izbriši</button>'));
+
+                                $(td).find("button").click(function () {
+                                    if (admin_logged) {
+                                        console.log(rowData);
+                                        $("#cal_confirm_delete_row_yes").data("data", rowData['_id']);
+
+                                        $("#cal_confirm_delete_row_yes").data("td", td);
+                                        $('#cal_confirm_delete_row').modal('show');
+                                    } else {
+                                        alert("No admin privileges!");
+                                    }
+                                });
+                            }
+                        }
+                    }
+                ],
+            "initComplete": function () {
+                $(".calsearch input").addClass("form-control");
+                $(".calsearch input").attr("placeholder", "Iskanje po kalibracijah");
+                $(".calsearch input").attr("aria-label", "Iskanje po kalibracijah");
+                $(".calsearch input").css("width", "300px");
+            }
+        });
+
+        load_calibrations = function () {
+            // Enumerate all calibrations made on TN
+            $.getJSON("/tn", function (data) {
+                $('#calibration_table').dataTable().fnClearTable();
+
+                $.each(data, function (index, value) {
+                    $.getJSON("/calibration?tid=" + value['name'], function (calibration_data) {
+                        //console.log(calibration_data);
+
+                        $.each(calibration_data, function (index) {
+
+                            calibration_data[index]['test_device'] = value['name'];
+                            calibration_data[index]['date'] = moment.utc(calibration_data[index]['date']).local().format('x');
+
+                            $('#calibration_table').dataTable().fnAddData(calibration_data[index]);
+                        });
+                    });
+                });
+            });
+        };
+
+
+        $("#add_new_calibration_button").click(function () {
+            $('#calibration_mainpage').fadeOut('fast', function () {
+                $('#calibration_addnewpage .add_new_calibration_site').load("/elements/add_new_calibration_form.html", function () {
+                    $('#calibration_addnewpage').fadeIn('fast');
+                });
+            });
+        });
+
+        $("#return_calibration_button").click(function () {
+            $('#calibration_addnewpage').fadeOut('fast', function () {
+                load_calibrations();
+
+                $('#calibration_mainpage').fadeIn('fast');
+            });
+        });
+
+        load_calibrations();
+        /*
+        reload_help_list = function () {
+            $.getJSON("/tn", function (data) {
+                $("#help_list").append("<div id='help_all' class='help_tn_title'><b>Vse</b><br></div>");
+
+                $.each(data, function (index, value) {
+                    $("#help_list").append("<div class='help_tn_title' id='help_" + value['_id'] + "'><b>" + value['name'] + "</b><br></div>");
+                });
+
+                // Help section - enumerate help list
+                $.getJSON("/help", function (data) {
+                    $.each(data, function (index, value) {
+                        let new_container = $("<div class='row'><div class='col helplink'></div><div class='col col-auto extra'></div></div>");
+
+                        let new_link = $("<a class='help_link' href='#'>" + value.title + "</a>");
+                        $(new_link).data("description", value.description);
+                        $(new_link).data("link", value.link);
+                        $(new_link).data("author", value.author);
+                        $(new_link).data("date", value.date_of_creation);
+
+                        $(new_container).find(".helplink").append(new_link);
+
+                        if (admin_logged) {
+                            let last_button = $("<button class='btn btn-sm btn-danger'><i class='fas fa-trash-alt'></i>Izbriši</button>");
+                            $(last_button).data('id', value._id);
+                            $(new_container).find("div.extra").append(last_button);
+                        }
+
+                        if (value.test_device == -1) $("#help_list #help_all").append(new_container);
+                        else $("#help_list #help_" + value.test_device).append(new_container);
+                    });
+
+                    // Remove test devices if there is no help available
+                    $.each($("#help_list div.help_tn_title"), function () {
+                        let length = $(this).find("a").length;
+
+                        if (!length) $(this).empty();
+                    });
+
+                    $("#help_list a").click(function (e) {
+                        e.preventDefault();
+
+                        // Fade in new video
+                        $("#help_main").fadeOut("fast", function () {
+                            $("#help_main h2").html($(e.target).text());
+                            $("#help_main iframe").show();
+
+                            $("#help_main #help_description").html($(e.target).data("description"));
+
+                            if ($(e.target).data("author")) {
+                                if ($(e.target).data("description")) $("#help_main #help_description").append("<br><br>");
+                                $("#help_main #help_description").append("Objavil: <b>" + $(e.target).data("author") + "</b>");
+                            }
+
+                            let media_type = "";
+                            try {
+                                media_type = $(e.target).data("link").split('.').pop();
+                            } catch (e) {
+                            }
+
+                            // Remove existing images
+                            $("#help_main img").remove();
+
+                            if (media_type == 'pdf') {  // Open in Google viewer
+                                $("#help_main iframe").prop("src", "./plugins/ViewerJS/#" + $(e.target).data("link"));
+                            } else if (media_type == 'jpg') {
+                                $("#help_main iframe").hide();
+
+                                $("#help_main").append("<img class='help_image' src='" + $(e.target).data("link") + "' />");
+                            } else if (media_type == 'mp4') {
+                                $("#help_main iframe").prop("src", $(e.target).data("link"));
+                            } else {
+                                $("#help_main iframe").hide();
+                            }
+
+                            $("#help_main").fadeIn("fast");
+                        });
+                    });
+
+                });
+            });
+        };
+
+        reload_help_list();
+
+        $("#add_new_help").click(function (e) {
+            e.preventDefault();
+
+            // Prevent unauthorised access
+            if (!admin_logged) return;
+
+            $("#help_main").fadeOut("fast", function () {
+                $("#help_main iframe").hide();
+                // Remove existing images
+                $("#help_main img").remove();
+
+                $("#help_main h2").html("Dodaj novo navodilo");
+
+                $("#help_main #help_description").load("elements/add_new_help_form.html");
+
+                $("#help_main").fadeIn("fast");
+            });
+        });
+
+         */
+    });
+</script>

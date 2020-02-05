@@ -1,0 +1,8 @@
+rules.d -> 99-usb-serial.rules
+
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="0825", SYMLINK+="logitech"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", SYMLINK+="godex"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="195f", ATTRS{idProduct}=="0001", SYMLINK+="godex"
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="0810", SYMLINK+="microsoft"
+
+Enable I2C in raspi-config

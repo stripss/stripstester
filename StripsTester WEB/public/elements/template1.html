@@ -19,6 +19,10 @@
             margin-bottom: 20px;
         }
 
+        .accordion-card {
+            margin-bottom: 0px !important;
+        }
+
         .nest_status_only {
             font-size: 20px;
         }
@@ -32,8 +36,12 @@
 </div>
 <br>
 
+<div id="alert_accordion" class="alert alert-warning" role="alert" style="display: none;">
+
+</div>
+
 <div id="error_accordion" style="margin-top: 10px; margin-bottom: 10px;">
-    <div class="card">
+    <div class="card accordion-card">
         <div class="card-header" id="headingOne">
             <h5 class="mb-0">
                 <button class="btn btn-light" data-toggle="collapse" data-target="#error_collapse" aria-expanded="true" aria-controls="error_collapse">
@@ -53,7 +61,7 @@
 </div>
 
 <div id="info_accordion" style="margin-top: 10px; margin-bottom: 10px;">
-    <div class="card">
+    <div class="card accordion-card">
         <div class="card-header" id="headingOne">
             <h5 class="mb-0">
                 <button class="btn btn-light" data-toggle="collapse" data-target="#info_collapse" aria-expanded="true" aria-controls="info_collapse">
