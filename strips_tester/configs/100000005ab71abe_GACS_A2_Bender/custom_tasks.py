@@ -30,6 +30,8 @@ class StartProcedureTask(Task):
         gui_web.send({"command": "progress", "value": "0"})
 
         while not self.is_lid_closed():
+            print("start: {}". format(self.is_lid_closed()))
+            print("detect: {}". format(self.is_product_inside()))
             time.sleep(0.1)
 
         gui_web.send({"command": "error", "value": -1})  # Clear all error messages
@@ -69,11 +71,6 @@ class StartProcedureTask(Task):
 
         return
 
-
-    def tear_down(self):
-        # Open all relays
-        self.relay_board.hid_device.close()
-
     def is_lid_closed(self):
         state = GPIO.input(strips_tester.settings.gpios.get("START_SWITCH"))
 
@@ -83,6 +80,11 @@ class StartProcedureTask(Task):
         state = GPIO.input(strips_tester.settings.gpios.get("DETECT_PRODUCT"))
 
         return state
+
+    def tear_down(self):
+        # Open all relays
+        self.relay_board.hid_device.close()
+
 
 
 # OK
