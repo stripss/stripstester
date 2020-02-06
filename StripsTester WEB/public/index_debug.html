@@ -540,6 +540,12 @@
             current_git = data['sha'];
         });
 
+        /* GitLab API
+        $.getJSON("http://git.strips.eu/api/v4/projects/76/repository/commits/master", function(data) {
+            current_git = data['short_id'];
+        });
+        */
+
         $("#tool-tab").click(function () {
             if (!$(".mask_manipulator_iframe").prop("src")) $(".mask_manipulator_iframe").prop("src", "/utils/manipulator/manipulator.html");
         });

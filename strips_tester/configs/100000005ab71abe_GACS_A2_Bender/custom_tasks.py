@@ -242,7 +242,7 @@ class ReadSerial(Task):
 class VoltageTest(Task):
     def set_up(self):
         self.relay_board = devices.SainBoard16(vid=0x0416, pid=0x5020, initial_status=None, number_of_relays=16,ribbon=True)
-        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1",0.16)
+        self.voltmeter = devices.YoctoVoltageMeter("VOLTAGE1-A955C.voltage1",0.3)
 
         self.relay_board.close_relay(relays["Power"])
 
@@ -279,7 +279,6 @@ class VoltageTest(Task):
         self.relay_board.open_relay(relays["3V3"])
 
         return 
-
 
     def in_range(self, value, expected, tolerance, percent=True):
         if percent:
