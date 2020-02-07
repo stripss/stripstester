@@ -38,7 +38,7 @@ while not wifi_found:
                 # Uncheck if unlock refs error
                 #os.system("sudo git remote prune origin")
                 os.system("sudo git remote remove origin")
-                os.system("sudo git remote add origin https://deploy:stripsdeploy@git.strips.eu/production/tester.py.git")
+                os.system("sudo git remote add origin http://deploy:stripsdeploy@git.strips.eu/production/tester.py.git")
 
                 os.system("sudo git config --global user.name 'StripsTester'")
                 os.system("sudo git config --global user.email '<>'")
@@ -49,7 +49,7 @@ while not wifi_found:
                 os.system("sudo git pull origin master")
             else:  # StripsTester was not found - clone it from GitHub repository
                 print("StripsTester NOT found")
-                os.system("sudo git clone https://deploy:stripsdeploy@git.strips.eu/production/tester.py.git /strips_tester_project")
+                os.system("sudo git clone http://deploy:stripsdeploy@git.strips.eu/production/tester.py.git /strips_tester_project")
 
             # Add all privileges to strips_tester_project
             os.system("sudo chmod 777 -R /strips_tester_project")
