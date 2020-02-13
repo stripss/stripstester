@@ -102,7 +102,7 @@ class PowerTest(Task):
         voltage = self.voltmeter.read()
         gui_web.send({"command": "measurements", "voltmeter": voltage})
 
-        while not self.in_range(voltage, 24, 0.1, False):
+        while not self.in_range(voltage, 24, 0.2, False):
             num_of_tries = num_of_tries - 1
 
             voltage = self.voltmeter.read()
